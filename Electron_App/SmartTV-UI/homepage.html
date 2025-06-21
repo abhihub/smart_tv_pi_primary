@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Family Console</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+            cursor: none;
+        }
+
+        .container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .header h1 {
+            font-size: 3.5rem;
+            font-weight: 300;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.7;
+            font-weight: 300;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 30px;
+            flex: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .tile {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            min-height: 200px;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .tile:nth-child(1) { animation-delay: 0.1s; }
+        .tile:nth-child(2) { animation-delay: 0.2s; }
+        .tile:nth-child(3) { animation-delay: 0.3s; }
+        .tile:nth-child(4) { animation-delay: 0.4s; }
+        .tile:nth-child(5) { animation-delay: 0.5s; }
+        .tile:nth-child(6) { animation-delay: 0.6s; }
+
+        .tile:hover, .tile.active {
+            transform: translateY(-10px) scale(1.05);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .tile::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .tile:hover::before {
+            left: 100%;
+        }
+
+        .tile-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            transition: transform 0.4s ease;
+        }
+
+        .tile:hover .tile-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .tile-title {
+            font-size: 1.8rem;
+            font-weight: 500;
+            text-align: center;
+            opacity: 0.9;
+        }
+
+        .tile-subtitle {
+            font-size: 1rem;
+            opacity: 0.6;
+            text-align: center;
+            margin-top: 8px;
+            font-weight: 300;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            animation: fadeInUp 1s ease-out 0.8s both;
+        }
+
+        .gesture-hint {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            font-size: 1.1rem;
+            opacity: 0.6;
+            font-weight: 300;
+        }
+
+        .gesture-hint .wave-emoji {
+            animation: wave 2s ease-in-out infinite;
+            font-size: 1.5rem;
+        }
+
+        /* Color themes for different tiles */
+        .tile.video-call {
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.1));
+        }
+
+        .tile.games {
+            background: linear-gradient(135deg, rgba(155, 89, 182, 0.2), rgba(142, 68, 173, 0.1));
+        }
+
+        .tile.streaming {
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(192, 57, 43, 0.1));
+        }
+
+        .tile.photos {
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(41, 128, 185, 0.1));
+        }
+
+        .tile.learning {
+            background: linear-gradient(135deg, rgba(241, 196, 15, 0.2), rgba(243, 156, 18, 0.1));
+        }
+
+        .tile.settings {
+            background: linear-gradient(135deg, rgba(149, 165, 166, 0.2), rgba(127, 140, 141, 0.1));
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes wave {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-10deg); }
+            75% { transform: rotate(10deg); }
+        }
+
+        /* Responsive design */
+        @media (max-width: 1024px) {
+            .grid {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(3, 1fr);
+            }
+            
+            .tile {
+                min-height: 180px;
+            }
+            
+            .tile-icon {
+                font-size: 3.5rem;
+            }
+            
+            .tile-title {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            .grid {
+                gap: 20px;
+            }
+            
+            .tile {
+                min-height: 150px;
+            }
+            
+            .tile-icon {
+                font-size: 3rem;
+            }
+        }
+
+        /* Focus states for accessibility */
+        .tile:focus {
+            outline: 3px solid rgba(102, 126, 234, 0.6);
+            outline-offset: 4px;
+        }
+
+        /* Pulse animation for active state */
+        .tile.pulse {
+            animation: pulse 0.6s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Smart Family Console</h1>
+            <p class="subtitle">Your Gateway to Digital Entertainment</p>
+        </div>
+
+        <div class="grid">
+            <div class="tile video-call" tabindex="0" data-app="video-call">
+                <div class="tile-icon">📞</div>
+                <div class="tile-title">Video Call</div>
+                <div class="tile-subtitle">Connect with family & friends</div>
+            </div>
+
+            <div class="tile games" tabindex="0" data-app="gamepage">
+                <div class="tile-icon">🎮</div>
+                <div class="tile-title">Games Hub</div>
+                <div class="tile-subtitle">Interactive family games</div>
+            </div>
+
+            <div class="tile streaming" tabindex="0" data-app="streaming">
+                <div class="tile-icon">🎬</div>
+                <div class="tile-title">Streaming</div>
+                <div class="tile-subtitle">Movies, shows & content</div>
+            </div>
+
+            <div class="tile photos" tabindex="0" data-app="photos">
+                <div class="tile-icon">📸</div>
+                <div class="tile-title">Photo Gallery</div>
+                <div class="tile-subtitle">Memories & moments</div>
+            </div>
+
+            <div class="tile learning" tabindex="0" data-app="learning">
+                <div class="tile-icon">🧠</div>
+                <div class="tile-title">Learning Center</div>
+                <div class="tile-subtitle">Educational content & activities</div>
+            </div>
+
+            <div class="tile settings" tabindex="0" data-app="settings">
+                <div class="tile-icon">⚙️</div>
+                <div class="tile-title">Settings</div>
+                <div class="tile-subtitle">System preferences</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="gesture-hint">
+                <span class="wave-emoji">👋</span>
+                <span>Wave or touch to navigate • Voice commands enabled</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tiles = document.querySelectorAll('.tile');
+        let currentFocus = 0;
+
+        // Add click/touch handlers
+        tiles.forEach((tile, index) => {
+            tile.addEventListener('click', () => {
+                handleTileSelection(tile);
+            });
+
+            tile.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleTileSelection(tile);
+            });
+
+            // Hover effects for gesture simulation
+            tile.addEventListener('mouseenter', () => {
+                tile.classList.add('active');
+            });
+
+            tile.addEventListener('mouseleave', () => {
+                tile.classList.remove('active');
+            });
+        });
+
+        function handleTileSelection(tile) {
+            const app = tile.dataset.app;
+            
+            // Add pulse animation
+            tile.classList.add('pulse');
+            setTimeout(() => tile.classList.remove('pulse'), 600);
+
+            // Simulate app launch
+            console.log(`Launching ${app} application...`);
+            
+            // Here you would integrate with your RPI system
+            // Example: window.location.href = `/apps/${app}`;
+            window.location.href = `${app}.html`;
+            
+            // For demo purposes, show a message
+            showLaunchMessage(tile.querySelector('.tile-title').textContent);
+        }
+
+        function showLaunchMessage(appName) {
+            const message = document.createElement('div');
+            message.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 30px 50px;
+                border-radius: 15px;
+                font-size: 1.5rem;
+                z-index: 1000;
+                backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            `;
+            message.textContent = `Launching ${appName}...`;
+            document.body.appendChild(message);
+
+            setTimeout(() => {
+                message.remove();
+            }, 2000);
+        }
+
+        // Keyboard navigation for accessibility
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowRight':
+                    currentFocus = (currentFocus + 1) % tiles.length;
+                    tiles[currentFocus].focus();
+                    break;
+                case 'ArrowLeft':
+                    currentFocus = (currentFocus - 1 + tiles.length) % tiles.length;
+                    tiles[currentFocus].focus();
+                    break;
+                case 'ArrowDown':
+                    currentFocus = (currentFocus + 3) % tiles.length;
+                    tiles[currentFocus].focus();
+                    break;
+                case 'ArrowUp':
+                    currentFocus = (currentFocus - 3 + tiles.length) % tiles.length;
+                    tiles[currentFocus].focus();
+                    break;
+                case 'Enter':
+                case ' ':
+                    if (document.activeElement.classList.contains('tile')) {
+                        handleTileSelection(document.activeElement);
+                    }
+                    break;
+            }
+        });
+
+        // Gesture simulation - you can integrate actual gesture recognition here
+        let gestureStartX = 0;
+        let gestureStartY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            gestureStartX = e.touches[0].clientX;
+            gestureStartY = e.touches[0].clientY;
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Prevent scrolling
+        });
+
+        document.addEventListener('touchend', (e) => {
+            const gestureEndX = e.changedTouches[0].clientX;
+            const gestureEndY = e.changedTouches[0].clientY;
+            
+            const deltaX = gestureEndX - gestureStartX;
+            const deltaY = gestureEndY - gestureStartY;
+            
+            // Simple swipe detection
+            if (Math.abs(deltaX) > 50 || Math.abs(deltaY) > 50) {
+                if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    // Horizontal swipe
+                    if (deltaX > 0) {
+                        // Swipe right
+                        currentFocus = (currentFocus + 1) % tiles.length;
+                    } else {
+                        // Swipe left
+                        currentFocus = (currentFocus - 1 + tiles.length) % tiles.length;
+                    }
+                } else {
+                    // Vertical swipe
+                    if (deltaY > 0) {
+                        // Swipe down
+                        currentFocus = (currentFocus + 3) % tiles.length;
+                    } else {
+                        // Swipe up
+                        currentFocus = (currentFocus - 3 + tiles.length) % tiles.length;
+                    }
+                }
+                tiles[currentFocus].focus();
+                tiles[currentFocus].classList.add('active');
+                setTimeout(() => tiles[currentFocus].classList.remove('active'), 300);
+            }
+        });
+
+        // Initialize focus on first tile
+        tiles[0].focus();
+
+        // Add some dynamic background effects
+        function createFloatingParticles() {
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.style.cssText = `
+                    position: fixed;
+                    width: 2px;
+                    height: 2px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 50%;
+                    pointer-events: none;
+                    animation: float ${5 + Math.random() * 10}s linear infinite;
+                    left: ${Math.random() * 100}vw;
+                    top: ${Math.random() * 100}vh;
+                    z-index: -1;
+                `;
+                document.body.appendChild(particle);
+            }
+        }
+
+        // Add floating animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes float {
+                0% {
+                    transform: translateY(100vh) rotate(0deg);
+                    opacity: 0;
+                }
+                10% {
+                    opacity: 0.3;
+                }
+                90% {
+                    opacity: 0.3;
+                }
+                100% {
+                    transform: translateY(-100vh) rotate(360deg);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Initialize particles
+        createFloatingParticles();
+    </script>
+</body>
+</html>

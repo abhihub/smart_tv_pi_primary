@@ -1,0 +1,212 @@
+{
+  "name": "smart-tv-ui",
+  "version": "1.0.0",
+  "main": "./main.js",
+  "description": "A smart TV console for video calling and games",
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "homepage": "https://your-website.com",
+  "scripts": {
+    "start": "electron-forge start",
+    "dev": "electron . --dev",
+    "dist": "npm run build:linux",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "config": {
+    "forge": {
+      "makers": [
+        {
+          "name": "@electron-forge/maker-deb",
+          "config": {}
+        },
+        {
+          "name": "@electron-forge/maker-zip",
+          "platforms": [
+            "linux",
+            "darwin"
+          ]
+        },
+        {
+          "name": "@electron-forge/maker-dmg",
+          "config": {
+            "format": "ULFO"
+          }
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.8.1",
+    "@electron-forge/maker-deb": "^7.8.1",
+    "@electron-forge/maker-dmg": "^7.8.1",
+    "@electron-forge/maker-squirrel": "^7.8.1",
+    "@electron-forge/maker-zip": "^7.8.1",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.8.1",
+    "@electron-forge/plugin-fuses": "^7.8.1",
+    "@electron/fuses": "^1.8.0",
+    "electron": "^28.0.0"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1"
+  },
+  "build": {
+    "appId": "com.yourcompany.smart-tv-ui",
+    "productName": "Smart TV UI",
+    "directories": {
+      "output": "dist",
+      "resources": "assets"
+    },
+    "files": [
+      "main.js",
+      "renderer/**/*",
+      "assets/**/*",
+      "node_modules/**/*",
+      "!node_modules/.cache/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets"
+      }
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.entertainment",
+      "icon": "assets/icon.icns",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "title": "${productName} ${version}",
+      "icon": "assets/icon.icns",
+      "background": "assets/dmg-background.png",
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "tar.xz",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "AudioVideo",
+      "icon": "assets/icon.png",
+      "desktop": {
+        "Name": "Smart TV UI",
+        "Comment": "A smart TV console for video calling and games",
+        "Categories": "AudioVideo;Video;Network;",
+        "Keywords": "tv;video;call;games;smart;",
+        "StartupNotify": "true",
+        "MimeType": "x-scheme-handler/smart-tv-ui;"
+      },
+      "executableName": "smart-tv-ui",
+      "synopsis": "Smart TV console application",
+      "description": "A comprehensive smart TV console application for video calling and games with an intuitive interface designed for large screens.",
+      "vendor": "Your Company Name",
+      "maintainer": "Your Name <your.email@example.com>"
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libdrm2",
+        "libxcomposite1",
+        "libxdamage1",
+        "libxrandr2",
+        "libgbm1",
+        "libxkbcommon0",
+        "libasound2"
+      ],
+      "priority": "optional",
+      "afterInstall": "build/linux/after-install.sh",
+      "afterRemove": "build/linux/after-remove.sh"
+    },
+    "appImage": {
+      "license": "LICENSE",
+      "category": "AudioVideo"
+    },
+    "snap": {
+      "grade": "stable",
+      "confinement": "strict",
+      "plugs": [
+        "desktop",
+        "desktop-legacy",
+        "home",
+        "x11",
+        "unity7",
+        "browser-support",
+        "network",
+        "gsettings",
+        "audio-playback",
+        "pulseaudio",
+        "opengl",
+        "camera",
+        "removable-media"
+      ],
+      "environment": {
+        "DISABLE_WAYLAND": "1"
+      }
+    },
+    "compression": "maximum",
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
