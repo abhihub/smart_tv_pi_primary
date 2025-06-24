@@ -1,5 +1,5 @@
 class MultiplayerTriviaClient {
-    constructor(serverUrl = 'ws://localhost:3000') {
+    constructor(serverUrl = window.appConfig?.WEBSOCKET_URL || 'ws://localhost:3000') {
         this.serverUrl = serverUrl;
         this.socket = null;
         this.playerId = null;
@@ -492,6 +492,6 @@ class MultiplayerGameIntegration {
 window.MultiplayerTriviaClient = MultiplayerTriviaClient;
 window.MultiplayerGameIntegration = MultiplayerGameIntegration;
 
-const client = new MultiplayerTriviaClient('ws://your-server-url:3000');
+const client = new MultiplayerTriviaClient();
 const integration = new MultiplayerGameIntegration(client);
 

@@ -26,7 +26,14 @@ let currentUserName = "Family Member";
 let currentRoomName = "family-room";
 let localTracks = [];
 
-const SERVER_URL = 'http://20.244.19.161:3001'; 
+// Wait for config to be available
+function getServerUrl() {
+    const config = window.appConfig;
+    console.log('Current window.appConfig:', config);
+    const serverUrl = config?.SERVER_URL || 'http://localhost:3001';
+    console.log('SERVER_URL being used:', serverUrl);
+    return serverUrl;
+} 
 
 function showStatusMessage(message, duration = 3000) {
     statusMessage.textContent = message;
@@ -91,7 +98,7 @@ async function connectToRoom() {
     showStatusMessage("Connecting to room...");
     
     try {
-        const response = await fetch(`${SERVER_URL}/api/token`, {
+        const response = await fetch(`${getServerUrl()}/api/token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

@@ -6,6 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Family Video Call | Smart Family Console</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Initialize config early - will be overwritten by main process if available
+        window.appConfig = window.appConfig || {
+            SERVER_URL: 'http://157.245.74.59',
+            WEBSOCKET_URL: 'ws://localhost:3000',
+            isDevelopment: false
+        };
+        console.log('Early config initialized:', window.appConfig);
+        
+        // Force config update after 100ms to ensure main process has time to inject
+        setTimeout(() => {
+            if (!window.appConfig.SERVER_URL.includes('157.245.74.59')) {
+                window.appConfig.SERVER_URL = 'http://157.245.74.59';
+                console.log('Config force-updated to production URL:', window.appConfig);
+            }
+        }, 100);
+    </script>
     <script src="https://sdk.twilio.com/js/video/releases/2.23.0/twilio-video.min.js"></script>
     <style>
         * {

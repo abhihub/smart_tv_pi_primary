@@ -1,5 +1,15 @@
 const { app, BrowserWindow, session } = require('electron');
 const path = require('path');
+require('dotenv').config();
+
+// Store config in global for preload script access
+global.appConfig = {
+  SERVER_URL: process.env.SERVER_URL || 'http://localhost:3001',
+  WEBSOCKET_URL: process.env.WEBSOCKET_URL || 'ws://localhost:3000',
+  isDevelopment: process.env.NODE_ENV === 'development'
+};
+
+console.log('Main process config:', global.appConfig);
 
 // Suppress noisy network-service errors
 app.commandLine.appendSwitch('disable-features', 'NetworkService');
@@ -32,6 +42,14 @@ function createWindow() {
     } else {
       callback(false);
     }
+  });
+
+  // Send config to renderer as soon as DOM starts loading
+  win.webContents.once('dom-ready', () => {
+    win.webContents.executeJavaScript(`
+      window.appConfig = ${JSON.stringify(global.appConfig)};
+      console.log('Config overwritten by main process:', window.appConfig);
+    `);
   });
 
   win.loadFile('homepage.html');
