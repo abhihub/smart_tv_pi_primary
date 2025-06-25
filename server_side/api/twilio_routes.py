@@ -1,17 +1,22 @@
 from flask import Blueprint, request, jsonify
 from services.twilio_service import TwilioService
+from services.user_service import UserService
+import logging
+
+logger = logging.getLogger(__name__)
 
 twilio_bp = Blueprint('twilio', __name__)
 twilio_service = TwilioService()
+user_service = UserService()
 
 @twilio_bp.route('/token', methods=['POST'])
 def generate_token():
     """
-    Generate Twilio access token for video calling
+    Generate Twilio access token for video calling with user tracking
     
     Expected JSON payload:
     {
-        "identity": "user_identifier",
+        "identity": "ABC123",
         "roomName": "room_name"
     }
     """
@@ -32,11 +37,37 @@ def generate_token():
                 'error': 'Identity and room name are required'
             }), 400
         
-        # Generate token
+        # Verify user exists and update last seen
+        user = user_service.get_user_by_username(identity)
+        if not user:
+            logger.warning(f"Token requested for unregistered user: {identity}")
+            # Auto-register user with basic info
+            user_service.register_or_update_user(
+                username=identity,
+                display_name=identity,
+                device_type='smarttv'
+            )
+        else:
+            # Update user's last seen
+            user_service.update_last_seen(identity)
+        
+        # Create session for video call
+        session_token = user_service.create_session(
+            username=identity,
+            session_type='video_call',
+            room_name=room_name
+        )
+        
+        # Generate Twilio token
         token = twilio_service.generate_access_token(identity, room_name)
         
+        logger.info(f"Generated token for user {identity} in room {room_name}")
+        
         return jsonify({
-            'token': token
+            'token': token,
+            'session_token': session_token,
+            'identity': identity,
+            'roomName': room_name
         }), 200
         
     except ValueError as e:
@@ -45,6 +76,7 @@ def generate_token():
         }), 500
         
     except Exception as e:
+        logger.error(f"Failed to generate token for {identity}: {e}")
         return jsonify({
             'error': f'Failed to generate token: {str(e)}'
         }), 500

@@ -23,11 +23,12 @@ def create_app():
     
     # Register blueprints
     from api.twilio_routes import twilio_bp
-    app.register_blueprint(twilio_bp, url_prefix='/api')
+    from api.user_routes import user_bp
+    from api.call_routes import call_bp
     
-    # Add more blueprints here as you expand
-    # from api.other_routes import other_bp
-    # app.register_blueprint(other_bp, url_prefix='/api')
+    app.register_blueprint(twilio_bp, url_prefix='/api')
+    app.register_blueprint(user_bp, url_prefix='/api/users')
+    app.register_blueprint(call_bp, url_prefix='/api/calls')
     
     return app
 
