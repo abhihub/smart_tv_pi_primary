@@ -465,6 +465,7 @@
         let questions = [];
         let selectedAnswer = null;
         let totalQuestions = 10;
+        let gameStartTime = Date.now();
         
         // DOM elements
         const gameScreen = document.getElementById('gameScreen');
@@ -544,6 +545,7 @@
             currentQuestionIndex = 0;
             score = 0;
             streak = 0;
+            gameStartTime = Date.now(); // Reset game start time
             updateStats();
             loadQuestion();
         }
@@ -624,11 +626,23 @@
         }
 
         // Show results screen
-        function showResults() {
+        async function showResults() {
             gameScreen.style.display = 'none';
             resultsScreen.style.display = 'block';
             
             finalScore.textContent = `${score}/${totalQuestions}`;
+            
+            // Save game score to backend
+            if (window.userUtils && window.userUtils.isRegistered) {
+                const gameDuration = Math.floor((Date.now() - gameStartTime) / 1000); // seconds
+                await window.userUtils.saveGameScore(
+                    'trivia',
+                    score,
+                    totalQuestions,
+                    score, // correct answers equals score in this simple trivia
+                    gameDuration
+                );
+            }
             
             // Customize results based on performance
             const percentage = (score / totalQuestions) * 100;

@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Directory - SmartTV</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .back-btn {
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            color: white;
+            text-decoration: none;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 20px 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .online-count {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: 1px solid rgba(46, 204, 113, 0.3);
+            font-weight: 500;
+        }
+
+        .users-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .user-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .user-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(102, 126, 234, 0.5);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .user-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .user-card:hover::before {
+            left: 100%;
+        }
+
+        .user-card-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .online-indicator {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            background: #2ecc71;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(46, 204, 113, 0.5);
+        }
+
+        .user-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .user-display-name {
+            font-size: 1rem;
+            opacity: 0.7;
+            margin-bottom: 15px;
+        }
+
+        .call-btn {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            border: none;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .call-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(46, 204, 113, 0.4);
+        }
+
+        .call-btn:active {
+            transform: translateY(0);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            opacity: 0.6;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .users-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .user-card {
+                min-height: 150px;
+            }
+        }
+
+        /* Call status overlay */
+        .call-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(20px);
+        }
+
+        .call-overlay.show {
+            display: flex;
+        }
+
+        .call-status {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .call-status h3 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .call-status p {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            margin-bottom: 30px;
+        }
+
+        .call-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .cancel-btn {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border: none;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .cancel-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(231, 76, 60, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👥 User Directory</h1>
+            <a href="homepage.html" class="back-btn">← Back to Console</a>
+        </div>
+
+        <div class="status-bar">
+            <div class="user-info">
+                <div class="user-avatar" id="currentUserAvatar">?</div>
+                <div>
+                    <div>Logged in as: <strong id="currentUsername">Loading...</strong></div>
+                    <div style="opacity: 0.7; font-size: 0.9rem;">Click on any user to start a call</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <button class="refresh-btn" onclick="loadOnlineUsers()">🔄 Refresh</button>
+                <div class="online-count">
+                    <span id="onlineCount">0</span> users online
+                </div>
+            </div>
+        </div>
+
+        <div class="users-grid" id="usersGrid">
+            <div class="loading">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <!-- Test Call Button (temporary workaround) -->
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="testCall()" style="
+                background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+                border: none;
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 1.1rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin: 5px;
+            ">🧪 Test Call Between Users</button>
+            
+            <button onclick="checkPendingCalls()" style="
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                border: none;
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 1.1rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin: 5px;
+            ">📞 Check Pending Calls</button>
+
+            <button onclick="forceClearCalls()" style="
+                background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+                border: none;
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 1.1rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin: 5px;
+            ">🗑️ Clear All Calls</button>
+        </div>
+    </div>
+
+    <!-- Call Status Overlay -->
+    <div class="call-overlay" id="callOverlay">
+        <div class="call-status">
+            <h3 id="callStatusTitle">Calling...</h3>
+            <p id="callStatusMessage">Waiting for response...</p>
+            <div class="call-actions">
+                <button class="cancel-btn" onclick="cancelCall()">Cancel Call</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize config early - will be overwritten by main process if available
+        window.appConfig = window.appConfig || {
+            SERVER_URL: 'http://localhost:3001',
+            WEBSOCKET_URL: 'ws://localhost:3000',
+            isDevelopment: true
+        };
+        console.log('Config initialized:', window.appConfig);
+    </script>
+    <script src="user-utils.js"></script>
+    <script>
+        let currentUser = null;
+        let currentCallId = null;
+        let refreshInterval = null;
+
+        // Get server URL from config
+        function getServerUrl() {
+            return window.appConfig?.SERVER_URL || 'http://167.71.0.87:3001';
+        }
+
+        // Initialize the page
+        async function initializeUserDirectory() {
+            try {
+                // Get current user from localStorage or register
+                currentUser = await getCurrentUser();
+                if (!currentUser) {
+                    // Redirect to registration or generate username
+                    currentUser = await registerWithServer();
+                }
+                
+                updateCurrentUserDisplay();
+                loadOnlineUsers();
+                
+                // Set up periodic refresh for users AND pending calls
+                refreshInterval = setInterval(() => {
+                    loadOnlineUsers();
+                    checkForIncomingCalls(); // Check for incoming calls automatically
+                }, 3000); // Check every 3 seconds for faster response
+            } catch (error) {
+                console.error('Failed to initialize user directory:', error);
+                showError('Failed to load user directory');
+            }
+        }
+
+        function updateCurrentUserDisplay() {
+            if (currentUser) {
+                document.getElementById('currentUsername').textContent = currentUser.username;
+                document.getElementById('currentUserAvatar').textContent = currentUser.username.substring(0, 2);
+            }
+        }
+
+        async function loadOnlineUsers() {
+            try {
+                if (!currentUser) return;
+
+                // Update presence first to mark this user as active
+                await updatePresence();
+
+                const response = await fetch(`${getServerUrl()}/api/calls/online-users?exclude_user=${currentUser.username}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch online users');
+                }
+
+                const data = await response.json();
+                displayUsers(data.users || []);
+                document.getElementById('onlineCount').textContent = data.count || 0;
+                
+            } catch (error) {
+                console.error('Failed to load online users:', error);
+                showError('Failed to load users');
+            }
+        }
+
+        // Update user presence status
+        async function updatePresence() {
+            if (!currentUser) return;
+
+            try {
+                // Update both presence and last_seen by calling the user profile update
+                await fetch(`${getServerUrl()}/api/users/session/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: currentUser.username
+                    })
+                });
+
+                // Also update presence specifically
+                await fetch(`${getServerUrl()}/api/calls/presence`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: currentUser.username,
+                        status: 'online'
+                    })
+                });
+            } catch (error) {
+                console.debug('Failed to update presence:', error);
+            }
+        }
+
+        function displayUsers(users) {
+            const usersGrid = document.getElementById('usersGrid');
+            
+            if (users.length === 0) {
+                usersGrid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">😴</div>
+                        <h3>No other users online</h3>
+                        <p>Waiting for others to join...</p>
+                    </div>
+                `;
+                return;
+            }
+
+            usersGrid.innerHTML = users.map(user => `
+                <div class="user-card" onclick="initiateCall('${user.username}')" style="animation: fadeInUp 0.6s ease-out">
+                    <div class="user-card-avatar">
+                        ${user.username.substring(0, 2)}
+                        <div class="online-indicator"></div>
+                    </div>
+                    <div class="user-name">${user.username}</div>
+                    <div class="user-display-name">${user.display_name || 'Smart TV User'}</div>
+                    <button class="call-btn" onclick="event.stopPropagation(); initiateCall('${user.username}')">
+                        📞 Call ${user.username}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function initiateCall(calleeUsername) {
+            if (!currentUser) {
+                showError('Please log in first');
+                return;
+            }
+
+            if (currentCallId) {
+                showError('Call already in progress');
+                return;
+            }
+
+            try {
+                showCallStatus(`Calling ${calleeUsername}...`, 'Connecting...');
+
+                const response = await fetch(`${getServerUrl()}/api/calls/invite`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        caller: currentUser.username,
+                        callee: calleeUsername
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to initiate call');
+                }
+
+                currentCallId = data.call.call_id;
+                
+                // Wait for response or timeout
+                waitForCallResponse(calleeUsername);
+                
+            } catch (error) {
+                console.error('Failed to initiate call:', error);
+                hideCallStatus();
+                showError(`Failed to call ${calleeUsername}: ${error.message}`);
+            }
+        }
+
+        async function waitForCallResponse(calleeUsername) {
+            let attempts = 0;
+            const maxAttempts = 30; // 30 seconds timeout
+            
+            const checkInterval = setInterval(async () => {
+                attempts++;
+                
+                if (attempts > maxAttempts) {
+                    clearInterval(checkInterval);
+                    hideCallStatus();
+                    showError('Call timeout - no response');
+                    currentCallId = null;
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${getServerUrl()}/api/calls/status/${currentCallId}`);
+                    const data = await response.json();
+
+                    if (data.success && data.call) {
+                        const call = data.call;
+                        
+                        if (call.status === 'accepted') {
+                            clearInterval(checkInterval);
+                            hideCallStatus();
+                            
+                            // Redirect to video call with room name
+                            const roomName = call.room_name;
+                            window.location.href = `video-call.html?room=${roomName}&caller=${currentUser.username}&callee=${calleeUsername}`;
+                            
+                        } else if (call.status === 'declined') {
+                            clearInterval(checkInterval);
+                            hideCallStatus();
+                            showError(`${calleeUsername} declined the call`);
+                            currentCallId = null;
+                            
+                        } else if (call.status === 'cancelled') {
+                            clearInterval(checkInterval);
+                            hideCallStatus();
+                            currentCallId = null;
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('Error checking call status:', error);
+                }
+            }, 1000);
+        }
+
+        async function cancelCall() {
+            if (!currentCallId) return;
+
+            try {
+                const response = await fetch(`${getServerUrl()}/api/calls/cancel`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        call_id: currentCallId,
+                        caller: currentUser.username
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    hideCallStatus();
+                    currentCallId = null;
+                } else {
+                    throw new Error(data.error || 'Failed to cancel call');
+                }
+                
+            } catch (error) {
+                console.error('Failed to cancel call:', error);
+                showError('Failed to cancel call');
+            }
+        }
+
+        function showCallStatus(title, message) {
+            document.getElementById('callStatusTitle').textContent = title;
+            document.getElementById('callStatusMessage').textContent = message;
+            document.getElementById('callOverlay').classList.add('show');
+        }
+
+        function hideCallStatus() {
+            document.getElementById('callOverlay').classList.remove('show');
+        }
+
+        // Show incoming call dialog
+        function showIncomingCallDialog(call) {
+            // Don't show multiple incoming call dialogs
+            if (document.getElementById('callOverlay').classList.contains('show')) {
+                return;
+            }
+
+            const title = `📞 Incoming Call`;
+            const message = `${call.caller_username} is calling you...`;
+            
+            document.getElementById('callStatusTitle').textContent = title;
+            document.getElementById('callStatusMessage').textContent = message;
+            
+            // Replace the cancel button with answer/decline buttons
+            const actionsDiv = document.querySelector('.call-actions');
+            actionsDiv.innerHTML = `
+                <button class="call-btn" onclick="answerIncomingCall('${call.call_id}', '${call.caller_username}')" style="
+                    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+                    border: none;
+                    color: white;
+                    padding: 12px 25px;
+                    border-radius: 25px;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    margin: 0 10px;
+                ">📞 Answer</button>
+                <button class="cancel-btn" onclick="declineIncomingCall('${call.call_id}')" style="
+                    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+                    border: none;
+                    color: white;
+                    padding: 12px 25px;
+                    border-radius: 25px;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    margin: 0 10px;
+                ">❌ Decline</button>
+            `;
+            
+            document.getElementById('callOverlay').classList.add('show');
+        }
+
+        // Answer incoming call
+        async function answerIncomingCall(callId, callerUsername) {
+            try {
+                const response = await fetch(`${getServerUrl()}/api/calls/answer`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        call_id: callId,
+                        callee: currentUser.username
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    hideCallStatus();
+                    showError(`✅ Call answered! Connecting to ${callerUsername}...`);
+                    
+                    // Redirect to video call
+                    setTimeout(() => {
+                        window.location.href = `video-call.html?room=${data.call.room_name}&caller=${callerUsername}&callee=${currentUser.username}&answered=true`;
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || 'Failed to answer call');
+                }
+            } catch (error) {
+                console.error('Failed to answer call:', error);
+                hideCallStatus();
+                showError(`Failed to answer call: ${error.message}`);
+            }
+        }
+
+        // Decline incoming call
+        async function declineIncomingCall(callId) {
+            try {
+                const response = await fetch(`${getServerUrl()}/api/calls/decline`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        call_id: callId,
+                        callee: currentUser.username
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    hideCallStatus();
+                    showError(`Call declined`);
+                } else {
+                    throw new Error(data.error || 'Failed to decline call');
+                }
+            } catch (error) {
+                console.error('Failed to decline call:', error);
+                hideCallStatus();
+                showError(`Failed to decline call: ${error.message}`);
+            }
+        }
+
+        function showError(message) {
+            // Create a temporary error message
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                z-index: 1001;
+                font-size: 1rem;
+                box-shadow: 0 8px 20px rgba(231, 76, 60, 0.4);
+            `;
+            errorDiv.textContent = message;
+            document.body.appendChild(errorDiv);
+
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+
+        // Force clear all calls
+        async function forceClearCalls() {
+            try {
+                const response = await fetch(`${getServerUrl()}/api/calls/cleanup`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({hours: 0})
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showError(`✅ Cleared calls successfully`);
+                } else {
+                    showError(`❌ Failed to clear calls: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showError(`❌ Clear calls error: ${error.message}`);
+            }
+        }
+
+        // Automatic incoming call detection (silent)
+        async function checkForIncomingCalls() {
+            if (!currentUser) return;
+
+            try {
+                const response = await fetch(`${getServerUrl()}/api/calls/pending/${currentUser.username}`);
+                const data = await response.json();
+
+                if (data.success && data.calls && data.calls.length > 0) {
+                    const call = data.calls[0];
+                    console.log('🔔 Incoming call detected:', call);
+                    
+                    // Show incoming call UI
+                    showIncomingCallDialog(call);
+                }
+            } catch (error) {
+                console.debug('Error checking for incoming calls:', error);
+            }
+        }
+
+        // Manual check for pending calls (shows notifications)
+        async function checkPendingCalls() {
+            if (!currentUser) {
+                showError('User not initialized');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${getServerUrl()}/api/calls/pending/${currentUser.username}`);
+                const data = await response.json();
+
+                console.log('Pending calls for', currentUser.username, ':', data);
+
+                if (data.success && data.calls && data.calls.length > 0) {
+                    const call = data.calls[0];
+                    showError(`Found pending call from ${call.caller_username}! Call ID: ${call.call_id.substring(0, 8)}...`);
+                    
+                    // Automatically try to answer the call
+                    setTimeout(async () => {
+                        try {
+                            const answerResponse = await fetch(`${getServerUrl()}/api/calls/answer`, {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({
+                                    call_id: call.call_id,
+                                    callee: currentUser.username
+                                })
+                            });
+
+                            const answerData = await answerResponse.json();
+                            console.log('Answer response:', answerData);
+
+                            if (answerData.success) {
+                                showError(`Call answered! Room: ${answerData.call.room_name}`);
+                                
+                                // Redirect to video call
+                                setTimeout(() => {
+                                    window.location.href = `video-call.html?room=${answerData.call.room_name}&caller=${call.caller_username}&callee=${currentUser.username}&answered=true`;
+                                }, 2000);
+                            } else {
+                                showError(`Failed to answer: ${answerData.error}`);
+                            }
+                        } catch (error) {
+                            showError(`Answer error: ${error.message}`);
+                        }
+                    }, 1000);
+                } else {
+                    showError('No pending calls found');
+                }
+            } catch (error) {
+                showError(`Failed to check calls: ${error.message}`);
+            }
+        }
+
+        // Test call function (workaround for user discovery issue)
+        async function testCall() {
+            if (!currentUser) {
+                showError('User not initialized');
+                return;
+            }
+
+            // Generate unique 5-character test users (backend requirement)
+            const timestamp = Date.now().toString().slice(-4);
+            const testCaller = `T${timestamp}`;
+            const testCallee = `U${timestamp}`;
+            
+            try {
+                showCallStatus(`Creating test call...`, 'Registering test users...');
+
+                // Register test users first
+                await fetch(`${getServerUrl()}/api/users/register`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: testCaller, device_type: 'test'})
+                });
+
+                await fetch(`${getServerUrl()}/api/users/register`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: testCallee, device_type: 'test'})
+                });
+
+                showCallStatus(`Test call: ${testCaller} → ${testCallee}`, 'Creating call...');
+
+                const response = await fetch(`${getServerUrl()}/api/calls/invite`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        caller: testCaller,
+                        callee: testCallee
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to initiate test call');
+                }
+
+                currentCallId = data.call.call_id;
+                console.log('Test call created successfully:', data.call);
+                
+                showCallStatus(`Test call created!`, `Call ID: ${currentCallId.substring(0, 8)}...`);
+
+                // Now test answering the call
+                setTimeout(async () => {
+                    try {
+                        showCallStatus('Answering test call...', 'Processing...');
+
+                        const answerResponse = await fetch(`${getServerUrl()}/api/calls/answer`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                call_id: currentCallId,
+                                callee: testCallee
+                            })
+                        });
+
+                        const answerData = await answerResponse.json();
+                        console.log('Answer response:', answerData);
+
+                        if (answerData.success) {
+                            showCallStatus('🎉 Call System Working!', `Room created: ${answerData.call.room_name}`);
+                            
+                            setTimeout(() => {
+                                hideCallStatus();
+                                showError(`✅ SUCCESS! Call system is working. Room: ${answerData.call.room_name}`);
+                            }, 3000);
+                        } else {
+                            throw new Error(answerData.error || 'Failed to answer test call');
+                        }
+                    } catch (error) {
+                        console.error('Failed to answer test call:', error);
+                        hideCallStatus();
+                        showError(`Failed to answer test call: ${error.message}`);
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Failed to initiate test call:', error);
+                hideCallStatus();
+                showError(`Failed to create test call: ${error.message}`);
+            }
+        }
+
+        // Wait for DOM and scripts to be ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Small delay to ensure user-utils.js is fully loaded
+            setTimeout(() => {
+                if (typeof getCurrentUser === 'function') {
+                    initializeUserDirectory();
+                } else {
+                    console.error('user-utils.js not loaded properly');
+                    setTimeout(() => {
+                        if (typeof getCurrentUser === 'function') {
+                            initializeUserDirectory();
+                        }
+                    }, 1000);
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>

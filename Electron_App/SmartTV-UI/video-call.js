@@ -30,7 +30,7 @@ let localTracks = [];
 function getServerUrl() {
     const config = window.appConfig;
     console.log('Current window.appConfig:', config);
-    const serverUrl = config?.SERVER_URL || 'http://localhost:3001';
+    const serverUrl = config?.SERVER_URL || 'http://167.71.0.87:3001';
     console.log('SERVER_URL being used:', serverUrl);
     return serverUrl;
 } 
@@ -390,6 +390,13 @@ endCallBtn.addEventListener('click', () => {
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // Check if we have URL parameters for auto-join
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        const callerParam = urlParams.get('caller');
+        const calleeParam = urlParams.get('callee');
+        const answeredParam = urlParams.get('answered');
+
         // Create local preview
         const tracks = await Twilio.Video.createLocalTracks({
             audio: true,
@@ -403,8 +410,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (videoTrack) {
             videoTrack.attach(selfVideo);
         }
-        
-        showStatusMessage("Camera and microphone ready", 2000);
+
+        // If we have room parameters, auto-join the call
+        if (roomParam && (callerParam || calleeParam)) {
+            // Get current user
+            const currentUser = await getCurrentUser();
+            if (currentUser) {
+                currentUserName = currentUser.username;
+                currentRoomName = roomParam;
+                
+                // Update UI to show the specific call
+                if (answeredParam === 'true') {
+                    showStatusMessage(`Joined call with ${callerParam || calleeParam}`, 3000);
+                } else {
+                    showStatusMessage(`Connecting to ${calleeParam || callerParam}...`, 3000);
+                }
+                
+                // Auto-connect to the room
+                setTimeout(() => {
+                    connectToRoom();
+                }, 1000);
+            }
+        } else {
+            showStatusMessage("Camera and microphone ready", 2000);
+        }
     } catch (error) {
         console.error('Unable to access camera and microphone:', error);
         showStatusMessage("Camera/microphone access denied", 5000);

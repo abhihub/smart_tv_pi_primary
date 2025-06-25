@@ -9,7 +9,7 @@
     <script>
         // Initialize config early - will be overwritten by main process if available
         window.appConfig = window.appConfig || {
-            SERVER_URL: 'http://157.245.74.59',
+            SERVER_URL: 'http://167.71.0.87:3001',
             WEBSOCKET_URL: 'ws://localhost:3000',
             isDevelopment: false
         };
@@ -17,8 +17,8 @@
         
         // Force config update after 100ms to ensure main process has time to inject
         setTimeout(() => {
-            if (!window.appConfig.SERVER_URL.includes('157.245.74.59')) {
-                window.appConfig.SERVER_URL = 'http://157.245.74.59';
+            if (!window.appConfig.SERVER_URL.includes('167.71.0.87')) {
+                window.appConfig.SERVER_URL = 'http://167.71.0.87:3001';
                 console.log('Config force-updated to production URL:', window.appConfig);
             }
         }, 100);
