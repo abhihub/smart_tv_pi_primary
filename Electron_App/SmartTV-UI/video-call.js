@@ -87,10 +87,19 @@ document.getElementById('backToConsoleBtn').addEventListener('click', (e) => {
 });
 
 async function connectToRoom() {
+    console.log('🔵 CONNECT TO ROOM: Starting connection process');
+    
     currentUserName = userNameInput.value.trim() || "Family Member";
     currentRoomName = roomNameInput.value.trim() || "family-room";
     
+    console.log('🔵 Connection parameters:', {
+        userName: currentUserName,
+        roomName: currentRoomName,
+        serverUrl: getServerUrl()
+    });
+    
     if (!currentRoomName) {
+        console.error('❌ No room name provided');
         showStatusMessage("Please enter a room name");
         return;
     }
@@ -98,16 +107,22 @@ async function connectToRoom() {
     showStatusMessage("Connecting to room...");
     
     try {
+        console.log('🔵 Requesting Twilio token...');
+        const tokenRequest = {
+            identity: currentUserName,
+            roomName: currentRoomName
+        };
+        console.log('🔵 Token request body:', tokenRequest);
+        
         const response = await fetch(`${getServerUrl()}/api/token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                identity: currentUserName,
-                roomName: currentRoomName
-            })
+            body: JSON.stringify(tokenRequest)
         });
+        
+        console.log('🔵 Token response status:', response.status, response.statusText);
         
         if (!response.ok) {
             throw new Error('Failed to get token from server');
@@ -206,19 +221,30 @@ function attachTrack(track, participant) {
 
 // Handle participant connection
 function participantConnected(participant) {
+    console.log('✅ PARTICIPANT CONNECTED:', {
+        identity: participant.identity,
+        sid: participant.sid,
+        tracksCount: participant.tracks.size
+    });
+    
     updateParticipantCount(activeRoom.participants.size + 1);
     
+    // Handle existing tracks
     participant.tracks.forEach(publication => {
         if (publication.track) {
+            console.log('🔵 Attaching existing track:', publication.track.kind, 'for', participant.identity);
             attachTrack(publication.track, participant);
         }
     });
     
+    // Handle new tracks
     participant.on('trackSubscribed', track => {
+        console.log('🔵 NEW TRACK SUBSCRIBED:', track.kind, 'for', participant.identity);
         attachTrack(track, participant);
     });
     
     participant.on('trackUnsubscribed', track => {
+        console.log('🔵 TRACK UNSUBSCRIBED:', track.kind, 'for', participant.identity);
         detachTrack(track, participant);
     });
 }
@@ -387,9 +413,37 @@ endCallBtn.addEventListener('click', () => {
     }
 });
 
+// Debug function for call parameters
+function debugVideoCallParams() {
+    console.log('=== VIDEO CALL DEBUG ===');
+    
+    // Check URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const room = urlParams.get('room');
+    const caller = urlParams.get('caller');
+    const callee = urlParams.get('callee');
+    const answered = urlParams.get('answered');
+    
+    console.log('URL Parameters:', { room, caller, callee, answered });
+    console.log('Full URL:', window.location.href);
+    
+    // Check DOM elements
+    console.log('Room Name Input:', roomNameInput?.value);
+    console.log('User Name Input:', userNameInput?.value);
+    
+    // Check config
+    console.log('App Config:', window.appConfig);
+    console.log('Server URL:', getServerUrl());
+    
+    return { room, caller, callee, answered };
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // DEBUG: Call debug function immediately
+        const debugParams = debugVideoCallParams();
+        
         // Check if we have URL parameters for auto-join
         const urlParams = new URLSearchParams(window.location.search);
         const roomParam = urlParams.get('room');
@@ -413,25 +467,46 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // If we have room parameters, auto-join the call
         if (roomParam && (callerParam || calleeParam)) {
+            console.log('🔵 AUTO-JOIN MODE: URL has room parameters');
+            
             // Get current user
             const currentUser = await getCurrentUser();
+            console.log('🔵 Current user for video call:', currentUser);
+            
             if (currentUser) {
                 currentUserName = currentUser.username;
                 currentRoomName = roomParam;
                 
+                console.log('🔵 Setting up auto-join:', {
+                    userName: currentUserName,
+                    roomName: currentRoomName,
+                    isAnswered: answeredParam === 'true'
+                });
+                
+                // Update input fields for debugging
+                userNameInput.value = currentUserName;
+                roomNameInput.value = currentRoomName;
+                
                 // Update UI to show the specific call
                 if (answeredParam === 'true') {
-                    showStatusMessage(`Joined call with ${callerParam || calleeParam}`, 3000);
+                    console.log('🔵 USER 2: Answering call mode');
+                    showStatusMessage(`Joined call with ${callerParam}`, 3000);
                 } else {
-                    showStatusMessage(`Connecting to ${calleeParam || callerParam}...`, 3000);
+                    console.log('🔵 USER 1: Initiating call mode');
+                    showStatusMessage(`Connecting to ${calleeParam}...`, 3000);
                 }
                 
                 // Auto-connect to the room
+                console.log('🔵 Starting auto-connect in 2 seconds...');
                 setTimeout(() => {
+                    console.log('🔵 Executing auto-connect now');
                     connectToRoom();
-                }, 1000);
+                }, 2000); // Increased delay for better debugging
+            } else {
+                console.error('❌ No current user found for auto-join');
             }
         } else {
+            console.log('🔵 MANUAL MODE: No room parameters, waiting for user input');
             showStatusMessage("Camera and microphone ready", 2000);
         }
     } catch (error) {

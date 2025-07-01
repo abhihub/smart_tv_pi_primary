@@ -1,90 +1,142 @@
-# SmartTV User Management Deployment Guide
+# SmartTV Complete Calling System Deployment Guide
 
 ## Overview
-This guide covers deploying the new user management features to your existing Digital Ocean server at 157.245.74.59.
+This guide covers deploying the complete user-to-user calling system to your Digital Ocean server at 167.71.0.87:3001.
 
 ## Prerequisites
 - Existing Flask server running on Digital Ocean
 - SSH access to the server
 - Existing .env file with Twilio credentials
 
-## Files to Upload
+## Files to Deploy
 
-### New Files
+### Complete Server Structure
 ```
 server_side/
+├── app.py                    # Updated Flask app with all routes
+├── requirements.txt          # Updated dependencies
+├── .env.example             # Environment template
 ├── database/
-│   ├── database.py
-│   └── schema.sql
+│   ├── database.py          # Database manager
+│   ├── schema.sql           # Complete database schema
+│   └── smarttv.db          # SQLite database (auto-created)
 ├── services/
-│   └── user_service.py
+│   ├── user_service.py      # User management service
+│   ├── call_service.py      # Call management service  
+│   └── twilio_service.py    # Updated Twilio service
 └── api/
-    └── user_routes.py
-```
-
-### Updated Files
-```
-server_side/
-├── app.py (updated to register user routes)
-├── api/twilio_routes.py (updated with user tracking)
-└── requirements.txt (no new dependencies)
+    ├── user_routes.py       # User API endpoints
+    ├── call_routes.py       # Call API endpoints
+    └── twilio_routes.py     # Updated Twilio endpoints
 ```
 
 ## Deployment Steps
 
 ### 1. Upload Files to Server
 ```bash
-# Copy new and updated files to your server
-scp -r database/ user@157.245.74.59:/path/to/your/server_side/
-scp services/user_service.py user@157.245.74.59:/path/to/your/server_side/services/
-scp api/user_routes.py user@157.245.74.59:/path/to/your/server_side/api/
-scp app.py user@157.245.74.59:/path/to/your/server_side/
-scp api/twilio_routes.py user@157.245.74.59:/path/to/your/server_side/api/
+# From your local SmartTV/server_side directory:
+cd server_side
+
+# Create backup of existing server
+ssh root@167.71.0.87 "cd /root && cp -r server_side server_side_backup_$(date +%Y%m%d_%H%M%S)"
+
+# Upload complete server structure
+scp -r database/ root@167.71.0.87:/root/server_side/
+scp -r services/ root@167.71.0.87:/root/server_side/
+scp -r api/ root@167.71.0.87:/root/server_side/
+scp app.py requirements.txt .env.example root@167.71.0.87:/root/server_side/
 ```
 
-### 2. SSH into Server and Restart
+### 2. SSH into Server and Deploy
 ```bash
-ssh user@157.245.74.59
+ssh root@167.71.0.87
 
-# Navigate to your server directory
-cd /path/to/your/server_side
+# Navigate to server directory
+cd /root/server_side
 
-# Install any missing dependencies (should already be installed)
+# Install dependencies (flask-cors is new)
 pip install -r requirements.txt
 
-# Restart your Flask application
-# If using systemd:
+# Verify environment file exists
+ls -la .env
+
+# Initialize database (will auto-create if needed)
+python -c "from database.database import db_manager; print('Database initialized')"
+
+# Test the application
+python app.py &
+sleep 3
+
+# Test endpoints
+curl http://localhost:3001/api/health
+curl http://localhost:3001/api/calls/health
+
+# Stop test and restart properly
+pkill -f "python app.py"
+
+# Restart the service (adjust based on your setup)
+# Option 1: If using systemd
 sudo systemctl restart smarttv-backend
 
-# If using pm2:
+# Option 2: If using pm2
 pm2 restart smarttv-backend
 
-# If running directly:
-python app.py
+# Option 3: If running directly with nohup
+nohup python app.py > server.log 2>&1 &
 ```
 
 ### 3. Verify Deployment
 ```bash
-# Test the new user endpoints
-curl http://157.245.74.59:3001/api/users/health
+# Test health endpoints
+curl http://167.71.0.87:3001/api/health
+curl http://167.71.0.87:3001/api/users/health  
+curl http://167.71.0.87:3001/api/calls/health
 
-# Test existing Twilio endpoint still works
-curl http://157.245.74.59:3001/api/health
+# Test user registration
+curl -X POST http://167.71.0.87:3001/api/users/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "TEST1", "device_type": "desktop"}'
+
+# Test online users
+curl http://167.71.0.87:3001/api/calls/online-users
+
+# Test call creation
+curl -X POST http://167.71.0.87:3001/api/calls/invite \
+  -H "Content-Type: application/json" \
+  -d '{"caller": "TEST1", "callee": "TEST2"}'
 ```
 
 ## Database Auto-Initialization
-- The SQLite database will be automatically created at `server_side/database/smarttv.db`
+- SQLite database auto-created at `server_side/database/smarttv.db`
+- Complete schema with users, calls, user_presence, user_sessions tables
 - No manual database setup required
-- Database will initialize on first API call
 
-## New API Endpoints Available
+## Complete API Endpoints Available
+
+### User Management
 - `POST /api/users/register` - User registration
 - `GET /api/users/profile/{username}` - User profile
 - `POST /api/users/session/start` - Start session
 - `POST /api/users/session/end` - End session
-- `POST /api/users/game/score` - Save game scores
-- `GET /api/users/active` - Active users
+- `GET /api/users/active` - Active users  
 - `GET /api/users/health` - Health check
+
+### Call Management  
+- `POST /api/calls/invite` - Initiate call
+- `POST /api/calls/answer` - Answer call
+- `POST /api/calls/decline` - Decline call
+- `POST /api/calls/cancel` - Cancel call
+- `POST /api/calls/end` - End call
+- `GET /api/calls/status/{call_id}` - Call status
+- `GET /api/calls/pending/{username}` - Pending calls
+- `GET /api/calls/online-users` - Online users
+- `POST /api/calls/presence` - Update presence
+- `POST /api/calls/cleanup` - Cleanup old calls
+- `GET /api/calls/health` - Health check
+
+### Twilio Integration
+- `POST /api/token` - Get Twilio token
+- `GET /api/health` - Twilio health check
 
 ## Frontend Compatibility
 Your existing Electron app will automatically:
