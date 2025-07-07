@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Family Video Call | Smart Family Console</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="tv-remote.css">
     <script>
         // Initialize config early - will be overwritten by main process if available
         window.appConfig = window.appConfig || {
@@ -469,6 +470,67 @@
         .status-message.show {
             opacity: 1;
         }
+
+        /* Auto-connecting interface styles */
+        .connection-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(102, 126, 234, 0.3);
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .call-info-display {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        /* Transition between interfaces */
+        #autoConnectUI, #manualConnectUI {
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        #autoConnectUI.show, #manualConnectUI.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #autoConnectUI.hide, #manualConnectUI.hide {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -488,29 +550,58 @@
             </a>
         </div>
         <div class="connection-card">
-            <h1 class="connection-title">Join Family Video Call</h1>
+            <!-- Auto-connecting interface (shown when coming from call flow) -->
+            <div id="autoConnectUI" style="display: none;">
+                <h1 class="connection-title">📞 Connecting to Call</h1>
+                
+                <div style="text-align: center; margin: 40px 0;">
+                    <div class="connection-spinner"></div>
+                    <h2 id="callParticipants" style="margin: 20px 0; font-size: 1.5rem;">
+                        Connecting...
+                    </h2>
+                    <p id="callStatus" style="opacity: 0.8; font-size: 1.1rem;">
+                        Setting up video call
+                    </p>
+                </div>
 
-            <div class="input-group">
-                <label for="userName">Your Name</label>
-                <input type="text" id="userName" placeholder="Enter your name" value="Family Member">
+                <div class="call-info-display">
+                    <div class="info-item">
+                        <span class="info-label">Room:</span>
+                        <span id="displayRoomName">Loading...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Your ID:</span>
+                        <span id="displayUserName">Loading...</span>
+                    </div>
+                </div>
             </div>
 
-            <div class="input-group">
-                <label for="roomName">Room Name</label>
-                <input type="text" id="roomName" placeholder="Enter room name" value="family-room">
-            </div>
+            <!-- Manual connection interface (fallback for direct access) -->
+            <div id="manualConnectUI">
+                <h1 class="connection-title">Join Family Video Call</h1>
 
-            <button class="btn-connect" id="connectBtn">
-                <i class="fas fa-video"></i> Connect to Video Call
-            </button>
+                <div class="input-group">
+                    <label for="userName">Your Name</label>
+                    <input type="text" id="userName" placeholder="Enter your name" value="Family Member" data-focusable="true" tabindex="0">
+                </div>
 
-            <div class="room-list">
-                <h3>Popular Family Rooms</h3>
-                <div class="rooms">
-                    <div class="room-tag" data-room="family-room">Family Room</div>
-                    <div class="room-tag" data-room="grandparents">Grandparents</div>
-                    <div class="room-tag" data-room="cousins">Cousins</div>
-                    <div class="room-tag" data-room="game-night">Game Night</div>
+                <div class="input-group">
+                    <label for="roomName">Room Name</label>
+                    <input type="text" id="roomName" placeholder="Enter room name" value="family-room" data-focusable="true" tabindex="0">
+                </div>
+
+                <button class="btn-connect" id="connectBtn" data-focusable="true" tabindex="0">
+                    <i class="fas fa-video"></i> Connect to Video Call
+                </button>
+
+                <div class="room-list">
+                    <h3>Popular Family Rooms</h3>
+                    <div class="rooms">
+                        <div class="room-tag" data-room="family-room" data-focusable="true" tabindex="0">Family Room</div>
+                        <div class="room-tag" data-room="grandparents" data-focusable="true" tabindex="0">Grandparents</div>
+                        <div class="room-tag" data-room="cousins" data-focusable="true" tabindex="0">Cousins</div>
+                        <div class="room-tag" data-room="game-night" data-focusable="true" tabindex="0">Game Night</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -536,35 +627,35 @@
 
     <!-- Controls -->
     <div class="controls" id="controls" style="display: none;">
-        <div class="control-btn" id="muteBtn">
+        <div class="control-btn" id="muteBtn" data-focusable="true" tabindex="0">
             <div class="btn-circle">
                 <i class="fas fa-microphone"></i>
             </div>
             <div class="btn-label">Mute</div>
         </div>
 
-        <div class="control-btn" id="videoBtn">
+        <div class="control-btn" id="videoBtn" data-focusable="true" tabindex="0">
             <div class="btn-circle">
                 <i class="fas fa-video"></i>
             </div>
             <div class="btn-label">Video</div>
         </div>
 
-        <div class="control-btn" id="cameraBtn">
+        <div class="control-btn" id="cameraBtn" data-focusable="true" tabindex="0">
             <div class="btn-circle">
                 <i class="fas fa-sync"></i>
             </div>
             <div class="btn-label">Switch Camera</div>
         </div>
 
-        <div class="control-btn" id="effectsBtn">
+        <div class="control-btn" id="effectsBtn" data-focusable="true" tabindex="0">
             <div class="btn-circle">
                 <i class="fas fa-magic"></i>
             </div>
             <div class="btn-label">Effects</div>
         </div>
 
-        <div class="control-btn btn-danger" id="endCallBtn">
+        <div class="control-btn btn-danger" id="endCallBtn" data-focusable="true" tabindex="0">
             <div class="btn-circle">
                 <i class="fas fa-phone"></i>
             </div>
@@ -573,6 +664,17 @@
     </div>
     <script src="video-call.js"></script>
     <script src="user-utils.js"></script>
+    <script src="tv-remote.js"></script>
+    <script>
+        // Initialize TV remote for video call controls
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.tvRemote) {
+                // Set linear navigation for video call controls
+                window.tvRemote.setGridColumns(5); // 5 controls in a row
+                console.log('🎮 TV Remote initialized for video call');
+            }
+        });
+    </script>
 </body>
 
 </html>

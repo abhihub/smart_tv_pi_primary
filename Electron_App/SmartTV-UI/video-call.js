@@ -438,6 +438,69 @@ function debugVideoCallParams() {
     return { room, caller, callee, answered };
 }
 
+// Interface switching functions
+function showAutoConnectInterface(currentUser, roomName, callerParam, calleeParam, answeredParam) {
+    const autoUI = document.getElementById('autoConnectUI');
+    const manualUI = document.getElementById('manualConnectUI');
+    
+    // Hide manual interface
+    manualUI.style.display = 'none';
+    
+    // Show auto-connecting interface
+    autoUI.style.display = 'block';
+    
+    // Update the display information
+    document.getElementById('displayUserName').textContent = currentUser.username;
+    document.getElementById('displayRoomName').textContent = roomName;
+    
+    // Update call participants and status based on call type
+    const callParticipants = document.getElementById('callParticipants');
+    const callStatus = document.getElementById('callStatus');
+    
+    if (answeredParam === 'true') {
+        // User 2 answering call
+        callParticipants.textContent = `Call with ${callerParam}`;
+        callStatus.textContent = 'Joining video call...';
+        updateAutoConnectStatus('📞 Answering call', 'Connecting to video...', 1);
+    } else {
+        // User 1 initiating call
+        callParticipants.textContent = `Calling ${calleeParam}`;
+        callStatus.textContent = 'Starting video call...';
+        updateAutoConnectStatus('📞 Initiating call', 'Setting up room...', 1);
+    }
+}
+
+function showManualConnectInterface() {
+    const autoUI = document.getElementById('autoConnectUI');
+    const manualUI = document.getElementById('manualConnectUI');
+    
+    // Hide auto interface
+    autoUI.style.display = 'none';
+    
+    // Show manual interface
+    manualUI.style.display = 'block';
+}
+
+function updateAutoConnectStatus(title, message, step = 1) {
+    const callParticipants = document.getElementById('callParticipants');
+    const callStatus = document.getElementById('callStatus');
+    
+    if (title) callParticipants.textContent = title;
+    if (message) callStatus.textContent = message;
+    
+    // Progress indicators
+    const steps = [
+        'Setting up video call...',
+        'Connecting to room...',
+        'Establishing connection...',
+        'Ready to connect!'
+    ];
+    
+    if (step <= steps.length) {
+        callStatus.textContent = steps[step - 1];
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -469,11 +532,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (roomParam && (callerParam || calleeParam)) {
             console.log('🔵 AUTO-JOIN MODE: URL has room parameters');
             
-            // Get current user
-            const currentUser = await getCurrentUser();
+            // Get current user with fallback
+            let currentUser = null;
+            try {
+                currentUser = await getCurrentUser();
+            } catch (error) {
+                console.log('🔵 getCurrentUser failed, using fallback');
+            }
+            
             console.log('🔵 Current user for video call:', currentUser);
             
-            if (currentUser) {
+            if (currentUser && currentUser.username) {
                 currentUserName = currentUser.username;
                 currentRoomName = roomParam;
                 
@@ -483,30 +552,57 @@ document.addEventListener('DOMContentLoaded', async () => {
                     isAnswered: answeredParam === 'true'
                 });
                 
-                // Update input fields for debugging
+                // Show auto-connecting interface
+                showAutoConnectInterface(currentUser, roomParam, callerParam, calleeParam, answeredParam);
+                
+                // Update hidden input fields for backend compatibility
                 userNameInput.value = currentUserName;
                 roomNameInput.value = currentRoomName;
-                
-                // Update UI to show the specific call
-                if (answeredParam === 'true') {
-                    console.log('🔵 USER 2: Answering call mode');
-                    showStatusMessage(`Joined call with ${callerParam}`, 3000);
-                } else {
-                    console.log('🔵 USER 1: Initiating call mode');
-                    showStatusMessage(`Connecting to ${calleeParam}...`, 3000);
-                }
                 
                 // Auto-connect to the room
                 console.log('🔵 Starting auto-connect in 2 seconds...');
                 setTimeout(() => {
                     console.log('🔵 Executing auto-connect now');
                     connectToRoom();
-                }, 2000); // Increased delay for better debugging
+                }, 2000);
             } else {
-                console.error('❌ No current user found for auto-join');
+                console.error('❌ No current user found for auto-join, using URL parameters as fallback');
+                
+                // Fallback: Use URL parameters directly
+                if (callerParam && calleeParam && answeredParam === 'true') {
+                    // User 2 answering call
+                    currentUserName = calleeParam;
+                } else if (callerParam) {
+                    // User 1 initiating call  
+                    currentUserName = callerParam;
+                } else {
+                    currentUserName = "Family Member";
+                }
+                
+                currentRoomName = roomParam;
+                
+                console.log('🔵 Using fallback parameters:', {
+                    userName: currentUserName,
+                    roomName: currentRoomName
+                });
+                
+                // Create fake user object for interface
+                const fallbackUser = { username: currentUserName };
+                showAutoConnectInterface(fallbackUser, roomParam, callerParam, calleeParam, answeredParam);
+                
+                // Update input fields
+                userNameInput.value = currentUserName;
+                roomNameInput.value = currentRoomName;
+                
+                // Auto-connect
+                setTimeout(() => {
+                    console.log('🔵 Executing fallback auto-connect');
+                    connectToRoom();
+                }, 2000);
             }
         } else {
             console.log('🔵 MANUAL MODE: No room parameters, waiting for user input');
+            showManualConnectInterface();
             showStatusMessage("Camera and microphone ready", 2000);
         }
     } catch (error) {

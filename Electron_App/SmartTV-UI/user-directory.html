@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Directory - SmartTV</title>
+    <link rel="stylesheet" href="tv-remote.css">
     <style>
         * {
             margin: 0;
@@ -375,7 +376,7 @@
     <div class="container">
         <div class="header">
             <h1>👥 User Directory</h1>
-            <a href="homepage.html" class="back-btn">← Back to Console</a>
+            <a href="homepage.html" class="back-btn" data-focusable="true" tabindex="0">← Back to Console</a>
         </div>
 
         <div class="status-bar">
@@ -387,7 +388,7 @@
                 </div>
             </div>
             <div style="display: flex; gap: 15px; align-items: center;">
-                <button class="refresh-btn" onclick="loadOnlineUsers()">🔄 Refresh</button>
+                <button class="refresh-btn" onclick="loadOnlineUsers()" data-focusable="true" tabindex="0">🔄 Refresh</button>
                 <div class="online-count">
                     <span id="onlineCount">0</span> users online
                 </div>
@@ -402,7 +403,7 @@
 
         <!-- Test Call Button (temporary workaround) -->
         <div style="text-align: center; margin-top: 20px;">
-            <button onclick="testCall()" style="
+            <button onclick="testCall()" data-focusable="true" tabindex="0" style="
                 background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
                 border: none;
                 color: white;
@@ -414,7 +415,7 @@
                 margin: 5px;
             ">🧪 Test Call Between Users</button>
             
-            <button onclick="checkPendingCalls()" style="
+            <button onclick="checkPendingCalls()" data-focusable="true" tabindex="0" style="
                 background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
                 border: none;
                 color: white;
@@ -426,7 +427,7 @@
                 margin: 5px;
             ">📞 Check Pending Calls</button>
 
-            <button onclick="forceClearCalls()" style="
+            <button onclick="forceClearCalls()" data-focusable="true" tabindex="0" style="
                 background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
                 border: none;
                 color: white;
@@ -461,6 +462,7 @@
         console.log('Config initialized:', window.appConfig);
     </script>
     <script src="user-utils.js"></script>
+    <script src="tv-remote.js"></script>
     <script>
         let currentUser = null;
         let currentCallId = null;
@@ -488,7 +490,7 @@
                 refreshInterval = setInterval(() => {
                     loadOnlineUsers();
                     checkForIncomingCalls(); // Check for incoming calls automatically
-                }, 3000); // Check every 3 seconds for faster response
+                }, 10000); // Check every 10 seconds to reduce server load
             } catch (error) {
                 console.error('Failed to initialize user directory:', error);
                 showError('Failed to load user directory');
@@ -520,8 +522,8 @@
                 document.getElementById('onlineCount').textContent = data.count || 0;
                 
             } catch (error) {
-                console.error('Failed to load online users:', error);
-                showError('Failed to load users');
+                console.debug('Failed to load online users:', error);
+                // Silently fail to avoid spamming errors
             }
         }
 
@@ -554,6 +556,7 @@
                 });
             } catch (error) {
                 console.debug('Failed to update presence:', error);
+                // Don't spam console with presence errors
             }
         }
 
@@ -572,18 +575,26 @@
             }
 
             usersGrid.innerHTML = users.map(user => `
-                <div class="user-card" onclick="initiateCall('${user.username}')" style="animation: fadeInUp 0.6s ease-out">
+                <div class="user-card" onclick="initiateCall('${user.username}')" data-focusable="true" tabindex="0" style="animation: fadeInUp 0.6s ease-out">
                     <div class="user-card-avatar">
                         ${user.username.substring(0, 2)}
                         <div class="online-indicator"></div>
                     </div>
                     <div class="user-name">${user.username}</div>
                     <div class="user-display-name">${user.display_name || 'Smart TV User'}</div>
-                    <button class="call-btn" onclick="event.stopPropagation(); initiateCall('${user.username}')">
+                    <button class="call-btn" onclick="event.stopPropagation(); initiateCall('${user.username}')" data-focusable="true" tabindex="0">
                         📞 Call ${user.username}
                     </button>
                 </div>
             `).join('');
+            
+            // Refresh TV remote after adding new elements
+            if (window.tvRemote) {
+                setTimeout(() => {
+                    window.tvRemote.refresh();
+                    console.log('🎮 TV Remote refreshed after user list update');
+                }, 100);
+            }
         }
 
         async function initiateCall(calleeUsername) {
