@@ -291,6 +291,116 @@
             50% { transform: scale(1.1); }
             100% { transform: scale(1); }
         }
+
+        /* Shutdown tile styling */
+        .tile.shutdown {
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.1) 0%, rgba(192, 57, 43, 0.1) 100%);
+            border: 2px solid rgba(231, 76, 60, 0.2);
+        }
+
+        .tile.shutdown:hover {
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.2) 0%, rgba(192, 57, 43, 0.2) 100%);
+            border-color: rgba(231, 76, 60, 0.4);
+            box-shadow: 0 20px 40px rgba(231, 76, 60, 0.2);
+        }
+
+        .tile.shutdown .tile-icon {
+            color: #e74c3c;
+        }
+
+        .tile.shutdown .tile-title {
+            color: #e74c3c;
+        }
+
+        .tile.shutdown .tile-subtitle {
+            color: rgba(231, 76, 60, 0.8);
+        }
+
+        /* Shutdown confirmation modal */
+        .shutdown-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .shutdown-modal.show {
+            display: flex;
+        }
+
+        .shutdown-modal-content {
+            background: linear-gradient(135deg, rgba(15, 15, 35, 0.95) 0%, rgba(26, 26, 46, 0.95) 100%);
+            border: 2px solid rgba(231, 76, 60, 0.3);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .shutdown-modal-icon {
+            font-size: 4rem;
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+
+        .shutdown-modal-title {
+            font-size: 2rem;
+            color: #e74c3c;
+            margin-bottom: 15px;
+        }
+
+        .shutdown-modal-message {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .shutdown-modal-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .shutdown-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .shutdown-btn.confirm {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .shutdown-btn.confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(231, 76, 60, 0.4);
+        }
+
+        .shutdown-btn.cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .shutdown-btn.cancel:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
@@ -336,12 +446,34 @@
                 <div class="tile-title">Settings</div>
                 <div class="tile-subtitle">Coming Soon</div>
             </div>
+
+            <div class="tile shutdown card" tabindex="0" data-app="shutdown" data-focusable="true" data-shortcut="7">
+                <div class="tile-icon">⚡</div>
+                <div class="tile-title">Shutdown</div>
+                <div class="tile-subtitle">Power off system</div>
+            </div>
         </div>
 
         <div class="footer">
             <div class="gesture-hint">
                 <span class="wave-emoji">👋</span>
                 <span>Wave or touch to navigate • Voice commands enabled</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shutdown Confirmation Modal -->
+    <div class="shutdown-modal" id="shutdownModal">
+        <div class="shutdown-modal-content">
+            <div class="shutdown-modal-icon">⚡</div>
+            <div class="shutdown-modal-title">Shutdown System</div>
+            <div class="shutdown-modal-message">
+                Are you sure you want to shut down the Smart TV?<br>
+                This will close all applications and power off the Raspberry Pi.
+            </div>
+            <div class="shutdown-modal-buttons">
+                <button class="shutdown-btn cancel" onclick="hideShutdownModal()">Cancel</button>
+                <button class="shutdown-btn confirm" onclick="confirmShutdown()">Shutdown</button>
             </div>
         </div>
     </div>
@@ -377,6 +509,12 @@
             // Check if this is a coming soon tile
             if (tile.classList.contains('coming-soon')) {
                 showComingSoonMessage(tile.querySelector('.tile-title').textContent);
+                return;
+            }
+            
+            // Check if this is the shutdown tile
+            if (app === 'shutdown') {
+                showShutdownModal();
                 return;
             }
             
@@ -566,6 +704,92 @@
 
         // Initialize particles
         createFloatingParticles();
+
+        // Shutdown functionality
+        function showShutdownModal() {
+            const modal = document.getElementById('shutdownModal');
+            modal.classList.add('show');
+        }
+
+        function hideShutdownModal() {
+            const modal = document.getElementById('shutdownModal');
+            modal.classList.remove('show');
+        }
+
+        async function confirmShutdown() {
+            try {
+                console.log('Initiating system shutdown...');
+                
+                // Show loading state
+                const confirmBtn = document.querySelector('.shutdown-btn.confirm');
+                const originalText = confirmBtn.textContent;
+                confirmBtn.textContent = 'Shutting down...';
+                confirmBtn.disabled = true;
+                
+                // Get server URL from config or use default
+                const serverUrl = window.appConfig?.SERVER_URL || 'http://167.71.0.87:3001';
+                
+                // Make shutdown request
+                const response = await fetch(`${serverUrl}/api/system/shutdown`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        confirm: true,
+                        delay: 2 // 2 second delay to allow response
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Shutdown response:', result);
+                    
+                    // Update UI to show shutdown in progress
+                    document.querySelector('.shutdown-modal-title').textContent = 'Shutting Down...';
+                    document.querySelector('.shutdown-modal-message').textContent = 'The system is shutting down. Please wait...';
+                    document.querySelector('.shutdown-modal-buttons').innerHTML = '<div style="color: #e74c3c; font-size: 1.2rem;">⚡ Powering off...</div>';
+                    
+                    // Close the app after a delay (Electron will handle this)
+                    setTimeout(() => {
+                        if (window.electronAPI) {
+                            window.electronAPI.closeApp();
+                        } else {
+                            window.close();
+                        }
+                    }, 3000);
+                    
+                } else {
+                    throw new Error(`Shutdown failed: ${response.status}`);
+                }
+                
+            } catch (error) {
+                console.error('Shutdown error:', error);
+                
+                // Reset button and show error
+                const confirmBtn = document.querySelector('.shutdown-btn.confirm');
+                confirmBtn.textContent = originalText;
+                confirmBtn.disabled = false;
+                
+                // Show error message
+                alert('Failed to shutdown system. Please try again or shutdown manually.');
+                hideShutdownModal();
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('shutdownModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                hideShutdownModal();
+            }
+        });
+
+        // Handle escape key to close modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                hideShutdownModal();
+            }
+        });
     </script>
     <script src="user-utils.js"></script>
     <script src="call-monitor.js"></script>
