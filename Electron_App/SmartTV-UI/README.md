@@ -6,7 +6,6 @@ The frontend desktop application for SmartTV, built with Electron and optimized 
 
 This Electron application provides the main user interface for SmartTV, featuring:
 - Video calling interface powered by Twilio
-- Multiplayer trivia games with real-time updates
 - TV-optimized UI with large, touch-friendly elements
 - Full-screen kiosk mode for Smart TV deployment
 
@@ -32,8 +31,6 @@ This Electron application provides the main user interface for SmartTV, featurin
 
 - **`homepage.html`** - Main dashboard and navigation hub
 - **`video-call.html`** - Twilio video conferencing interface
-- **`trivia-game.html`** - Real-time multiplayer trivia game
-- **`gamepage.html`** - Game selection and menu system
 
 ### Styling
 
@@ -107,17 +104,9 @@ The `config.js` file handles:
 - Screen sharing capabilities
 - Call quality optimization for TV screens
 
-### Trivia Games
-
-- WebSocket-based real-time multiplayer
-- Question display optimized for TV viewing
-- Score tracking and leaderboards
-- Gesture-friendly answer selection
-
 ### Navigation
 
 - Keyboard navigation support
-- Remote control compatibility
 - Large click targets for touch interaction
 - Breadcrumb navigation system
 

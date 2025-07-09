@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Directory - SmartTV</title>
-    <link rel="stylesheet" href="tv-remote.css">
     <style>
         * {
             margin: 0;
@@ -462,7 +461,6 @@
         console.log('Config initialized:', window.appConfig);
     </script>
     <script src="user-utils.js"></script>
-    <script src="tv-remote.js"></script>
     <script>
         let currentUser = null;
         let currentCallId = null;
@@ -588,13 +586,6 @@
                 </div>
             `).join('');
             
-            // Refresh TV remote after adding new elements
-            if (window.tvRemote) {
-                setTimeout(() => {
-                    window.tvRemote.refresh();
-                    console.log('🎮 TV Remote refreshed after user list update');
-                }, 100);
-            }
         }
 
         async function initiateCall(calleeUsername) {

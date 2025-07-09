@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Family Console</title>
-    <link rel="stylesheet" href="tv-remote.css">
     <style>
         * {
             margin: 0;
@@ -250,6 +249,32 @@
             }
         }
 
+        /* Coming Soon tiles styling */
+        .tile.coming-soon {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .tile.coming-soon:hover {
+            transform: none;
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: none;
+        }
+
+        .tile.coming-soon::before {
+            display: none;
+        }
+
+        .tile.coming-soon .tile-icon {
+            filter: grayscale(50%);
+        }
+
+        .tile.coming-soon .tile-subtitle {
+            color: #ffd700;
+            font-weight: 500;
+        }
+
         /* Focus states for accessibility */
         .tile:focus {
             outline: 3px solid rgba(102, 126, 234, 0.6);
@@ -282,34 +307,34 @@
                 <div class="tile-subtitle">Call other users • View who's online</div>
             </div>
 
-            <div class="tile games card" tabindex="0" data-app="gamepage" data-focusable="true" data-shortcut="2">
+            <div class="tile games card coming-soon" tabindex="0" data-app="" data-focusable="true" data-shortcut="2">
                 <div class="tile-icon">🎮</div>
                 <div class="tile-title">Games Hub</div>
-                <div class="tile-subtitle">Interactive family games</div>
+                <div class="tile-subtitle">Coming Soon</div>
             </div>
 
-            <div class="tile streaming card" tabindex="0" data-app="streaming" data-focusable="true" data-shortcut="3">
+            <div class="tile streaming card coming-soon" tabindex="0" data-app="" data-focusable="true" data-shortcut="3">
                 <div class="tile-icon">🎬</div>
                 <div class="tile-title">Streaming</div>
-                <div class="tile-subtitle">Movies, shows & content</div>
+                <div class="tile-subtitle">Coming Soon</div>
             </div>
 
-            <div class="tile photos card" tabindex="0" data-app="photos" data-focusable="true" data-shortcut="4">
+            <div class="tile photos card coming-soon" tabindex="0" data-app="" data-focusable="true" data-shortcut="4">
                 <div class="tile-icon">📸</div>
                 <div class="tile-title">Photo Gallery</div>
-                <div class="tile-subtitle">Memories & moments</div>
+                <div class="tile-subtitle">Coming Soon</div>
             </div>
 
-            <div class="tile learning card" tabindex="0" data-app="learning" data-focusable="true" data-shortcut="5">
+            <div class="tile learning card coming-soon" tabindex="0" data-app="" data-focusable="true" data-shortcut="5">
                 <div class="tile-icon">🧠</div>
                 <div class="tile-title">Learning Center</div>
-                <div class="tile-subtitle">Educational content & activities</div>
+                <div class="tile-subtitle">Coming Soon</div>
             </div>
 
-            <div class="tile settings card" tabindex="0" data-app="settings" data-focusable="true" data-shortcut="6">
+            <div class="tile settings card coming-soon" tabindex="0" data-app="" data-focusable="true" data-shortcut="6">
                 <div class="tile-icon">⚙️</div>
                 <div class="tile-title">Settings</div>
-                <div class="tile-subtitle">System preferences</div>
+                <div class="tile-subtitle">Coming Soon</div>
             </div>
         </div>
 
@@ -349,6 +374,12 @@
         function handleTileSelection(tile) {
             const app = tile.dataset.app;
             
+            // Check if this is a coming soon tile
+            if (tile.classList.contains('coming-soon')) {
+                showComingSoonMessage(tile.querySelector('.tile-title').textContent);
+                return;
+            }
+            
             // Add pulse animation
             tile.classList.add('pulse');
             setTimeout(() => tile.classList.remove('pulse'), 600);
@@ -381,6 +412,31 @@
                 border: 1px solid rgba(255, 255, 255, 0.1);
             `;
             message.textContent = `Launching ${appName}...`;
+            document.body.appendChild(message);
+
+            setTimeout(() => {
+                message.remove();
+            }, 2000);
+        }
+
+        function showComingSoonMessage(appName) {
+            const message = document.createElement('div');
+            message.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(255, 193, 7, 0.9);
+                color: #000;
+                padding: 30px 50px;
+                border-radius: 15px;
+                font-size: 1.5rem;
+                z-index: 1000;
+                backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                text-align: center;
+            `;
+            message.innerHTML = `<strong>${appName}</strong><br>Coming Soon!`;
             document.body.appendChild(message);
 
             setTimeout(() => {
@@ -513,15 +569,7 @@
     </script>
     <script src="user-utils.js"></script>
     <script src="call-monitor.js"></script>
-    <script src="tv-remote.js"></script>
     <script>
-        // Initialize TV remote with 3-column grid
-        document.addEventListener('DOMContentLoaded', () => {
-            if (window.tvRemote) {
-                window.tvRemote.setGridColumns(3);
-                console.log('🎮 TV Remote initialized for homepage');
-            }
-        });
     </script>
 </body>
 </html>

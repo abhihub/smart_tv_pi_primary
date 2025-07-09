@@ -34,7 +34,7 @@ function createWindow() {
   console.log('🪟 CREATING WINDOW');
   
   // Check if explicitly running in kiosk mode via command line flag
-  const isKioskMode = process.argv.includes('--kiosk') || process.platform === 'linux';
+  const isKioskMode = process.argv.includes('--kiosk') && process.platform === 'linux';
   console.log('🎯 Kiosk mode:', isKioskMode);
   
   const windowConfig = {
