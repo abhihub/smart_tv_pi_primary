@@ -450,6 +450,145 @@
             transform: translateY(-3px);
         }
 
+        /* Friends Section Styles */
+        .friends-section {
+            margin-top: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .friends-section h3 {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: 400;
+            opacity: 0.9;
+            color: #667eea;
+        }
+
+        .friends-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .loading-friends {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            opacity: 0.6;
+        }
+
+        .loading-friends .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .friend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .friend-item:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .friend-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: bold;
+            color: white;
+            position: relative;
+        }
+
+        .friend-online-dot {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 12px;
+            height: 12px;
+            background: #2ecc71;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.3);
+        }
+
+        .friend-info {
+            flex: 1;
+        }
+
+        .friend-name {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .friend-status {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            color: #2ecc71;
+        }
+
+        .friend-call-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .friend-call-btn:hover {
+            box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4);
+            transform: scale(1.1);
+        }
+
+        .no-friends {
+            text-align: center;
+            padding: 20px;
+            opacity: 0.6;
+        }
+
+        .no-friends-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .no-friends p {
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
         /* Status messages */
         .status-message {
             position: fixed;
@@ -593,8 +732,19 @@
                     <i class="fas fa-video"></i> Connect to Video Call
                 </button>
 
+                <!-- Friends Section -->
+                <div class="friends-section">
+                    <h3>👥 Friends Online</h3>
+                    <div class="friends-list" id="friendsList">
+                        <div class="loading-friends">
+                            <div class="spinner"></div>
+                            <span>Loading friends...</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="room-list">
-                    <h3>Popular Family Rooms</h3>
+                    <h3>Quick Join Rooms</h3>
                     <div class="rooms">
                         <div class="room-tag" data-room="family-room" data-focusable="true" tabindex="0">Family Room</div>
                         <div class="room-tag" data-room="grandparents" data-focusable="true" tabindex="0">Grandparents</div>

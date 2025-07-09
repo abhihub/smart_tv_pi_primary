@@ -501,6 +501,145 @@ function updateAutoConnectStatus(title, message, step = 1) {
     }
 }
 
+// Friends functionality
+let friendsCheckInterval = null;
+
+async function loadFriendsOnlineStatus() {
+    console.log('🔵 Loading friends online status...');
+    const friendsList = document.getElementById('friendsList');
+    
+    if (!friendsList) {
+        console.warn('Friends list element not found');
+        return;
+    }
+    
+    try {
+        // Get current user first
+        let currentUser = null;
+        try {
+            currentUser = await getCurrentUser();
+        } catch (error) {
+            console.log('getCurrentUser failed, using fallback');
+            currentUser = { username: currentUserName };
+        }
+        
+        if (!currentUser || !currentUser.username) {
+            console.warn('No current user found for friends check');
+            return;
+        }
+        
+        // Get online users using the same backend method
+        const response = await fetch(`${getServerUrl()}/api/calls/online-users`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('🔵 Online users response:', data);
+        
+        if (data.success && data.users) {
+            displayFriendsOnlineStatus(data.users, currentUser.username);
+        } else {
+            console.warn('Invalid response format:', data);
+            showNoFriendsMessage();
+        }
+        
+    } catch (error) {
+        console.error('Failed to load friends online status:', error);
+        showNoFriendsMessage();
+    }
+}
+
+function displayFriendsOnlineStatus(onlineUsers, currentUsername) {
+    const friendsList = document.getElementById('friendsList');
+    
+    if (!friendsList) return;
+    
+    // Filter out current user from online users
+    const friends = onlineUsers.filter(user => user.username !== currentUsername);
+    
+    if (friends.length === 0) {
+        showNoFriendsMessage();
+        return;
+    }
+    
+    // Create friends list HTML
+    friendsList.innerHTML = friends.map(friend => `
+        <div class="friend-item" data-username="${friend.username}">
+            <div class="friend-avatar">
+                ${friend.display_name ? friend.display_name.charAt(0).toUpperCase() : friend.username.charAt(0).toUpperCase()}
+                <div class="friend-online-dot"></div>
+            </div>
+            <div class="friend-info">
+                <div class="friend-name">${friend.display_name || friend.username}</div>
+                <div class="friend-status">Online now</div>
+            </div>
+            <button class="friend-call-btn" onclick="startCallWithFriend('${friend.username}')">
+                <i class="fas fa-phone"></i>
+            </button>
+        </div>
+    `).join('');
+    
+    console.log(`🔵 Displayed ${friends.length} online friends`);
+}
+
+function showNoFriendsMessage() {
+    const friendsList = document.getElementById('friendsList');
+    
+    if (!friendsList) return;
+    
+    friendsList.innerHTML = `
+        <div class="no-friends">
+            <div class="no-friends-icon">👥</div>
+            <p>No friends online right now</p>
+        </div>
+    `;
+}
+
+function startCallWithFriend(friendUsername) {
+    console.log('🔵 Starting call with friend:', friendUsername);
+    
+    // Fill in the friend's username as the room name for now
+    // In a full implementation, this would initiate a proper call invitation
+    roomNameInput.value = `call-with-${friendUsername}`;
+    
+    // Show a status message
+    showStatusMessage(`Starting call with ${friendUsername}...`);
+    
+    // Connect to the room
+    connectToRoom();
+}
+
+function startFriendsStatusCheck() {
+    // Load friends immediately
+    loadFriendsOnlineStatus();
+    
+    // Set up periodic checking every 10 seconds
+    if (friendsCheckInterval) {
+        clearInterval(friendsCheckInterval);
+    }
+    
+    friendsCheckInterval = setInterval(() => {
+        loadFriendsOnlineStatus();
+    }, 10000);
+    
+    console.log('🔵 Friends status checking started (10s interval)');
+}
+
+function stopFriendsStatusCheck() {
+    if (friendsCheckInterval) {
+        clearInterval(friendsCheckInterval);
+        friendsCheckInterval = null;
+    }
+    console.log('🔵 Friends status checking stopped');
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -527,6 +666,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (videoTrack) {
             videoTrack.attach(selfVideo);
         }
+        
+        // Start friends status checking
+        startFriendsStatusCheck();
 
         // If we have room parameters, auto-join the call
         if (roomParam && (callerParam || calleeParam)) {
@@ -609,4 +751,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Unable to access camera and microphone:', error);
         showStatusMessage("Camera/microphone access denied", 5000);
     }
+});
+
+// Stop friends checking when leaving the page
+window.addEventListener('beforeunload', () => {
+    stopFriendsStatusCheck();
 });
