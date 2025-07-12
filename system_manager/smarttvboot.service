@@ -1,0 +1,22 @@
+# Auto-created by setup.sh
+[Unit]
+Description=SmartTV Kiosk
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/ubuntu/.Xauthority
+PAMName=login
+StandardInput=tty
+StandardOutput=journal
+StandardError=inherit
+TTYPath=/dev/tty1
+
+ExecStart=/usr/bin/xinit /usr/local/bin/launch-smarttv.sh -- :0 vt1 -nolisten tcp
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
