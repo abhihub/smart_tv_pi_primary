@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# Run this as sudo to setup the auto-boot
-
 set -e
 
 echo "🛠 Installing minimal X stack and dependencies..."
@@ -66,6 +64,14 @@ EOF
 
 echo "🛑 Masking getty@tty1 to prevent console login..."
 sudo systemctl mask getty@tty1.service
+
+echo "🔐 Configuring sudo permissions for shutdown/reboot without password..."
+sudo tee /etc/sudoers.d/smarttv-shutdown > /dev/null << 'EOF'
+# Allow ubuntu user to shutdown and reboot without password
+ubuntu ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/reboot
+EOF
+
+sudo chmod 440 /etc/sudoers.d/smarttv-shutdown
 
 echo "🔄 Reloading systemd and enabling smarttv.service..."
 sudo systemctl daemon-reexec
