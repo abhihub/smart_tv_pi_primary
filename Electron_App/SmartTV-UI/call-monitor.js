@@ -3,8 +3,10 @@ class CallMonitor {
     constructor() {
         this.isMonitoring = false;
         this.currentUser = null;
-        this.checkInterval = null;
-        this.notificationInterval = 3000; // Check every 3 seconds
+        this.socket = null;
+        this.isConnected = false;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
     }
 
     // Get server URL from config
@@ -27,13 +29,8 @@ class CallMonitor {
             this.isMonitoring = true;
             console.log(`Started call monitoring for user: ${this.currentUser.username}`);
 
-            // Start checking for pending calls
-            this.checkInterval = setInterval(() => {
-                this.checkForPendingCalls();
-            }, this.notificationInterval);
-
-            // Do an immediate check
-            this.checkForPendingCalls();
+            // Connect to WebSocket instead of polling
+            this.connectWebSocket();
 
         } catch (error) {
             console.error('Failed to start call monitoring:', error);
@@ -42,39 +39,158 @@ class CallMonitor {
 
     // Stop monitoring
     stopMonitoring() {
-        if (this.checkInterval) {
-            clearInterval(this.checkInterval);
-            this.checkInterval = null;
+        if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
         }
+        this.isConnected = false;
         this.isMonitoring = false;
         console.log('Stopped call monitoring');
     }
 
-    // Check for pending calls
+    // Connect to WebSocket server
+    connectWebSocket() {
+        if (!this.currentUser) return;
+
+        try {
+            // Load Socket.IO library if not already loaded
+            if (typeof io === 'undefined') {
+                this.loadSocketIO(() => this.initializeSocket());
+                return;
+            }
+
+            this.initializeSocket();
+        } catch (error) {
+            console.error('Failed to connect WebSocket:', error);
+            this.fallbackToPolling();
+        }
+    }
+
+    // Initialize Socket.IO connection
+    initializeSocket() {
+        const serverUrl = this.getServerUrl();
+        console.log('Connecting to WebSocket:', serverUrl);
+
+        this.socket = io(serverUrl, {
+            transports: ['websocket', 'polling']
+        });
+
+        // Connection events
+        this.socket.on('connect', () => {
+            console.log('✅ WebSocket connected');
+            this.isConnected = true;
+            this.reconnectAttempts = 0;
+            
+            // Join user room for receiving calls
+            this.socket.emit('join_user', {
+                user_id: this.currentUser.username
+            });
+        });
+
+        this.socket.on('disconnect', () => {
+            console.log('❌ WebSocket disconnected');
+            this.isConnected = false;
+            this.handleReconnection();
+        });
+
+        this.socket.on('connect_error', (error) => {
+            console.error('WebSocket connection error:', error);
+            this.handleReconnection();
+        });
+
+        // Call events
+        this.socket.on('incoming_call', (data) => {
+            console.log('📞 Incoming call via WebSocket:', data);
+            this.handleIncomingCall({
+                call_id: data.call_id,
+                caller_username: data.caller,
+                timestamp: data.timestamp
+            });
+        });
+
+        this.socket.on('call_answered', (data) => {
+            console.log('✅ Call answered:', data);
+            // Handle call answered if needed
+        });
+
+        this.socket.on('call_declined', (data) => {
+            console.log('❌ Call declined:', data);
+            // Handle call declined if needed
+        });
+
+        this.socket.on('call_cancelled', (data) => {
+            console.log('🚫 Call cancelled:', data);
+            this.hideNotification();
+        });
+
+        this.socket.on('call_ended', (data) => {
+            console.log('🔚 Call ended:', data);
+            this.hideNotification();
+        });
+    }
+
+    // Load Socket.IO library dynamically
+    loadSocketIO(callback) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.socket.io/4.7.4/socket.io.min.js';
+        script.onload = callback;
+        script.onerror = () => {
+            console.error('Failed to load Socket.IO, falling back to polling');
+            this.fallbackToPolling();
+        };
+        document.head.appendChild(script);
+    }
+
+    // Handle reconnection logic
+    handleReconnection() {
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.log('Max reconnection attempts reached, falling back to polling');
+            this.fallbackToPolling();
+            return;
+        }
+
+        this.reconnectAttempts++;
+        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+        
+        console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
+        setTimeout(() => {
+            if (!this.isConnected && this.isMonitoring) {
+                this.connectWebSocket();
+            }
+        }, delay);
+    }
+
+    // Fallback to polling if WebSocket fails
+    async fallbackToPolling() {
+        console.log('🔄 Falling back to polling mode');
+        if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
+        }
+
+        // Implement simple polling as backup
+        this.checkInterval = setInterval(() => {
+            this.checkForPendingCalls();
+        }, 3000);
+    }
+
+    // Check for pending calls (fallback method)
     async checkForPendingCalls() {
         if (!this.currentUser || !this.isMonitoring) return;
 
         try {
             const response = await fetch(`${this.getServerUrl()}/api/calls/pending/${this.currentUser.username}`);
             
-            if (!response.ok) {
-                // Don't log errors for monitoring checks to avoid spam
-                return;
-            }
+            if (!response.ok) return;
 
             const data = await response.json();
             
             if (data.success && data.calls && data.calls.length > 0) {
-                // Get the most recent pending call
                 const pendingCall = data.calls[0];
-                
-                // Show incoming call notification
                 this.handleIncomingCall(pendingCall);
             }
-
         } catch (error) {
-            // Silently handle errors to avoid console spam
-            console.debug('Call monitoring check failed:', error.message);
+            console.debug('Polling check failed:', error.message);
         }
     }
 
@@ -82,8 +198,12 @@ class CallMonitor {
     handleIncomingCall(call) {
         console.log('Incoming call detected:', call);
         
-        // Stop monitoring temporarily to prevent multiple notifications
-        this.stopMonitoring();
+        // Don't stop monitoring with WebSocket - just prevent duplicate notifications
+        const existingNotification = document.getElementById('incomingCallNotification');
+        if (existingNotification) {
+            console.log('Call notification already showing, ignoring duplicate');
+            return;
+        }
 
         // Show incoming call notification
         this.showIncomingCallNotification(call);
@@ -220,7 +340,6 @@ class CallMonitor {
             console.error('Failed to answer call:', error);
             this.showError(`Failed to answer call: ${error.message}`);
             this.hideNotification();
-            this.startMonitoring(); // Resume monitoring
         }
     }
 
@@ -240,15 +359,11 @@ class CallMonitor {
                 })
             });
 
-            // Resume monitoring after a brief delay
-            setTimeout(() => {
-                this.startMonitoring();
-            }, 2000);
+            // No need to restart monitoring with WebSocket - it stays connected
 
         } catch (error) {
             console.error('Failed to decline call:', error);
             this.hideNotification();
-            this.startMonitoring(); // Resume monitoring
         }
     }
 
@@ -288,15 +403,22 @@ class CallMonitor {
         if (!this.currentUser) return;
 
         try {
+            const payload = {
+                username: this.currentUser.username,
+                status: status
+            };
+
+            // Include socket ID if connected via WebSocket
+            if (this.socket && this.socket.id) {
+                payload.socket_id = this.socket.id;
+            }
+
             await fetch(`${this.getServerUrl()}/api/calls/presence`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    username: this.currentUser.username,
-                    status: status
-                })
+                body: JSON.stringify(payload)
             });
         } catch (error) {
             console.debug('Failed to update presence:', error.message);
@@ -324,7 +446,7 @@ document.addEventListener('visibilitychange', () => {
         callMonitor.updatePresence('away');
     } else {
         callMonitor.updatePresence('online');
-        callMonitor.startMonitoring();
+        // WebSocket stays connected, no need to restart monitoring
     }
 });
 
