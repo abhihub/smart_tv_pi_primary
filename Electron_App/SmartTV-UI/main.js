@@ -133,8 +133,8 @@ function createWindow() {
     console.error('❌ Failed to load homepage:', error);
   });
   
-  // Enable dev tools for debugging
-  win.webContents.openDevTools();
+  // Dev tools disabled for production use
+  // win.webContents.openDevTools();
 }
 
 console.log('⏳ Waiting for app to be ready...');
