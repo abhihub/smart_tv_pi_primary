@@ -133,6 +133,19 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         }
 
+        .user-card.friend-user {
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.15) 0%, rgba(39, 174, 96, 0.1) 100%);
+            border: 2px solid rgba(46, 204, 113, 0.4);
+            box-shadow: 0 8px 25px rgba(46, 204, 113, 0.2);
+        }
+
+        .user-card.friend-user:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(46, 204, 113, 0.3);
+            border-color: rgba(46, 204, 113, 0.6);
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.25) 0%, rgba(39, 174, 96, 0.15) 100%);
+        }
+
         .user-card::before {
             content: '';
             position: absolute;
@@ -868,19 +881,7 @@
             </div>
         </div>
 
-        <!-- Test Call Button (temporary workaround) -->
         <div style="text-align: center; margin-top: 20px;">
-            <button onclick="testCall()" data-focusable="true" tabindex="0" style="
-                background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
-                border: none;
-                color: white;
-                padding: 15px 30px;
-                border-radius: 25px;
-                font-size: 1.1rem;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                margin: 5px;
-            ">🧪 Test Call Between Users</button>
             
             <button onclick="checkPendingCalls()" data-focusable="true" tabindex="0" style="
                 background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
@@ -1029,21 +1030,37 @@
         function displayUsers(users) {
             const usersGrid = document.getElementById('usersGrid');
             
-            // Only show friends' online status - no empty state for general users
-            usersGrid.innerHTML = users.map(user => `
-                <div class="user-card" onclick="initiateCall('${user.username}')" data-focusable="true" tabindex="0" style="animation: fadeInUp 0.6s ease-out">
-                    <div class="user-card-avatar">
-                        ${user.username.substring(0, 2)}
-                        <div class="online-indicator"></div>
-                    </div>
-                    <div class="user-name">${user.username}</div>
-                    <div class="user-display-name">${user.display_name || 'Smart TV User'}</div>
-                    <button class="call-btn" onclick="event.stopPropagation(); initiateCall('${user.username}')" data-focusable="true" tabindex="0">
-                        📞 Call ${user.username}
-                    </button>
-                </div>
-            `).join('');
+            // Filter to show only friends who are online
+            const onlineFriends = users.filter(user => user.is_friend === 1 || user.is_friend === true);
             
+            if (onlineFriends.length === 0) {
+                usersGrid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; opacity: 0.6;">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">👥</div>
+                        <h3 style="font-size: 1.5rem; margin-bottom: 10px;">No friends online</h3>
+                        <p style="font-size: 1rem; opacity: 0.8;">Add friends to see when they're available for calls</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            usersGrid.innerHTML = onlineFriends.map(user => {
+                return `
+                    <div class="user-card friend-user" onclick="initiateCall('${user.username}')" data-focusable="true" tabindex="0" style="animation: fadeInUp 0.6s ease-out;">
+                        <div class="user-card-avatar">
+                            ${user.username.substring(0, 2)}
+                            <div class="online-indicator"></div>
+                        </div>
+                        <div class="user-name">${user.username}
+                            <span style="background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); color: white; padding: 4px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 8px; font-weight: 500; box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3);">👥 Friend</span>
+                        </div>
+                        <div class="user-display-name">${user.display_name || 'Smart TV User'}</div>
+                        <button class="call-btn" onclick="event.stopPropagation(); initiateCall('${user.username}')" data-focusable="true" tabindex="0">
+                            📞 Call ${user.username}
+                        </button>
+                    </div>
+                `;
+            }).join('');
         }
 
         async function initiateCall(calleeUsername) {
@@ -1402,98 +1419,6 @@
             }
         }
 
-        // Test call function (workaround for user discovery issue)
-        async function testCall() {
-            if (!currentUser) {
-                showError('User not initialized');
-                return;
-            }
-
-            // Generate unique 5-character test users (backend requirement)
-            const timestamp = Date.now().toString().slice(-4);
-            const testCaller = `T${timestamp}`;
-            const testCallee = `U${timestamp}`;
-            
-            try {
-                showCallStatus(`Creating test call...`, 'Registering test users...');
-
-                // Register test users first
-                await fetch(`${getServerUrl()}/api/users/register`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({username: testCaller, device_type: 'test'})
-                });
-
-                await fetch(`${getServerUrl()}/api/users/register`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({username: testCallee, device_type: 'test'})
-                });
-
-                showCallStatus(`Test call: ${testCaller} → ${testCallee}`, 'Creating call...');
-
-                const response = await fetch(`${getServerUrl()}/api/calls/invite`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        caller: testCaller,
-                        callee: testCallee
-                    })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || 'Failed to initiate test call');
-                }
-
-                currentCallId = data.call.call_id;
-                console.log('Test call created successfully:', data.call);
-                
-                showCallStatus(`Test call created!`, `Call ID: ${currentCallId.substring(0, 8)}...`);
-
-                // Now test answering the call
-                setTimeout(async () => {
-                    try {
-                        showCallStatus('Answering test call...', 'Processing...');
-
-                        const answerResponse = await fetch(`${getServerUrl()}/api/calls/answer`, {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({
-                                call_id: currentCallId,
-                                callee: testCallee
-                            })
-                        });
-
-                        const answerData = await answerResponse.json();
-                        console.log('Answer response:', answerData);
-
-                        if (answerData.success) {
-                            showCallStatus('🎉 Call System Working!', `Room created: ${answerData.call.room_name}`);
-                            
-                            setTimeout(() => {
-                                hideCallStatus();
-                                showError(`✅ SUCCESS! Call system is working. Room: ${answerData.call.room_name}`);
-                            }, 3000);
-                        } else {
-                            throw new Error(answerData.error || 'Failed to answer test call');
-                        }
-                    } catch (error) {
-                        console.error('Failed to answer test call:', error);
-                        hideCallStatus();
-                        showError(`Failed to answer test call: ${error.message}`);
-                    }
-                }, 2000);
-                
-            } catch (error) {
-                console.error('Failed to initiate test call:', error);
-                hideCallStatus();
-                showError(`Failed to create test call: ${error.message}`);
-            }
-        }
 
         // Wait for DOM and scripts to be ready
         document.addEventListener('DOMContentLoaded', () => {
@@ -1569,42 +1494,41 @@
             }
             
             try {
-                showError('Sending friend request...');
+                showError('Checking user and sending friend request...');
                 
-                // TODO: Replace with actual API call
-                const response = await fetch(`${getServerUrl()}/api/friends/request`, {
+                // First check if user exists
+                const userCheckResponse = await fetch(`${getServerUrl()}/api/users/profile/${userId}`);
+                
+                if (!userCheckResponse.ok) {
+                    showError(`❌ User ${userId} does not exist`);
+                    return;
+                }
+                
+                // User exists, now send friend request
+                const response = await fetch(`${getServerUrl()}/api/users/friends/request`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        requester: currentUser.username,
-                        target: userId
+                        sender: currentUser.username,
+                        receiver: userId,
+                        message: `Friend request from ${currentUser.username}`
                     })
                 });
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success) {
-                        showError('✅ Friend request sent successfully!');
-                        toggleAddFriendModal();
-                        loadFriendsList('pending');
-                    } else {
-                        showError(data.error || 'Failed to send friend request');
-                    }
-                } else {
-                    // For now, show placeholder success message
-                    showError('✅ Friend request sent to ' + userId);
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    showError('✅ Friend request sent successfully!');
                     toggleAddFriendModal();
-                    addPlaceholderPendingFriend(userId);
+                    loadFriendsList('pending');
+                } else {
+                    showError(`❌ ${data.error || 'Failed to send friend request'}`);
                 }
                 
             } catch (error) {
                 console.error('Error sending friend request:', error);
-                // For now, show placeholder success message
-                showError('✅ Friend request sent to ' + userId);
-                toggleAddFriendModal();
-                addPlaceholderPendingFriend(userId);
+                showError('❌ Failed to send friend request. Please try again.');
             }
         }
 
@@ -1613,15 +1537,41 @@
             const listElement = document.getElementById(tab === 'friends' ? 'friendsList' : 
                                                       tab === 'pending' ? 'pendingList' : 'requestsList');
             
+            if (!currentUser) {
+                showEmptyState(listElement, tab);
+                return;
+            }
+            
             try {
-                // TODO: Replace with actual API calls
-                // For now, show placeholder data
+                let response, data;
+                
                 if (tab === 'friends') {
-                    displayFriends(getPlaceholderFriends());
+                    // Get user's friends list
+                    response = await fetch(`${getServerUrl()}/api/users/friends/${currentUser.username}`);
+                    data = await response.json();
+                    if (data.success) {
+                        displayFriends(data.friends || []);
+                    } else {
+                        showEmptyState(listElement, tab);
+                    }
                 } else if (tab === 'pending') {
-                    displayPendingRequests(getPlaceholderPending());
+                    // Get sent friend requests (pending)
+                    response = await fetch(`${getServerUrl()}/api/users/friends/requests/sent/${currentUser.username}`);
+                    data = await response.json();
+                    if (data.success) {
+                        displayPendingRequests(data.requests || []);
+                    } else {
+                        showEmptyState(listElement, tab);
+                    }
                 } else if (tab === 'requests') {
-                    displayIncomingRequests(getPlaceholderRequests());
+                    // Get incoming friend requests
+                    response = await fetch(`${getServerUrl()}/api/users/friends/requests/pending/${currentUser.username}`);
+                    data = await response.json();
+                    if (data.success) {
+                        displayIncomingRequests(data.requests || []);
+                    } else {
+                        showEmptyState(listElement, tab);
+                    }
                 }
                 
             } catch (error) {
@@ -1639,32 +1589,39 @@
                 return;
             }
             
-            listElement.innerHTML = friends.map(friend => `
-                <div class="friend-card">
-                    <div class="friend-avatar">${friend.username.substring(0, 2)}</div>
-                    <div class="friend-info">
-                        <div class="friend-name">${friend.username}</div>
-                        <div class="friend-status">
-                            <div class="status-dot ${friend.online ? '' : 'offline'}"></div>
-                            ${friend.online ? 'Online' : 'Offline'}
+            listElement.innerHTML = friends.map(friend => {
+                // Handle both old format (username) and new format (friend_username)
+                const username = friend.friend_username || friend.username;
+                const displayName = friend.friend_display_name || friend.display_name || username;
+                const isOnline = friend.friend_status === 'online' || friend.online;
+                
+                return `
+                    <div class="friend-card">
+                        <div class="friend-avatar">${username.substring(0, 2)}</div>
+                        <div class="friend-info">
+                            <div class="friend-name">${username}</div>
+                            <div class="friend-status">
+                                <div class="status-dot ${isOnline ? '' : 'offline'}"></div>
+                                ${isOnline ? 'Online' : 'Offline'}
+                            </div>
+                        </div>
+                        <div class="friend-actions">
+                            <button class="friend-action-btn call-friend-btn" 
+                                    onclick="callFriend('${username}')" 
+                                    title="Call ${username}"
+                                    data-focusable="true" tabindex="0">
+                                📞
+                            </button>
+                            <button class="friend-action-btn remove-friend-btn" 
+                                    onclick="removeFriend('${username}')" 
+                                    title="Remove friend"
+                                    data-focusable="true" tabindex="0">
+                                🗑️
+                            </button>
                         </div>
                     </div>
-                    <div class="friend-actions">
-                        <button class="friend-action-btn call-friend-btn" 
-                                onclick="callFriend('${friend.username}')" 
-                                title="Call ${friend.username}"
-                                data-focusable="true" tabindex="0">
-                            📞
-                        </button>
-                        <button class="friend-action-btn remove-friend-btn" 
-                                onclick="removeFriend('${friend.username}')" 
-                                title="Remove friend"
-                                data-focusable="true" tabindex="0">
-                            🗑️
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Display Pending Requests
@@ -1676,26 +1633,32 @@
                 return;
             }
             
-            listElement.innerHTML = requests.map(request => `
-                <div class="friend-card">
-                    <div class="friend-avatar">${request.username.substring(0, 2)}</div>
-                    <div class="friend-info">
-                        <div class="friend-name">${request.username}</div>
-                        <div class="friend-status">
-                            <div class="status-dot offline"></div>
-                            Pending request
+            listElement.innerHTML = requests.map(request => {
+                // Handle backend data format (receiver_username for sent requests)
+                const username = request.receiver_username || request.username;
+                const displayName = request.receiver_display_name || request.display_name || username;
+                
+                return `
+                    <div class="friend-card">
+                        <div class="friend-avatar">${username.substring(0, 2)}</div>
+                        <div class="friend-info">
+                            <div class="friend-name">${username}</div>
+                            <div class="friend-status">
+                                <div class="status-dot offline"></div>
+                                Pending request
+                            </div>
+                        </div>
+                        <div class="friend-actions">
+                            <button class="friend-action-btn remove-friend-btn" 
+                                    onclick="cancelFriendRequest('${username}')" 
+                                    title="Cancel request"
+                                    data-focusable="true" tabindex="0">
+                                ❌
+                            </button>
                         </div>
                     </div>
-                    <div class="friend-actions">
-                        <button class="friend-action-btn remove-friend-btn" 
-                                onclick="cancelFriendRequest('${request.username}')" 
-                                title="Cancel request"
-                                data-focusable="true" tabindex="0">
-                            ❌
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Display Incoming Requests
@@ -1707,32 +1670,38 @@
                 return;
             }
             
-            listElement.innerHTML = requests.map(request => `
-                <div class="friend-card">
-                    <div class="friend-avatar">${request.username.substring(0, 2)}</div>
-                    <div class="friend-info">
-                        <div class="friend-name">${request.username}</div>
-                        <div class="friend-status">
-                            <div class="status-dot offline"></div>
-                            Wants to be friends
+            listElement.innerHTML = requests.map(request => {
+                // Handle backend data format (sender_username for incoming requests)
+                const username = request.sender_username || request.username;
+                const displayName = request.sender_display_name || request.display_name || username;
+                
+                return `
+                    <div class="friend-card">
+                        <div class="friend-avatar">${username.substring(0, 2)}</div>
+                        <div class="friend-info">
+                            <div class="friend-name">${username}</div>
+                            <div class="friend-status">
+                                <div class="status-dot offline"></div>
+                                Wants to be friends
+                            </div>
+                        </div>
+                        <div class="friend-actions">
+                            <button class="friend-action-btn accept-friend-btn" 
+                                    onclick="acceptFriendRequest('${username}')" 
+                                    title="Accept request"
+                                    data-focusable="true" tabindex="0">
+                                ✅
+                            </button>
+                            <button class="friend-action-btn decline-friend-btn" 
+                                    onclick="declineFriendRequest('${username}')" 
+                                    title="Decline request"
+                                    data-focusable="true" tabindex="0">
+                                ❌
+                            </button>
                         </div>
                     </div>
-                    <div class="friend-actions">
-                        <button class="friend-action-btn accept-friend-btn" 
-                                onclick="acceptFriendRequest('${request.username}')" 
-                                title="Accept request"
-                                data-focusable="true" tabindex="0">
-                            ✅
-                        </button>
-                        <button class="friend-action-btn decline-friend-btn" 
-                                onclick="declineFriendRequest('${request.username}')" 
-                                title="Decline request"
-                                data-focusable="true" tabindex="0">
-                            ❌
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Show Empty State
@@ -1763,11 +1732,27 @@
         async function removeFriend(friendUsername) {
             if (confirm(`Are you sure you want to remove ${friendUsername} from your friends?`)) {
                 try {
-                    // TODO: Implement actual API call
-                    showError(`Removed ${friendUsername} from friends`);
-                    loadFriendsList('friends');
+                    const response = await fetch(`${getServerUrl()}/api/users/friends/remove`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            username1: currentUser.username,
+                            username2: friendUsername
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        showError(`✅ Removed ${friendUsername} from friends`);
+                        loadFriendsList('friends');
+                    } else {
+                        showError(`❌ ${data.error || 'Failed to remove friend'}`);
+                    }
                 } catch (error) {
-                    showError('Failed to remove friend');
+                    console.error('Error removing friend:', error);
+                    showError('❌ Failed to remove friend');
                 }
             }
         }
@@ -1775,34 +1760,83 @@
         // Accept Friend Request
         async function acceptFriendRequest(username) {
             try {
-                // TODO: Implement actual API call
-                showError(`✅ Accepted friend request from ${username}`);
-                loadFriendsList('requests');
-                loadFriendsList('friends');
+                const response = await fetch(`${getServerUrl()}/api/users/friends/accept`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sender: username,
+                        receiver: currentUser.username
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showError(`✅ Accepted friend request from ${username}`);
+                    loadFriendsList('requests');
+                    loadFriendsList('friends');
+                } else {
+                    showError(`❌ ${data.error || 'Failed to accept friend request'}`);
+                }
             } catch (error) {
-                showError('Failed to accept friend request');
+                console.error('Error accepting friend request:', error);
+                showError('❌ Failed to accept friend request');
             }
         }
 
         // Decline Friend Request
         async function declineFriendRequest(username) {
             try {
-                // TODO: Implement actual API call
-                showError(`Declined friend request from ${username}`);
-                loadFriendsList('requests');
+                const response = await fetch(`${getServerUrl()}/api/users/friends/decline`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sender: username,
+                        receiver: currentUser.username
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showError(`✅ Declined friend request from ${username}`);
+                    loadFriendsList('requests');
+                } else {
+                    showError(`❌ ${data.error || 'Failed to decline friend request'}`);
+                }
             } catch (error) {
-                showError('Failed to decline friend request');
+                console.error('Error declining friend request:', error);
+                showError('❌ Failed to decline friend request');
             }
         }
 
         // Cancel Friend Request
         async function cancelFriendRequest(username) {
             try {
-                // TODO: Implement actual API call
-                showError(`Cancelled friend request to ${username}`);
-                loadFriendsList('pending');
+                // Use decline endpoint with reversed roles (we are the sender cancelling)
+                const response = await fetch(`${getServerUrl()}/api/users/friends/decline`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sender: currentUser.username,
+                        receiver: username
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showError(`✅ Cancelled friend request to ${username}`);
+                    loadFriendsList('pending');
+                } else {
+                    showError(`❌ ${data.error || 'Failed to cancel friend request'}`);
+                }
             } catch (error) {
-                showError('Failed to cancel friend request');
+                console.error('Error cancelling friend request:', error);
+                showError('❌ Failed to cancel friend request');
             }
         }
 
