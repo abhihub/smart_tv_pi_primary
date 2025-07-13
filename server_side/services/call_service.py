@@ -14,36 +14,53 @@ class CallService:
         self.db = db_manager
     
     def get_online_users(self, exclude_username: str = None) -> List[Dict[str, Any]]:
-        """Get list of users who are currently online"""
+        """Get list of users who are currently online, with friend status if exclude_username provided"""
         try:
             # Extended time window to handle timezone issues - 30 minutes
             thirty_minutes_ago = datetime.now() - timedelta(minutes=30)
             
             exclude_clause = ""
+            friend_join = ""
+            friend_select = ", 0 as is_friend"
             params = (thirty_minutes_ago.isoformat(),)
             
             if exclude_username:
                 exclude_clause = "AND u.username != ?"
-                params = (thirty_minutes_ago.isoformat(), exclude_username)
+                # Add friend relationship check
+                friend_join = """
+                    LEFT JOIN friends f ON (
+                        (f.user_id = current_user.id AND f.friend_id = u.id) OR
+                        (f.friend_id = current_user.id AND f.user_id = u.id)
+                    ) AND f.status = 'accepted'
+                    LEFT JOIN users current_user ON current_user.username = ?
+                """
+                friend_select = ", CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_friend"
+                params = (thirty_minutes_ago.isoformat(), exclude_username, exclude_username)
             
-            # More flexible query that checks multiple time formats
+            # Enhanced query with friend status
             query = f"""
                 SELECT u.username, u.display_name, u.last_seen,
                        COALESCE(up.status, 'offline') as presence_status
+                       {friend_select}
                 FROM users u
                 LEFT JOIN user_presence up ON u.id = up.user_id
+                {friend_join}
                 WHERE (
                     datetime(u.last_seen) > datetime(?) OR
                     u.last_seen > ? OR
                     julianday('now') - julianday(u.last_seen) < 0.021
                 ) {exclude_clause}
-                ORDER BY u.last_seen DESC
+                ORDER BY 
+                    CASE WHEN {exclude_username and 'f.id IS NOT NULL' or '0'} THEN 0 ELSE 1 END,
+                    u.last_seen DESC
             """
             
             # Use the same timestamp for both comparisons
-            params = (thirty_minutes_ago.isoformat(), thirty_minutes_ago.isoformat())
+            base_params = (thirty_minutes_ago.isoformat(), thirty_minutes_ago.isoformat())
             if exclude_username:
-                params = (thirty_minutes_ago.isoformat(), thirty_minutes_ago.isoformat(), exclude_username)
+                params = base_params + (exclude_username, exclude_username)
+            else:
+                params = base_params
             
             results = self.db.execute_query(query, params, fetch='all')
             return [dict(row) for row in results] if results else []
