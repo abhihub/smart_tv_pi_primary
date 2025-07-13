@@ -14,6 +14,7 @@ def register_user():
     
     Expected JSON payload:
     {
+        "userid": "APP123456789",
         "username": "ABC123",
         "display_name": "Optional display name",
         "device_type": "smarttv",
@@ -29,9 +30,20 @@ def register_user():
         if not data:
             return jsonify({'error': 'Request body must be JSON'}), 400
         
+        userid = data.get('userid')
         username = data.get('username')
+        
+        if not userid:
+            return jsonify({'error': 'userid is required'}), 400
+        
         if not username:
             return jsonify({'error': 'Username is required'}), 400
+        
+        # Validate userid format (app-generated, should be unique)
+        if not userid or len(userid) < 5:
+            return jsonify({
+                'error': 'userid must be at least 5 characters long'
+            }), 400
         
         # Validate username format (5 alphanumeric characters)
         if not username.isalnum() or len(username) != 5:
@@ -45,6 +57,7 @@ def register_user():
         
         # Register or update user
         result = user_service.register_or_update_user(
+            userid=userid,
             username=username,
             display_name=display_name,
             device_type=device_type,
