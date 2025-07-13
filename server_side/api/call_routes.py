@@ -360,6 +360,329 @@ def cleanup_old_calls():
             'error': f'Cleanup failed: {str(e)}'
         }), 500
 
+@call_bp.route('/create', methods=['POST'])
+def create_call():
+    """
+    Create a new call room
+    
+    Expected JSON payload:
+    {
+        "creator": "CYJXC",
+        "call_type": "video",
+        "meeting_title": "Team Meeting",
+        "max_participants": 10
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        creator = data.get('creator')
+        call_type = data.get('call_type', 'video')
+        meeting_title = data.get('meeting_title')
+        max_participants = data.get('max_participants', 10)
+        
+        if not creator:
+            return jsonify({'error': 'Creator username is required'}), 400
+        
+        # Verify creator exists
+        creator_user = user_service.get_user_by_username(creator)
+        if not creator_user:
+            return jsonify({'error': 'Creator not found'}), 404
+        
+        # Create the call
+        call_result = call_service.create_call(creator, call_type, meeting_title, max_participants)
+        
+        if not call_result:
+            return jsonify({'error': 'Failed to create call'}), 400
+        
+        # Update creator's activity
+        user_service.update_last_seen(creator)
+        
+        return jsonify({
+            'success': True,
+            'call': call_result
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to create call: {e}")
+        return jsonify({
+            'error': f'Call creation failed: {str(e)}'
+        }), 500
+
+@call_bp.route('/join', methods=['POST'])
+def join_call():
+    """
+    Join an existing call
+    
+    Expected JSON payload:
+    {
+        "call_id": "uuid-string",
+        "username": "AJ84H"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        call_id = data.get('call_id')
+        username = data.get('username')
+        
+        if not call_id or not username:
+            return jsonify({'error': 'Call ID and username are required'}), 400
+        
+        # Join the call
+        join_result = call_service.join_call(call_id, username)
+        
+        if not join_result:
+            return jsonify({'error': 'Failed to join call or call not found/full'}), 400
+        
+        # Update user's activity
+        user_service.update_last_seen(username)
+        
+        return jsonify({
+            'success': True,
+            'call': join_result
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to join call: {e}")
+        return jsonify({
+            'error': f'Call join failed: {str(e)}'
+        }), 500
+
+@call_bp.route('/leave', methods=['POST'])
+def leave_call():
+    """
+    Leave a call
+    
+    Expected JSON payload:
+    {
+        "call_id": "uuid-string",
+        "username": "AJ84H"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        call_id = data.get('call_id')
+        username = data.get('username')
+        
+        if not call_id or not username:
+            return jsonify({'error': 'Call ID and username are required'}), 400
+        
+        # Leave the call
+        success = call_service.leave_call(call_id, username)
+        
+        if not success:
+            return jsonify({'error': 'Failed to leave call or not in call'}), 400
+        
+        return jsonify({
+            'success': True,
+            'message': 'Left call successfully'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to leave call: {e}")
+        return jsonify({
+            'error': f'Call leave failed: {str(e)}'
+        }), 500
+
+@call_bp.route('/invite-user', methods=['POST'])
+def invite_to_call():
+    """
+    Invite a user to join a call
+    
+    Expected JSON payload:
+    {
+        "call_id": "uuid-string",
+        "inviter": "CYJXC",
+        "invitee": "AJ84H"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        call_id = data.get('call_id')
+        inviter = data.get('inviter')
+        invitee = data.get('invitee')
+        
+        if not call_id or not inviter or not invitee:
+            return jsonify({'error': 'Call ID, inviter, and invitee usernames are required'}), 400
+        
+        # Invite to call
+        invite_result = call_service.invite_to_call(call_id, inviter, invitee)
+        
+        if not invite_result:
+            return jsonify({'error': 'Failed to invite user or inviter not in call'}), 400
+        
+        return jsonify({
+            'success': True,
+            'invitation': invite_result
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to invite to call: {e}")
+        return jsonify({
+            'error': f'Call invitation failed: {str(e)}'
+        }), 500
+
+@call_bp.route('/accept-invitation', methods=['POST'])
+def accept_call_invitation():
+    """
+    Accept a call invitation
+    
+    Expected JSON payload:
+    {
+        "call_id": "uuid-string",
+        "username": "AJ84H"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        call_id = data.get('call_id')
+        username = data.get('username')
+        
+        if not call_id or not username:
+            return jsonify({'error': 'Call ID and username are required'}), 400
+        
+        # Accept invitation
+        accept_result = call_service.accept_call_invitation(call_id, username)
+        
+        if not accept_result:
+            return jsonify({'error': 'Failed to accept invitation or invitation not found'}), 400
+        
+        # Update user's activity
+        user_service.update_last_seen(username)
+        
+        return jsonify({
+            'success': True,
+            'call': accept_result
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to accept call invitation: {e}")
+        return jsonify({
+            'error': f'Call invitation acceptance failed: {str(e)}'
+        }), 500
+
+@call_bp.route('/decline-invitation', methods=['POST'])
+def decline_call_invitation():
+    """
+    Decline a call invitation
+    
+    Expected JSON payload:
+    {
+        "call_id": "uuid-string",
+        "username": "AJ84H"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        call_id = data.get('call_id')
+        username = data.get('username')
+        
+        if not call_id or not username:
+            return jsonify({'error': 'Call ID and username are required'}), 400
+        
+        # Decline invitation
+        success = call_service.decline_call_invitation(call_id, username)
+        
+        if not success:
+            return jsonify({'error': 'Failed to decline invitation or invitation not found'}), 400
+        
+        return jsonify({
+            'success': True,
+            'message': 'Invitation declined'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to decline call invitation: {e}")
+        return jsonify({
+            'error': f'Call invitation decline failed: {str(e)}'
+        }), 500
+
+@call_bp.route('/invitations/<username>', methods=['GET'])
+def get_pending_invitations(username):
+    """Get pending call invitations for a specific user"""
+    try:
+        # Update user's last seen
+        user_service.update_last_seen(username)
+        
+        invitations = call_service.get_pending_invitations_for_user(username)
+        
+        return jsonify({
+            'success': True,
+            'invitations': invitations,
+            'count': len(invitations)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to get pending invitations: {e}")
+        return jsonify({
+            'error': f'Failed to get pending invitations: {str(e)}'
+        }), 500
+
+@call_bp.route('/active/<username>', methods=['GET'])
+def get_active_calls(username):
+    """Get active calls for a specific user"""
+    try:
+        # Update user's last seen
+        user_service.update_last_seen(username)
+        
+        active_calls = call_service.get_active_calls_for_user(username)
+        
+        return jsonify({
+            'success': True,
+            'calls': active_calls,
+            'count': len(active_calls)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to get active calls: {e}")
+        return jsonify({
+            'error': f'Failed to get active calls: {str(e)}'
+        }), 500
+
+@call_bp.route('/history', methods=['GET'])
+def get_call_history():
+    """Get call history (optionally filtered by user)"""
+    try:
+        username = request.args.get('username')
+        limit = int(request.args.get('limit', 50))
+        
+        history = call_service.get_call_history(username, limit)
+        
+        return jsonify({
+            'success': True,
+            'history': history,
+            'count': len(history)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to get call history: {e}")
+        return jsonify({
+            'error': f'Failed to get call history: {str(e)}'
+        }), 500
+
 @call_bp.route('/health', methods=['GET'])
 def call_service_health():
     """Health check for call service"""

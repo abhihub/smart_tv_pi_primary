@@ -302,6 +302,361 @@ def get_active_users():
             'error': f'Failed to get active users: {str(e)}'
         }), 500
 
+@user_bp.route('/friends/request', methods=['POST'])
+def send_friend_request():
+    """
+    Send a friend request
+    
+    Expected JSON payload:
+    {
+        "sender": "CYJXC",
+        "receiver": "AJ84H",
+        "message": "Let's be friends!"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        sender = data.get('sender')
+        receiver = data.get('receiver')
+        message = data.get('message')
+        
+        if not sender or not receiver:
+            return jsonify({'error': 'Sender and receiver usernames are required'}), 400
+        
+        if sender == receiver:
+            return jsonify({'error': 'Cannot send friend request to yourself'}), 400
+        
+        success = user_service.send_friend_request(sender, receiver, message)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Friend request sent successfully'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to send friend request or already friends'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Failed to send friend request: {e}")
+        return jsonify({
+            'error': f'Friend request failed: {str(e)}'
+        }), 500
+
+@user_bp.route('/friends/accept', methods=['POST'])
+def accept_friend_request():
+    """
+    Accept a friend request
+    
+    Expected JSON payload:
+    {
+        "sender": "CYJXC",
+        "receiver": "AJ84H"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        sender = data.get('sender')
+        receiver = data.get('receiver')
+        
+        if not sender or not receiver:
+            return jsonify({'error': 'Sender and receiver usernames are required'}), 400
+        
+        success = user_service.accept_friend_request(sender, receiver)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Friend request accepted'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to accept friend request'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Failed to accept friend request: {e}")
+        return jsonify({
+            'error': f'Friend request acceptance failed: {str(e)}'
+        }), 500
+
+@user_bp.route('/friends/decline', methods=['POST'])
+def decline_friend_request():
+    """
+    Decline a friend request
+    
+    Expected JSON payload:
+    {
+        "sender": "CYJXC",
+        "receiver": "AJ84H"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        sender = data.get('sender')
+        receiver = data.get('receiver')
+        
+        if not sender or not receiver:
+            return jsonify({'error': 'Sender and receiver usernames are required'}), 400
+        
+        success = user_service.decline_friend_request(sender, receiver)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Friend request declined'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to decline friend request'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Failed to decline friend request: {e}")
+        return jsonify({
+            'error': f'Friend request decline failed: {str(e)}'
+        }), 500
+
+@user_bp.route('/friends/remove', methods=['POST'])
+def remove_friend():
+    """
+    Remove a friend
+    
+    Expected JSON payload:
+    {
+        "username1": "CYJXC",
+        "username2": "AJ84H"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        username1 = data.get('username1')
+        username2 = data.get('username2')
+        
+        if not username1 or not username2:
+            return jsonify({'error': 'Both usernames are required'}), 400
+        
+        success = user_service.remove_friend(username1, username2)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Friend removed successfully'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to remove friend'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Failed to remove friend: {e}")
+        return jsonify({
+            'error': f'Friend removal failed: {str(e)}'
+        }), 500
+
+@user_bp.route('/friends/block', methods=['POST'])
+def block_user():
+    """
+    Block a user
+    
+    Expected JSON payload:
+    {
+        "username": "CYJXC",
+        "blocked_username": "AJ84H"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        username = data.get('username')
+        blocked_username = data.get('blocked_username')
+        
+        if not username or not blocked_username:
+            return jsonify({'error': 'Both usernames are required'}), 400
+        
+        if username == blocked_username:
+            return jsonify({'error': 'Cannot block yourself'}), 400
+        
+        success = user_service.block_user(username, blocked_username)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'User blocked successfully'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to block user'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Failed to block user: {e}")
+        return jsonify({
+            'error': f'User blocking failed: {str(e)}'
+        }), 500
+
+@user_bp.route('/friends/unblock', methods=['POST'])
+def unblock_user():
+    """
+    Unblock a user
+    
+    Expected JSON payload:
+    {
+        "username": "CYJXC",
+        "blocked_username": "AJ84H"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        username = data.get('username')
+        blocked_username = data.get('blocked_username')
+        
+        if not username or not blocked_username:
+            return jsonify({'error': 'Both usernames are required'}), 400
+        
+        success = user_service.unblock_user(username, blocked_username)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'User unblocked successfully'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to unblock user'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Failed to unblock user: {e}")
+        return jsonify({
+            'error': f'User unblocking failed: {str(e)}'
+        }), 500
+
+@user_bp.route('/friends/<username>', methods=['GET'])
+def get_friends_list(username):
+    """Get user's friends list"""
+    try:
+        friends = user_service.get_friends_list(username)
+        
+        return jsonify({
+            'success': True,
+            'friends': friends,
+            'count': len(friends)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to get friends list: {e}")
+        return jsonify({
+            'error': f'Failed to get friends list: {str(e)}'
+        }), 500
+
+@user_bp.route('/friends/requests/pending/<username>', methods=['GET'])
+def get_pending_friend_requests(username):
+    """Get pending friend requests for a user"""
+    try:
+        requests = user_service.get_pending_friend_requests(username)
+        
+        return jsonify({
+            'success': True,
+            'requests': requests,
+            'count': len(requests)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to get pending friend requests: {e}")
+        return jsonify({
+            'error': f'Failed to get pending friend requests: {str(e)}'
+        }), 500
+
+@user_bp.route('/friends/requests/sent/<username>', methods=['GET'])
+def get_sent_friend_requests(username):
+    """Get sent friend requests for a user"""
+    try:
+        requests = user_service.get_sent_friend_requests(username)
+        
+        return jsonify({
+            'success': True,
+            'requests': requests,
+            'count': len(requests)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to get sent friend requests: {e}")
+        return jsonify({
+            'error': f'Failed to get sent friend requests: {str(e)}'
+        }), 500
+
+@user_bp.route('/friends/blocked/<username>', methods=['GET'])
+def get_blocked_users(username):
+    """Get list of blocked users"""
+    try:
+        blocked = user_service.get_blocked_users(username)
+        
+        return jsonify({
+            'success': True,
+            'blocked': blocked,
+            'count': len(blocked)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to get blocked users: {e}")
+        return jsonify({
+            'error': f'Failed to get blocked users: {str(e)}'
+        }), 500
+
+@user_bp.route('/search', methods=['GET'])
+def search_users():
+    """Search for users by username or display name"""
+    try:
+        query = request.args.get('q', '').strip()
+        current_user = request.args.get('current_user')
+        limit = request.args.get('limit', 20, type=int)
+        
+        if not query or len(query) < 2:
+            return jsonify({
+                'success': True,
+                'users': [],
+                'count': 0
+            }), 200
+        
+        users = user_service.search_users(query, current_user, limit)
+        
+        return jsonify({
+            'success': True,
+            'users': users,
+            'count': len(users)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to search users: {e}")
+        return jsonify({
+            'error': f'User search failed: {str(e)}'
+        }), 500
+
 @user_bp.route('/health', methods=['GET'])
 def user_service_health():
     """Health check for user service"""
