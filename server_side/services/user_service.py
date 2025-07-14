@@ -571,3 +571,35 @@ class UserService:
         except Exception as e:
             logger.error(f"Failed to search users with query '{query}': {e}")
             return []
+    
+    def add_online_user(self, userid: str) -> bool:
+        """Add user to online users table"""
+        try:
+            return self.db.add_online_user(userid)
+        except Exception as e:
+            logger.error(f"Failed to add online user {userid}: {e}")
+            return False
+    
+    def remove_online_user(self, userid: str) -> bool:
+        """Remove user from online users table"""
+        try:
+            return self.db.remove_online_user(userid)
+        except Exception as e:
+            logger.error(f"Failed to remove online user {userid}: {e}")
+            return False
+    
+    def get_online_users(self) -> List[Dict[str, Any]]:
+        """Get list of all online users"""
+        try:
+            return self.db.get_online_users()
+        except Exception as e:
+            logger.error(f"Failed to get online users: {e}")
+            return []
+    
+    def is_user_online(self, userid: str) -> bool:
+        """Check if user is online"""
+        try:
+            return self.db.is_user_online(userid)
+        except Exception as e:
+            logger.error(f"Failed to check if user {userid} is online: {e}")
+            return False

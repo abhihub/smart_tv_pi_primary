@@ -123,6 +123,14 @@ CREATE TABLE IF NOT EXISTS user_presence (
     FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE
 );
 
+-- Online users table for tracking active console sessions
+CREATE TABLE IF NOT EXISTS online_users (
+    userid TEXT PRIMARY KEY NOT NULL,
+    status TEXT DEFAULT 'online',
+    connected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userid) REFERENCES users (userid) ON DELETE CASCADE
+);
+
 -- Updated call history view
 CREATE VIEW IF NOT EXISTS call_history AS
 SELECT 
@@ -186,3 +194,4 @@ CREATE INDEX IF NOT EXISTS idx_call_participants_call_id ON call_participants(ca
 CREATE INDEX IF NOT EXISTS idx_call_participants_userid ON call_participants(userid);
 CREATE INDEX IF NOT EXISTS idx_call_invitations_call_id ON call_invitations(call_id);
 CREATE INDEX IF NOT EXISTS idx_call_invitations_invitee_userid ON call_invitations(invitee_userid);
+CREATE INDEX IF NOT EXISTS idx_online_users_userid ON online_users(userid);
