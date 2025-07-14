@@ -12,7 +12,7 @@ class UserService:
     def __init__(self):
         self.db = db_manager
     
-    def register_or_update_user(self, username: str, display_name: str = None, 
+    def register_or_update_user(self, userid: str, username: str, display_name: str = None, 
                                device_type: str = 'smarttv', metadata: Dict = None) -> Dict[str, Any]:
         """Register a new user or update existing user's last seen"""
         try:
@@ -28,7 +28,7 @@ class UserService:
                 user_data = self.get_user_by_username(username)
                 logger.info(f"User {username} updated")
                 return {
-                    'user_id': user_data['id'],
+                    'userid': user_data['userid'],
                     'username': user_data['username'],
                     'display_name': user_data['display_name'],
                     'is_new_user': False,
@@ -38,15 +38,15 @@ class UserService:
                 # Create new user
                 metadata_json = json.dumps(metadata or {})
                 
-                user_id = self.db.execute_query(
-                    """INSERT INTO users (username, display_name, device_type, metadata) 
-                       VALUES (?, ?, ?, ?)""",
-                    (username, display_name or username, device_type, metadata_json)
+                self.db.execute_query(
+                    """INSERT INTO users (userid, username, display_name, device_type, metadata) 
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (userid, username, display_name or username, device_type, metadata_json)
                 )
                 
-                logger.info(f"New user {username} registered with ID {user_id}")
+                logger.info(f"New user {username} registered with ID {userid}")
                 return {
-                    'user_id': user_id,
+                    'userid': userid,
                     'username': username,
                     'display_name': display_name or username,
                     'is_new_user': True,
@@ -70,17 +70,17 @@ class UserService:
             logger.error(f"Failed to get user {username}: {e}")
             return None
     
-    def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
-        """Get user by ID"""
+    def get_user_by_id(self, userid: str) -> Optional[Dict[str, Any]]:
+        """Get user by userid"""
         try:
             result = self.db.execute_query(
-                "SELECT * FROM users WHERE id = ?",
-                (user_id,),
+                "SELECT * FROM users WHERE userid = ?",
+                (userid,),
                 fetch='one'
             )
             return dict(result) if result else None
         except Exception as e:
-            logger.error(f"Failed to get user by ID {user_id}: {e}")
+            logger.error(f"Failed to get user by ID {userid}: {e}")
             return None
     
     def update_last_seen(self, username: str) -> bool:
@@ -157,15 +157,15 @@ class UserService:
             self.db.execute_query(
                 """UPDATE user_sessions 
                    SET is_active = 0, ended_at = CURRENT_TIMESTAMP 
-                   WHERE user_id = ? AND is_active = 1""",
-                (user['id'],)
+                   WHERE userid = ? AND is_active = 1""",
+                (user['userid'],)
             )
             
             # Create new session
             self.db.execute_query(
-                """INSERT INTO user_sessions (user_id, session_token, session_type, room_name) 
+                """INSERT INTO user_sessions (userid, session_token, session_type, room_name) 
                    VALUES (?, ?, ?, ?)""",
-                (user['id'], session_token, session_type, room_name)
+                (user['userid'], session_token, session_type, room_name)
             )
             
             logger.info(f"Created {session_type} session for {username}")
@@ -206,8 +206,8 @@ class UserService:
                      SUM(correct_answers) as total_correct,
                      SUM(questions_answered) as total_questions
                    FROM game_scores 
-                   WHERE user_id = ?""",
-                (user['id'],),
+                   WHERE userid = ?""",
+                (user['userid'],),
                 fetch='one'
             )
             
@@ -218,8 +218,8 @@ class UserService:
                      COUNT(CASE WHEN session_type = 'video_call' THEN 1 END) as video_sessions,
                      COUNT(CASE WHEN session_type = 'trivia_game' THEN 1 END) as trivia_sessions
                    FROM user_sessions 
-                   WHERE user_id = ?""",
-                (user['id'],),
+                   WHERE userid = ?""",
+                (user['userid'],),
                 fetch='one'
             )
             
@@ -254,10 +254,10 @@ class UserService:
             
             self.db.execute_query(
                 """INSERT INTO game_scores 
-                   (user_id, game_type, score, questions_answered, correct_answers, 
+                   (userid, game_type, score, questions_answered, correct_answers, 
                     game_duration, room_name) 
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (user['id'], game_type, score, questions_answered, correct_answers,
+                (user['userid'], game_type, score, questions_answered, correct_answers,
                  game_duration, room_name)
             )
             
@@ -267,3 +267,307 @@ class UserService:
         except Exception as e:
             logger.error(f"Failed to save game score for {username}: {e}")
             return False
+    
+    def send_friend_request(self, sender_username: str, receiver_username: str, message: str = None) -> bool:
+        """Send a friend request"""
+        try:
+            # Get user IDs
+            sender = self.get_user_by_username(sender_username)
+            receiver = self.get_user_by_username(receiver_username)
+            
+            if not sender or not receiver:
+                logger.warning(f"Invalid users for friend request: {sender_username} -> {receiver_username}")
+                return False
+            
+            if sender['userid'] == receiver['userid']:
+                logger.warning(f"User cannot send friend request to themselves: {sender_username}")
+                return False
+            
+            # Check if already friends
+            existing_friendship = self.db.execute_query(
+                """SELECT id FROM friends 
+                   WHERE (userid = ? AND friend_userid = ?) OR (userid = ? AND friend_userid = ?)
+                   AND status = 'accepted'""",
+                (sender['userid'], receiver['userid'], receiver['userid'], sender['userid']),
+                fetch='one'
+            )
+            
+            if existing_friendship:
+                logger.info(f"Users {sender_username} and {receiver_username} are already friends")
+                return False
+            
+            # Insert or update friend request
+            self.db.execute_query(
+                """INSERT INTO friend_requests (sender_userid, receiver_userid, message, status)
+                   VALUES (?, ?, ?, 'pending')
+                   ON CONFLICT(sender_userid, receiver_userid) DO UPDATE SET
+                   message = excluded.message,
+                   status = 'pending',
+                   created_at = CURRENT_TIMESTAMP,
+                   responded_at = NULL""",
+                (sender['userid'], receiver['userid'], message)
+            )
+            
+            logger.info(f"Friend request sent: {sender_username} -> {receiver_username}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send friend request: {e}")
+            return False
+    
+    def accept_friend_request(self, sender_username: str, receiver_username: str) -> bool:
+        """Accept a friend request"""
+        try:
+            # Get user IDs
+            sender = self.get_user_by_username(sender_username)
+            receiver = self.get_user_by_username(receiver_username)
+            
+            if not sender or not receiver:
+                return False
+            
+            # Update friend request status
+            self.db.execute_query(
+                """UPDATE friend_requests 
+                   SET status = 'accepted', responded_at = CURRENT_TIMESTAMP
+                   WHERE sender_userid = ? AND receiver_userid = ? AND status = 'pending'""",
+                (sender['userid'], receiver['userid'])
+            )
+            
+            # Create friendship entries (bidirectional)
+            self.db.execute_query(
+                """INSERT INTO friends (userid, friend_userid, status)
+                   VALUES (?, ?, 'accepted'), (?, ?, 'accepted')
+                   ON CONFLICT(userid, friend_userid) DO UPDATE SET
+                   status = 'accepted', updated_at = CURRENT_TIMESTAMP""",
+                (sender['userid'], receiver['userid'], receiver['userid'], sender['userid'])
+            )
+            
+            logger.info(f"Friend request accepted: {sender_username} <-> {receiver_username}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to accept friend request: {e}")
+            return False
+    
+    def decline_friend_request(self, sender_username: str, receiver_username: str) -> bool:
+        """Decline a friend request"""
+        try:
+            # Get user IDs
+            sender = self.get_user_by_username(sender_username)
+            receiver = self.get_user_by_username(receiver_username)
+            
+            if not sender or not receiver:
+                return False
+            
+            # Update friend request status
+            result = self.db.execute_query(
+                """UPDATE friend_requests 
+                   SET status = 'declined', responded_at = CURRENT_TIMESTAMP
+                   WHERE sender_userid = ? AND receiver_userid = ? AND status = 'pending'""",
+                (sender['userid'], receiver['userid'])
+            )
+            
+            if result:
+                logger.info(f"Friend request declined: {sender_username} -> {receiver_username}")
+                return True
+            return False
+            
+        except Exception as e:
+            logger.error(f"Failed to decline friend request: {e}")
+            return False
+    
+    def remove_friend(self, username1: str, username2: str) -> bool:
+        """Remove friendship between two users"""
+        try:
+            # Get user IDs
+            user1 = self.get_user_by_username(username1)
+            user2 = self.get_user_by_username(username2)
+            
+            if not user1 or not user2:
+                return False
+            
+            # Remove friendship entries (bidirectional)
+            self.db.execute_query(
+                """DELETE FROM friends 
+                   WHERE (userid = ? AND friend_userid = ?) OR (userid = ? AND friend_userid = ?)""",
+                (user1['userid'], user2['userid'], user2['userid'], user1['userid'])
+            )
+            
+            logger.info(f"Friendship removed: {username1} <-> {username2}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to remove friendship: {e}")
+            return False
+    
+    def block_user(self, username: str, blocked_username: str) -> bool:
+        """Block a user"""
+        try:
+            # Get user IDs
+            user = self.get_user_by_username(username)
+            blocked_user = self.get_user_by_username(blocked_username)
+            
+            if not user or not blocked_user:
+                return False
+            
+            # Remove existing friendship if any
+            self.remove_friend(username, blocked_username)
+            
+            # Create block entry
+            self.db.execute_query(
+                """INSERT INTO friends (userid, friend_userid, status)
+                   VALUES (?, ?, 'blocked')
+                   ON CONFLICT(userid, friend_userid) DO UPDATE SET
+                   status = 'blocked', updated_at = CURRENT_TIMESTAMP""",
+                (user['userid'], blocked_user['userid'])
+            )
+            
+            logger.info(f"User blocked: {username} blocked {blocked_username}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to block user: {e}")
+            return False
+    
+    def unblock_user(self, username: str, blocked_username: str) -> bool:
+        """Unblock a user"""
+        try:
+            # Get user IDs
+            user = self.get_user_by_username(username)
+            blocked_user = self.get_user_by_username(blocked_username)
+            
+            if not user or not blocked_user:
+                return False
+            
+            # Remove block entry
+            result = self.db.execute_query(
+                """DELETE FROM friends 
+                   WHERE userid = ? AND friend_userid = ? AND status = 'blocked'""",
+                (user['userid'], blocked_user['userid'])
+            )
+            
+            if result:
+                logger.info(f"User unblocked: {username} unblocked {blocked_username}")
+                return True
+            return False
+            
+        except Exception as e:
+            logger.error(f"Failed to unblock user: {e}")
+            return False
+    
+    def get_friends_list(self, username: str) -> List[Dict[str, Any]]:
+        """Get user's friends list"""
+        try:
+            user = self.get_user_by_username(username)
+            if not user:
+                return []
+            
+            friends = self.db.execute_query(
+                """SELECT * FROM user_friends WHERE userid = ?
+                   ORDER BY friend_status DESC, friend_last_seen DESC""",
+                (user['userid'],),
+                fetch='all'
+            )
+            
+            return [dict(friend) for friend in friends] if friends else []
+            
+        except Exception as e:
+            logger.error(f"Failed to get friends list for {username}: {e}")
+            return []
+    
+    def get_pending_friend_requests(self, username: str) -> List[Dict[str, Any]]:
+        """Get pending friend requests for a user"""
+        try:
+            user = self.get_user_by_username(username)
+            if not user:
+                return []
+            
+            requests = self.db.execute_query(
+                """SELECT fr.*, u.username as sender_username, u.display_name as sender_display_name
+                   FROM friend_requests fr
+                   JOIN users u ON fr.sender_userid = u.userid
+                   WHERE fr.receiver_userid = ? AND fr.status = 'pending'
+                   ORDER BY fr.created_at DESC""",
+                (user['userid'],),
+                fetch='all'
+            )
+            
+            return [dict(req) for req in requests] if requests else []
+            
+        except Exception as e:
+            logger.error(f"Failed to get pending friend requests for {username}: {e}")
+            return []
+    
+    def get_sent_friend_requests(self, username: str) -> List[Dict[str, Any]]:
+        """Get sent friend requests for a user"""
+        try:
+            user = self.get_user_by_username(username)
+            if not user:
+                return []
+            
+            requests = self.db.execute_query(
+                """SELECT fr.*, u.username as receiver_username, u.display_name as receiver_display_name
+                   FROM friend_requests fr
+                   JOIN users u ON fr.receiver_userid = u.userid
+                   WHERE fr.sender_userid = ? AND fr.status = 'pending'
+                   ORDER BY fr.created_at DESC""",
+                (user['userid'],),
+                fetch='all'
+            )
+            
+            return [dict(req) for req in requests] if requests else []
+            
+        except Exception as e:
+            logger.error(f"Failed to get sent friend requests for {username}: {e}")
+            return []
+    
+    def get_blocked_users(self, username: str) -> List[Dict[str, Any]]:
+        """Get list of blocked users"""
+        try:
+            user = self.get_user_by_username(username)
+            if not user:
+                return []
+            
+            blocked = self.db.execute_query(
+                """SELECT f.*, u.username as blocked_username, u.display_name as blocked_display_name
+                   FROM friends f
+                   JOIN users u ON f.friend_userid = u.userid
+                   WHERE f.userid = ? AND f.status = 'blocked'
+                   ORDER BY f.updated_at DESC""",
+                (user['userid'],),
+                fetch='all'
+            )
+            
+            return [dict(block) for block in blocked] if blocked else []
+            
+        except Exception as e:
+            logger.error(f"Failed to get blocked users for {username}: {e}")
+            return []
+    
+    def search_users(self, query: str, current_username: str = None, limit: int = 20) -> List[Dict[str, Any]]:
+        """Search for users by username or display name"""
+        try:
+            # Exclude current user from search
+            exclude_clause = ""
+            params = (f"%{query}%", f"%{query}%")
+            
+            if current_username:
+                exclude_clause = "AND username != ?"
+                params = (f"%{query}%", f"%{query}%", current_username)
+            
+            users = self.db.execute_query(
+                f"""SELECT username, display_name, device_type, last_seen
+                   FROM users 
+                   WHERE (username LIKE ? OR display_name LIKE ?) 
+                   AND is_active = 1 {exclude_clause}
+                   ORDER BY last_seen DESC
+                   LIMIT ?""",
+                params + (limit,),
+                fetch='all'
+            )
+            
+            return [dict(user) for user in users] if users else []
+            
+        except Exception as e:
+            logger.error(f"Failed to search users with query '{query}': {e}")
+            return []
