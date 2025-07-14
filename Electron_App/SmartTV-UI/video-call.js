@@ -22,7 +22,7 @@ let callActive = false;
 let activeRoom = null;
 let callStartTime = null;
 let timerInterval = null;
-let currentUserName = "Family Member";
+let currentUserName = "Family Member1";
 let currentRoomName = "family-room";
 let localTracks = [];
 
@@ -89,7 +89,7 @@ document.getElementById('backToConsoleBtn').addEventListener('click', (e) => {
 async function connectToRoom() {
     console.log('🔵 CONNECT TO ROOM: Starting connection process');
     
-    currentUserName = userNameInput.value.trim() || "Family Member";
+    currentUserName = userNameInput.value.trim() || "Family Member1";
     currentRoomName = roomNameInput.value.trim() || "family-room";
     
     console.log('🔵 Connection parameters:', {
@@ -125,16 +125,31 @@ async function connectToRoom() {
         console.log('🔵 Token response status:', response.status, response.statusText);
         
         if (!response.ok) {
-            throw new Error('Failed to get token from server');
+            const errorText = await response.text();
+            console.error('🔴 Token request failed:', errorText);
+            throw new Error(`Failed to get token from server: ${response.status} ${response.statusText}`);
         }
         
-        const { token } = await response.json();
+        const responseData = await response.json();
+        console.log('🔵 Token response data:', responseData);
+        const { token } = responseData;
+        
+        if (!token) {
+            throw new Error('No token received from server');
+        }
+        
+        console.log('🔵 Connecting to Twilio Video room...');
+        showStatusMessage("Joining video room...");
         
         const room = await Twilio.Video.connect(token, {
             name: currentRoomName,
             audio: true,
             video: { width: 640, height: 480 }
         });
+        
+        console.log('🔵 Successfully connected to Twilio room:', room.name);
+        console.log('🔵 Room participants:', room.participants.size);
+        console.log('🔵 Local participant:', room.localParticipant.identity);
         
         activeRoom = room;
         callActive = true;
@@ -150,12 +165,14 @@ async function connectToRoom() {
         
         room.localParticipant.tracks.forEach(publication => {
             if (publication.track) {
+                console.log('🔵 Attaching local track:', publication.track.kind);
                 attachTrack(publication.track, room.localParticipant);
             }
         });
         
         // Handle existing participants
         room.participants.forEach(participant => {
+            console.log('🔵 Found existing participant:', participant.identity);
             participantConnected(participant);
         });
         
@@ -169,8 +186,15 @@ async function connectToRoom() {
         room.on('disconnected', roomDisconnected);
         
         showStatusMessage(`Connected to ${currentRoomName} room`);
+        console.log('🔵 Room connection completed successfully');
+        
     } catch (error) {
-        console.error('Unable to connect to room:', error);
+        console.error('🔴 Unable to connect to room:', error);
+        console.error('🔴 Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
         showStatusMessage(`Connection failed: ${error.message}`, 5000);
     }
 }
@@ -463,10 +487,10 @@ function showAutoConnectInterface(currentUser, roomName, callerParam, calleePara
         callStatus.textContent = 'Joining video call...';
         updateAutoConnectStatus('📞 Answering call', 'Connecting to video...', 1);
     } else {
-        // User 1 initiating call
-        callParticipants.textContent = `Calling ${calleeParam}`;
-        callStatus.textContent = 'Starting video call...';
-        updateAutoConnectStatus('📞 Initiating call', 'Setting up room...', 1);
+        // User 1 initiating call - join room immediately
+        callParticipants.textContent = `Video call with ${calleeParam}`;
+        callStatus.textContent = 'Joining video room...';
+        updateAutoConnectStatus('📞 Starting video call', 'Connecting to room...', 1);
     }
 }
 
@@ -679,6 +703,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const callerParam = urlParams.get('caller');
         const calleeParam = urlParams.get('callee');
         const answeredParam = urlParams.get('answered');
+        const initiatedParam = urlParams.get('initiated');
 
         // Create local preview
         const tracks = await Twilio.Video.createLocalTracks({
@@ -701,74 +726,51 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (roomParam && (callerParam || calleeParam)) {
             console.log('🔵 AUTO-JOIN MODE: URL has room parameters');
             
-            // Get current user with fallback
+            // Get current user with simple fallback
             let currentUser = null;
             try {
                 currentUser = await getCurrentUser();
+                console.log('🔵 Current user obtained:', currentUser);
             } catch (error) {
-                console.log('🔵 getCurrentUser failed, using fallback');
+                console.log('🔵 getCurrentUser failed, using URL parameters');
             }
             
-            console.log('🔵 Current user for video call:', currentUser);
-            
+            // Determine the current user's identity
             if (currentUser && currentUser.username) {
                 currentUserName = currentUser.username;
-                currentRoomName = roomParam;
-                
-                console.log('🔵 Setting up auto-join:', {
-                    userName: currentUserName,
-                    roomName: currentRoomName,
-                    isAnswered: answeredParam === 'true'
-                });
-                
-                // Show auto-connecting interface
-                showAutoConnectInterface(currentUser, roomParam, callerParam, calleeParam, answeredParam);
-                
-                // Update hidden input fields for backend compatibility
-                userNameInput.value = currentUserName;
-                roomNameInput.value = currentRoomName;
-                
-                // Auto-connect to the room
-                console.log('🔵 Starting auto-connect in 2 seconds...');
-                setTimeout(() => {
-                    console.log('🔵 Executing auto-connect now');
-                    connectToRoom();
-                }, 2000);
             } else {
-                console.error('❌ No current user found for auto-join, using URL parameters as fallback');
-                
                 // Fallback: Use URL parameters directly
-                if (callerParam && calleeParam && answeredParam === 'true') {
-                    // User 2 answering call
+                if (answeredParam === 'true') {
+                    // User answering call
                     currentUserName = calleeParam;
-                } else if (callerParam) {
-                    // User 1 initiating call  
+                } else if (initiatedParam === 'true') {
+                    // User initiating call
                     currentUserName = callerParam;
                 } else {
-                    currentUserName = "Family Member";
+                    currentUserName = callerParam || "Family Member1";
                 }
-                
-                currentRoomName = roomParam;
-                
-                console.log('🔵 Using fallback parameters:', {
-                    userName: currentUserName,
-                    roomName: currentRoomName
-                });
-                
-                // Create fake user object for interface
-                const fallbackUser = { username: currentUserName };
-                showAutoConnectInterface(fallbackUser, roomParam, callerParam, calleeParam, answeredParam);
-                
-                // Update input fields
-                userNameInput.value = currentUserName;
-                roomNameInput.value = currentRoomName;
-                
-                // Auto-connect
-                setTimeout(() => {
-                    console.log('🔵 Executing fallback auto-connect');
-                    connectToRoom();
-                }, 2000);
             }
+            
+            currentRoomName = roomParam;
+            
+            console.log('🔵 Setting up auto-join:', {
+                userName: currentUserName,
+                roomName: currentRoomName,
+                isAnswered: answeredParam === 'true',
+                isInitiated: initiatedParam === 'true'
+            });
+            
+            // Show auto-connecting interface
+            const userObj = currentUser || { username: currentUserName };
+            showAutoConnectInterface(userObj, roomParam, callerParam, calleeParam, answeredParam);
+            
+            // Update hidden input fields for backend compatibility
+            userNameInput.value = currentUserName;
+            roomNameInput.value = currentRoomName;
+            
+            // Auto-connect to the room immediately
+            console.log('🔵 Executing auto-connect now');
+            connectToRoom();
         } else {
             console.log('🔵 MANUAL MODE: No room parameters, waiting for user input');
             showManualConnectInterface();

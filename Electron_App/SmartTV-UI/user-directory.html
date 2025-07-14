@@ -1060,7 +1060,7 @@
             }
 
             try {
-                showCallStatus(`Calling ${calleeUsername}...`, 'Connecting...');
+                showCallStatus(`Calling ${calleeUsername}...`, 'Setting up video call...');
 
                 const response = await fetch(`${getServerUrl()}/api/calls/invite`, {
                     method: 'POST',
@@ -1081,8 +1081,13 @@
 
                 currentCallId = data.call.call_id;
                 
-                // Wait for response or timeout
-                waitForCallResponse(calleeUsername);
+                // Immediately redirect caller to video call room
+                const roomName = data.call.room_name;
+                showCallStatus(`Starting video call...`, 'Redirecting to video room...');
+                
+                setTimeout(() => {
+                    window.location.href = `video-call.html?room=${roomName}&caller=${currentUser.username}&callee=${calleeUsername}&initiated=true`;
+                }, 1000);
                 
             } catch (error) {
                 console.error('Failed to initiate call:', error);

@@ -109,7 +109,8 @@ CREATE TABLE IF NOT EXISTS call_invitations (
     responded_at DATETIME,
     FOREIGN KEY (call_id) REFERENCES calls (call_id) ON DELETE CASCADE,
     FOREIGN KEY (inviter_userid) REFERENCES users (userid) ON DELETE CASCADE,
-    FOREIGN KEY (invitee_userid) REFERENCES users (userid) ON DELETE CASCADE
+    FOREIGN KEY (invitee_userid) REFERENCES users (userid) ON DELETE CASCADE,
+    UNIQUE(call_id, inviter_userid, invitee_userid)
 );
 
 -- User presence tracking
