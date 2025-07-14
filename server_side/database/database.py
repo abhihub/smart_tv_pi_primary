@@ -48,18 +48,27 @@ class DatabaseManager:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
+                logger.debug(f"Executing query: {query[:100]}... with params: {params}")
                 cursor.execute(query, params)
                 
                 if fetch == 'one':
-                    return cursor.fetchone()
+                    result = cursor.fetchone()
+                    logger.debug(f"Query result (one): {result}")
+                    return result
                 elif fetch == 'all':
-                    return cursor.fetchall()
+                    result = cursor.fetchall()
+                    logger.debug(f"Query result (all): {len(result) if result else 0} rows")
+                    return result
                 else:
                     conn.commit()
-                    return cursor.lastrowid
+                    result = cursor.lastrowid
+                    logger.debug(f"Query lastrowid: {result}")
+                    return result
                     
         except Exception as e:
             logger.error(f"Database query failed: {e}")
+            logger.error(f"Query: {query}")
+            logger.error(f"Params: {params}")
             raise
     
     def health_check(self) -> Dict[str, Any]:

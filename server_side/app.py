@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from flask import Flask, request
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -19,7 +20,7 @@ def setup_logging():
     
     # Configure root logger
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format='%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
         handlers=[
@@ -50,6 +51,9 @@ def create_app():
     
     # Enable CORS
     CORS(app)
+    
+    # Initialize Socket.IO
+    socketio = SocketIO(app, cors_allowed_origins="*", logger=False, engineio_logger=False)
     
     # Add minimal request logging for important endpoints only
     @app.before_request
@@ -85,16 +89,46 @@ def create_app():
     app.register_blueprint(call_bp, url_prefix='/api/calls')
     app.register_blueprint(system_bp, url_prefix='/api/system')
     
-    return app
+    # Socket.IO event handlers
+    @socketio.on('connect')
+    def handle_connect():
+        app_logger.info(f"🔌 Client connected: {request.sid}")
+        emit('connected', {'status': 'Connected to SmartTV Server'})
+    
+    @socketio.on('disconnect')
+    def handle_disconnect():
+        app_logger.info(f"🔌 Client disconnected: {request.sid}")
+    
+    @socketio.on('join_user')
+    def handle_join_user(data):
+        """Join user to their personal room for notifications"""
+        username = data.get('username')
+        if username:
+            join_room(f"user_{username}")
+            app_logger.info(f"👤 User {username} joined personal room")
+            emit('joined_room', {'room': f"user_{username}"})
+    
+    @socketio.on('leave_user')
+    def handle_leave_user(data):
+        """Leave user's personal room"""
+        username = data.get('username')
+        if username:
+            leave_room(f"user_{username}")
+            app_logger.info(f"👤 User {username} left personal room")
+    
+    # Store socketio instance in app for access from other modules
+    app.socketio = socketio
+    
+    return app, socketio
 
 if __name__ == '__main__':
-    app = create_app()
+    app, socketio = create_app()
     port = int(os.getenv('PORT', 3001))
     
-    app_logger.info(f"🚀 SmartTV Server starting on port {port}")
+    app_logger.info(f"🚀 SmartTV Server with Socket.IO starting on port {port}")
     
     try:
-        app.run(host='0.0.0.0', port=port, debug=True)
+        socketio.run(app, host='0.0.0.0', port=port, debug=True)
     except KeyboardInterrupt:
         app_logger.info("🛑 Server stopped")
     except Exception as e:

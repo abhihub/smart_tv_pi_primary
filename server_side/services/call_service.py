@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Any
 from database.database import db_manager
+from flask import current_app
 
 logger = logging.getLogger(__name__)
 
@@ -275,6 +276,22 @@ class CallService:
             
             logger.info(f"Invitation sent: {inviter_username} invited {invitee_username} to call {call_id}")
             
+            # Emit real-time notification to invitee
+            try:
+                if hasattr(current_app, 'socketio'):
+                    current_app.socketio.emit('incoming_call', {
+                        'call_id': call_id,
+                        'caller_username': inviter_username,
+                        'callee_username': invitee_username,
+                        'room_name': call_check['room_name'],
+                        'call_type': call_check['call_type'],
+                        'meeting_title': call_check['meeting_title'],
+                        'timestamp': datetime.now().isoformat()
+                    }, room=f"user_{invitee_username}")
+                    logger.info(f"Real-time call notification sent to {invitee_username}")
+            except Exception as e:
+                logger.error(f"Failed to send real-time notification: {e}")
+            
             return {
                 'call_id': call_id,
                 'inviter': inviter_username,
@@ -330,6 +347,21 @@ class CallService:
             
             if join_result:
                 logger.info(f"Call invitation accepted: {username} joined call {call_id}")
+                
+                # Notify all call participants about acceptance
+                try:
+                    if hasattr(current_app, 'socketio'):
+                        current_app.socketio.emit('call_accepted', {
+                            'call_id': call_id,
+                            'accepter': username,
+                            'status': 'accepted',
+                            'room_name': join_result['room_name'],
+                            'timestamp': datetime.now().isoformat()
+                        })
+                        logger.info(f"Call acceptance broadcast for call {call_id}")
+                except Exception as e:
+                    logger.error(f"Failed to broadcast call acceptance: {e}")
+                
                 return join_result
             
             return None
@@ -365,6 +397,20 @@ class CallService:
             
             if result:
                 logger.info(f"Call invitation declined: {call_id} by {username}")
+                
+                # Notify all call participants about decline
+                try:
+                    if hasattr(current_app, 'socketio'):
+                        current_app.socketio.emit('call_declined', {
+                            'call_id': call_id,
+                            'decliner': username,
+                            'status': 'declined',
+                            'timestamp': datetime.now().isoformat()
+                        })
+                        logger.info(f"Call decline broadcast for call {call_id}")
+                except Exception as e:
+                    logger.error(f"Failed to broadcast call decline: {e}")
+                
                 return True
             return False
             

@@ -726,8 +726,8 @@
                 confirmBtn.textContent = 'Shutting down...';
                 confirmBtn.disabled = true;
                 
-                // Get server URL from config or use default
-                const serverUrl = window.appConfig?.SERVER_URL || 'http://167.71.0.87:3001';
+                // Use local Flask server for shutdown operations
+                const serverUrl = 'http://localhost:5000';
                 
                 // Make shutdown request
                 const response = await fetch(`${serverUrl}/api/system/shutdown`, {

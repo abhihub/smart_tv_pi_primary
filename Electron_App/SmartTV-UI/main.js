@@ -2,7 +2,6 @@ const { app, BrowserWindow, session } = require('electron');
 const path = require('path');
 require('dotenv').config();
 
-// Store config in global for preload script access
 global.appConfig = {
   SERVER_URL: process.env.SERVER_URL || 'http://localhost:3001',
   WEBSOCKET_URL: process.env.WEBSOCKET_URL || 'ws://localhost:3000',
@@ -14,14 +13,12 @@ console.log('📋 Main process config:', global.appConfig);
 console.log('🔧 Command line args:', process.argv);
 console.log('🖥️ Platform:', process.platform);
 
-// Suppress noisy network-service errors
 app.commandLine.appendSwitch('disable-features', 'NetworkService');
 app.commandLine.appendSwitch('log-net-log-level', '0');
 app.commandLine.appendSwitch('log-file', path.join(app.getPath('userData'), 'electron.log'));
-// Enable experimental Web Speech & Web Platform features
+
 app.commandLine.appendSwitch('enable-experimental-web-platform-features');
 
-// Add more detailed error logging
 process.on('uncaughtException', (error) => {
   console.error('❌ UNCAUGHT EXCEPTION:', error);
 });
@@ -33,7 +30,6 @@ process.on('unhandledRejection', (reason, promise) => {
 function createWindow() {
   console.log('🪟 CREATING WINDOW');
   
-  // Check if explicitly running in kiosk mode via command line flag
   const isKioskMode = process.argv.includes('--kiosk') && process.platform === 'linux';
   console.log('🎯 Kiosk mode:', isKioskMode);
   
@@ -50,10 +46,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-       // Allow media capture for video calling
        microphone: true,
        camera: true,
-       // Enable recognition features
        experimentalFeatures: true
     }
   };
@@ -64,7 +58,6 @@ function createWindow() {
   
   console.log('✅ Window created successfully');
 
-  // Grant media permissions (microphone and camera) automatically
   console.log('🔐 Setting up permission handler');
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     console.log('🔐 Permission requested:', permission);
@@ -77,7 +70,6 @@ function createWindow() {
     }
   });
 
-  // Show window when ready
   win.once('ready-to-show', () => {
     console.log('👁️ Window ready to show');
     win.show();
@@ -87,7 +79,6 @@ function createWindow() {
     }
   });
 
-  // Add error handling for web contents
   win.webContents.on('crashed', (event, killed) => {
     console.error('💥 Web contents crashed:', { killed });
   });
@@ -100,7 +91,6 @@ function createWindow() {
     console.log('😊 Web contents became responsive again');
   });
 
-  // Send config to renderer as soon as DOM starts loading
   win.webContents.once('dom-ready', () => {
     console.log('🌐 DOM ready, injecting config');
     win.webContents.executeJavaScript(`
@@ -112,12 +102,10 @@ function createWindow() {
     });
   });
 
-  // Prevent navigation away from the app (only block external URLs, allow local files)
   win.webContents.on('will-navigate', (event, navigationUrl) => {
     console.log('🧭 Navigation attempt to:', navigationUrl);
     const parsedUrl = new URL(navigationUrl);
     
-    // Allow navigation to local HTML files, block external URLs
     if (parsedUrl.protocol !== 'file:') {
       console.log('🚫 Preventing external navigation to:', parsedUrl.protocol);
       event.preventDefault();

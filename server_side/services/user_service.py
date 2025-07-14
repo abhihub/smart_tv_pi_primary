@@ -271,9 +271,13 @@ class UserService:
     def send_friend_request(self, sender_username: str, receiver_username: str, message: str = None) -> bool:
         """Send a friend request"""
         try:
+            logger.info(f"Processing friend request: {sender_username} -> {receiver_username}")
+            
             # Get user IDs
             sender = self.get_user_by_username(sender_username)
             receiver = self.get_user_by_username(receiver_username)
+            
+            logger.info(f"User lookup - sender: {bool(sender)}, receiver: {bool(receiver)}")
             
             if not sender or not receiver:
                 logger.warning(f"Invalid users for friend request: {sender_username} -> {receiver_username}")
@@ -284,6 +288,7 @@ class UserService:
                 return False
             
             # Check if already friends
+            logger.info(f"Checking existing friendship between {sender['id']} and {receiver['id']}")
             existing_friendship = self.db.execute_query(
                 """SELECT id FROM friends 
                    WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)
@@ -297,7 +302,8 @@ class UserService:
                 return False
             
             # Insert or update friend request
-            self.db.execute_query(
+            logger.info(f"Creating friend request record")
+            result = self.db.execute_query(
                 """INSERT INTO friend_requests (sender_id, receiver_id, message, status)
                    VALUES (?, ?, ?, 'pending')
                    ON CONFLICT(sender_id, receiver_id) DO UPDATE SET
@@ -307,6 +313,7 @@ class UserService:
                    responded_at = NULL""",
                 (sender['id'], receiver['id'], message)
             )
+            logger.info(f"Database operation result: {result}")
             
             logger.info(f"Friend request sent: {sender_username} -> {receiver_username}")
             return True

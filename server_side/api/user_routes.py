@@ -66,8 +66,11 @@ def register_user():
 def get_user_profile(username):
     """Get user profile and statistics"""
     try:
+        logger.info(f"Profile request for user: {username}")
         user = user_service.get_user_by_username(username)
+        logger.info(f"User lookup result: {bool(user)}")
         if not user:
+            logger.warning(f"User not found: {username}")
             return jsonify({'error': 'User not found'}), 404
         
         # Update last seen
@@ -316,21 +319,28 @@ def send_friend_request():
     """
     try:
         data = request.get_json()
+        logger.info(f"Friend request attempt: {data}")
         
         if not data:
+            logger.warning("Friend request rejected: no JSON body")
             return jsonify({'error': 'Request body must be JSON'}), 400
         
         sender = data.get('sender')
         receiver = data.get('receiver')
         message = data.get('message')
         
+        logger.info(f"Friend request: {sender} -> {receiver}")
+        
         if not sender or not receiver:
+            logger.warning(f"Friend request rejected: missing fields - sender: {sender}, receiver: {receiver}")
             return jsonify({'error': 'Sender and receiver usernames are required'}), 400
         
         if sender == receiver:
+            logger.warning(f"Friend request rejected: self-request from {sender}")
             return jsonify({'error': 'Cannot send friend request to yourself'}), 400
         
         success = user_service.send_friend_request(sender, receiver, message)
+        logger.info(f"Friend request service result: {success}")
         
         if success:
             return jsonify({
@@ -674,4 +684,24 @@ def user_service_health():
             'service': 'user_management',
             'status': 'unhealthy',
             'error': str(e)
+        }), 500
+
+@user_bp.route('/db-tables', methods=['GET'])
+def check_db_tables():
+    """Check database tables for debugging"""
+    try:
+        tables = user_service.db.execute_query(
+            "SELECT name FROM sqlite_master WHERE type='table'",
+            fetch='all'
+        )
+        
+        return jsonify({
+            'success': True,
+            'tables': [table['name'] for table in tables] if tables else []
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to check tables: {e}")
+        return jsonify({
+            'error': f'Failed to check tables: {str(e)}'
         }), 500

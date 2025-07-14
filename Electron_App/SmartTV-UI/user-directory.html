@@ -883,6 +883,18 @@
 
         <div style="text-align: center; margin-top: 20px;">
             
+            <button onclick="createGroupCall()" data-focusable="true" tabindex="0" style="
+                background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+                border: none;
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 1.1rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin: 5px;
+            ">👥 Create Group Call</button>
+            
             <button onclick="checkPendingCalls()" data-focusable="true" tabindex="0" style="
                 background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
                 border: none;
@@ -1896,6 +1908,49 @@
                 loadFriendsList('friends');
             }, 1000);
         });
+
+        // Create Group Call
+        async function createGroupCall() {
+            if (!currentUser) {
+                showError('Please log in first');
+                return;
+            }
+
+            try {
+                showError('Creating group call...');
+
+                // Create group call
+                const response = await fetch(`${getServerUrl()}/api/calls/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        creator: currentUser.username,
+                        call_type: 'video',
+                        meeting_title: `${currentUser.username}'s Group Call`,
+                        max_participants: 10
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to create group call');
+                }
+
+                const call = data.call;
+                showError(`✅ Group call created! Room: ${call.room_name}`);
+
+                // Redirect to video call
+                setTimeout(() => {
+                    window.location.href = `video-call.html?room=${call.room_name}&creator=${currentUser.username}&type=group&call_id=${call.call_id}`;
+                }, 2000);
+
+            } catch (error) {
+                console.error('Failed to create group call:', error);
+                showError(`❌ Failed to create group call: ${error.message}`);
+            }
+        }
     </script>
 </body>
 </html>

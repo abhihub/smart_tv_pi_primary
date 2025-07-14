@@ -83,7 +83,7 @@ class CallMonitor {
             
             // Join user room for receiving calls
             this.socket.emit('join_user', {
-                user_id: this.currentUser.username
+                username: this.currentUser.username
             });
         });
 
@@ -103,7 +103,7 @@ class CallMonitor {
             console.log('📞 Incoming call via WebSocket:', data);
             this.handleIncomingCall({
                 call_id: data.call_id,
-                caller_username: data.caller,
+                caller_username: data.caller_username,
                 timestamp: data.timestamp
             });
         });
