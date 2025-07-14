@@ -30,7 +30,7 @@ let localTracks = [];
 function getServerUrl() {
     const config = window.appConfig;
     console.log('Current window.appConfig:', config);
-    const serverUrl = config?.SERVER_URL || 'http://20.244.19.161:3001';
+    const serverUrl = config?.SERVER_URL || 'http://localhost:3001';
     console.log('SERVER_URL being used:', serverUrl);
     return serverUrl;
 } 
@@ -402,7 +402,7 @@ cameraBtn.addEventListener('click', async () => {
         showStatusMessage(`Switched to ${nextDevice.label || 'camera'}`);
     } catch (error) {
         console.error('Error switching camera:', error);
-        showStatusMessage("Failed to switch camera");
+        showStatusMessage(`Failed to switch camera: ${error.message}`);
     }
 });
 

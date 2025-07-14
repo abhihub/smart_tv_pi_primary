@@ -27,7 +27,7 @@ class DatabaseManager:
         return conn
     
     def init_database(self):
-        """Initialize database with schema"""
+        """Initialize database with schema and run migrations"""
         try:
             schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
             
@@ -39,9 +39,43 @@ class DatabaseManager:
                 conn.commit()
                 logger.info(f"Database initialized at {self.db_path}")
                 
+                # Run migration for call_invitations constraint if needed
+                self._run_call_invitations_migration(conn)
+                
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}")
             raise
+    
+    def _run_call_invitations_migration(self, conn):
+        """Run migration to add UNIQUE constraint to call_invitations table"""
+        try:
+            # Check if the constraint already exists by trying to create a duplicate
+            cursor = conn.cursor()
+            
+            # Try to find if constraint exists by checking table schema
+            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='call_invitations'")
+            table_schema = cursor.fetchone()
+            
+            if table_schema and 'UNIQUE(call_id, inviter_userid, invitee_userid)' not in table_schema[0]:
+                logger.info("Running call_invitations migration...")
+                
+                migration_path = os.path.join(os.path.dirname(__file__), 'add_call_invitations_constraint.sql')
+                
+                if os.path.exists(migration_path):
+                    with open(migration_path, 'r') as f:
+                        migration_sql = f.read()
+                    
+                    conn.executescript(migration_sql)
+                    conn.commit()
+                    logger.info("Call invitations migration completed successfully")
+                else:
+                    logger.warning("Migration file not found, skipping call_invitations migration")
+            else:
+                logger.info("Call invitations table already has the required constraint")
+                
+        except Exception as e:
+            logger.error(f"Failed to run call_invitations migration: {e}")
+            # Don't raise here as this is a migration, not critical for startup
     
     def execute_query(self, query: str, params: tuple = (), fetch: str = None):
         """Execute a query with optional fetch mode"""

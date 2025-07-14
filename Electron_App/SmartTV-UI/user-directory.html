@@ -922,7 +922,7 @@
     <script>
         // Initialize config early - will be overwritten by main process if available
         window.appConfig = window.appConfig || {
-            SERVER_URL: 'http://20.244.19.161:3001',
+            SERVER_URL: 'http://localhost:3001',
             WEBSOCKET_URL: 'ws://localhost:3000',
             isDevelopment: false
         };
@@ -936,7 +936,7 @@
 
         // Get server URL from config
         function getServerUrl() {
-            const url = window.appConfig?.SERVER_URL || 'http://20.244.19.161:3001';
+            const url = window.appConfig?.SERVER_URL || 'http://localhost:3001';
             console.log('🔗 Using server URL:', url);
             return url;
         }
@@ -961,7 +961,7 @@
                 }, 10000); // Check every 10 seconds to reduce server load
             } catch (error) {
                 console.error('Failed to initialize user directory:', error);
-                showError('Failed to load user directory');
+                showError(`Failed to load user directory: ${error.message}`);
             }
         }
 
@@ -1166,7 +1166,7 @@
                 
             } catch (error) {
                 console.error('Failed to cancel call:', error);
-                showError('Failed to cancel call');
+                showError(`Failed to cancel call: ${error.message}`);
             }
         }
 
@@ -1323,7 +1323,7 @@
                 if (data.success) {
                     showError(`✅ Cleared calls successfully`);
                 } else {
-                    showError(`❌ Failed to clear calls: ${data.error || 'Unknown error'}`);
+                    showError(`❌ Failed to clear calls: ${data.error || 'Server error'}`);
                 }
             } catch (error) {
                 showError(`❌ Clear calls error: ${error.message}`);
@@ -1597,7 +1597,7 @@
                 
             } catch (error) {
                 console.error('Error sending friend request:', error);
-                showError('Failed to send friend request. Please try again.');
+                showError(`Failed to send friend request: ${error.message}`);
             }
         }
 
@@ -1800,7 +1800,7 @@
                     }
                 } catch (error) {
                     console.error('Error removing friend:', error);
-                    showError('Failed to remove friend');
+                    showError(`Failed to remove friend: ${error.message}`);
                 }
             }
         }
@@ -1830,7 +1830,7 @@
                 }
             } catch (error) {
                 console.error('Error accepting friend request:', error);
-                showError('Failed to accept friend request');
+                showError(`Failed to accept friend request: ${error.message}`);
             }
         }
 
@@ -1858,7 +1858,7 @@
                 }
             } catch (error) {
                 console.error('Error declining friend request:', error);
-                showError('Failed to decline friend request');
+                showError(`Failed to decline friend request: ${error.message}`);
             }
         }
 
@@ -1886,7 +1886,7 @@
                 }
             } catch (error) {
                 console.error('Error cancelling friend request:', error);
-                showError('Failed to cancel friend request');
+                showError(`Failed to cancel friend request: ${error.message}`);
             }
         }
 

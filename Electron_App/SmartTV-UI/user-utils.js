@@ -5,7 +5,7 @@ class UserUtils {
     constructor() {
         this.storageKey = 'smarttv_user_id';
         this.username = this.getOrCreateUsername();
-        this.serverUrl = window.appConfig?.SERVER_URL || 'http://20.244.19.161:3001';
+        this.serverUrl = window.appConfig?.SERVER_URL || 'http://localhost:3001';
         this.isRegistered = false;
     }
 
