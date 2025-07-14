@@ -31,7 +31,7 @@ class CallService:
                 SELECT u.username, u.display_name, u.last_seen,
                        COALESCE(up.status, 'offline') as presence_status
                 FROM users u
-                LEFT JOIN user_presence up ON u.id = up.user_id
+                LEFT JOIN user_presence up ON u.userid = up.userid
                 WHERE (
                     datetime(u.last_seen) > datetime(?) OR
                     u.last_seen > ? OR
@@ -59,7 +59,7 @@ class CallService:
             
             # Get creator ID
             creator = self.db.execute_query(
-                "SELECT id, username FROM users WHERE username = ?",
+                "SELECT userid, username FROM users WHERE username = ?",
                 (creator_username,),
                 fetch='one'
             )
@@ -74,16 +74,16 @@ class CallService:
             
             # Create call record
             self.db.execute_query(
-                """INSERT INTO calls (call_id, room_name, creator_id, call_type, meeting_title, max_participants, status) 
+                """INSERT INTO calls (call_id, room_name, creator_userid, call_type, meeting_title, max_participants, status) 
                    VALUES (?, ?, ?, ?, ?, ?, 'active')""",
-                (call_id, room_name, creator['id'], call_type, meeting_title, max_participants)
+                (call_id, room_name, creator['userid'], call_type, meeting_title, max_participants)
             )
             
             # Add creator as first participant
             self.db.execute_query(
-                """INSERT INTO call_participants (call_id, user_id, status)
+                """INSERT INTO call_participants (call_id, userid, status)
                    VALUES (?, ?, 'active')""",
-                (call_id, creator['id'])
+                (call_id, creator['userid'])
             )
             
             logger.info(f"Call created: {creator_username} (ID: {call_id}, Room: {room_name})")
@@ -107,7 +107,7 @@ class CallService:
         try:
             # Get user ID
             user = self.db.execute_query(
-                "SELECT id, username FROM users WHERE username = ?",
+                "SELECT userid, username FROM users WHERE username = ?",
                 (username,),
                 fetch='one'
             )
@@ -130,8 +130,8 @@ class CallService:
             # Check if user is already in call
             existing_participant = self.db.execute_query(
                 """SELECT * FROM call_participants 
-                   WHERE call_id = ? AND user_id = ? AND status = 'active'""",
-                (call_id, user['id']),
+                   WHERE call_id = ? AND userid = ? AND status = 'active'""",
+                (call_id, user['userid']),
                 fetch='one'
             )
             
@@ -157,9 +157,9 @@ class CallService:
             
             # Add participant to call
             self.db.execute_query(
-                """INSERT INTO call_participants (call_id, user_id, status)
+                """INSERT INTO call_participants (call_id, userid, status)
                    VALUES (?, ?, 'active')""",
-                (call_id, user['id'])
+                (call_id, user['userid'])
             )
             
             logger.info(f"User {username} joined call {call_id}")
@@ -179,7 +179,7 @@ class CallService:
         try:
             # Get user ID
             user = self.db.execute_query(
-                "SELECT id FROM users WHERE username = ?",
+                "SELECT userid FROM users WHERE username = ?",
                 (username,),
                 fetch='one'
             )
@@ -190,8 +190,8 @@ class CallService:
             # Get participant record to calculate duration
             participant = self.db.execute_query(
                 """SELECT joined_at FROM call_participants 
-                   WHERE call_id = ? AND user_id = ? AND status = 'active'""",
-                (call_id, user['id']),
+                   WHERE call_id = ? AND userid = ? AND status = 'active'""",
+                (call_id, user['userid']),
                 fetch='one'
             )
             
@@ -206,8 +206,8 @@ class CallService:
             self.db.execute_query(
                 """UPDATE call_participants 
                    SET status = 'left', left_at = CURRENT_TIMESTAMP, duration = ?
-                   WHERE call_id = ? AND user_id = ? AND status = 'active'""",
-                (duration, call_id, user['id'])
+                   WHERE call_id = ? AND userid = ? AND status = 'active'""",
+                (duration, call_id, user['userid'])
             )
             
             logger.info(f"User {username} left call {call_id} (Duration: {duration}s)")
@@ -222,12 +222,12 @@ class CallService:
         try:
             # Get user IDs
             inviter = self.db.execute_query(
-                "SELECT id FROM users WHERE username = ?",
+                "SELECT userid FROM users WHERE username = ?",
                 (inviter_username,),
                 fetch='one'
             )
             invitee = self.db.execute_query(
-                "SELECT id FROM users WHERE username = ?",
+                "SELECT userid FROM users WHERE username = ?",
                 (invitee_username,),
                 fetch='one'
             )
@@ -239,8 +239,8 @@ class CallService:
             call_check = self.db.execute_query(
                 """SELECT c.* FROM calls c
                    JOIN call_participants cp ON c.call_id = cp.call_id
-                   WHERE c.call_id = ? AND cp.user_id = ? AND c.status = 'active' AND cp.status = 'active'""",
-                (call_id, inviter['id']),
+                   WHERE c.call_id = ? AND cp.userid = ? AND c.status = 'active' AND cp.status = 'active'""",
+                (call_id, inviter['userid']),
                 fetch='one'
             )
             
@@ -249,11 +249,11 @@ class CallService:
             
             # Create invitation
             self.db.execute_query(
-                """INSERT INTO call_invitations (call_id, inviter_id, invitee_id, status)
+                """INSERT INTO call_invitations (call_id, inviter_userid, invitee_userid, status)
                    VALUES (?, ?, ?, 'pending')
-                   ON CONFLICT(call_id, inviter_id, invitee_id) DO UPDATE SET
+                   ON CONFLICT(call_id, inviter_userid, invitee_userid) DO UPDATE SET
                    status = 'pending', invited_at = CURRENT_TIMESTAMP""",
-                (call_id, inviter['id'], invitee['id'])
+                (call_id, inviter['userid'], invitee['userid'])
             )
             
             logger.info(f"Invitation sent: {inviter_username} invited {invitee_username} to call {call_id}")
@@ -292,7 +292,7 @@ class CallService:
         try:
             # Get user ID
             user = self.db.execute_query(
-                "SELECT id FROM users WHERE username = ?",
+                "SELECT userid FROM users WHERE username = ?",
                 (username,),
                 fetch='one'
             )
@@ -304,8 +304,8 @@ class CallService:
             self.db.execute_query(
                 """UPDATE call_invitations 
                    SET status = 'accepted', responded_at = CURRENT_TIMESTAMP
-                   WHERE call_id = ? AND invitee_id = ? AND status = 'pending'""",
-                (call_id, user['id'])
+                   WHERE call_id = ? AND invitee_userid = ? AND status = 'pending'""",
+                (call_id, user['userid'])
             )
             
             # Join the call
@@ -330,7 +330,7 @@ class CallService:
         try:
             # Get user ID
             user = self.db.execute_query(
-                "SELECT id FROM users WHERE username = ?",
+                "SELECT userid FROM users WHERE username = ?",
                 (username,),
                 fetch='one'
             )
@@ -342,8 +342,8 @@ class CallService:
             result = self.db.execute_query(
                 """UPDATE call_invitations 
                    SET status = 'declined', responded_at = CURRENT_TIMESTAMP
-                   WHERE call_id = ? AND invitee_id = ? AND status = 'pending'""",
-                (call_id, user['id'])
+                   WHERE call_id = ? AND invitee_userid = ? AND status = 'pending'""",
+                (call_id, user['userid'])
             )
             
             if result:
@@ -401,8 +401,8 @@ class CallService:
             result = self.db.execute_query(
                 """UPDATE calls 
                    SET status = 'cancelled', ended_at = CURRENT_TIMESTAMP
-                   WHERE call_id = ? AND caller_id = (
-                       SELECT id FROM users WHERE username = ?
+                   WHERE call_id = ? AND creator_userid = (
+                       SELECT userid FROM users WHERE username = ?
                    ) AND status IN ('pending', 'ringing')""",
                 (call_id, caller_username)
             )
@@ -467,7 +467,7 @@ class CallService:
                           creator.username as creator_username,
                           creator.display_name as creator_display_name
                    FROM calls c
-                   JOIN users creator ON c.creator_id = creator.id
+                   JOIN users creator ON c.creator_userid = creator.userid
                    WHERE c.call_id = ?""",
                 (call_id,),
                 fetch='one'
@@ -480,7 +480,7 @@ class CallService:
             participants = self.db.execute_query(
                 """SELECT cp.*, u.username, u.display_name
                    FROM call_participants cp
-                   JOIN users u ON cp.user_id = u.id
+                   JOIN users u ON cp.userid = u.userid
                    WHERE cp.call_id = ?
                    ORDER BY cp.joined_at""",
                 (call_id,),
@@ -500,7 +500,7 @@ class CallService:
         """Get pending call invitations for a user"""
         try:
             user = self.db.execute_query(
-                "SELECT id FROM users WHERE username = ?",
+                "SELECT userid FROM users WHERE username = ?",
                 (username,),
                 fetch='one'
             )
@@ -516,11 +516,11 @@ class CallService:
                           creator.username as creator_username
                    FROM call_invitations ci
                    JOIN calls c ON ci.call_id = c.call_id
-                   JOIN users inviter ON ci.inviter_id = inviter.id
-                   JOIN users creator ON c.creator_id = creator.id
-                   WHERE ci.invitee_id = ? AND ci.status = 'pending' AND c.status = 'active'
+                   JOIN users inviter ON ci.inviter_userid = inviter.userid
+                   JOIN users creator ON c.creator_userid = creator.userid
+                   WHERE ci.invitee_userid = ? AND ci.status = 'pending' AND c.status = 'active'
                    ORDER BY ci.invited_at DESC""",
-                (user['id'],),
+                (user['userid'],),
                 fetch='all'
             )
             
@@ -538,7 +538,7 @@ class CallService:
         """Get active calls that a user is participating in"""
         try:
             user = self.db.execute_query(
-                "SELECT id FROM users WHERE username = ?",
+                "SELECT userid FROM users WHERE username = ?",
                 (username,),
                 fetch='one'
             )
@@ -549,11 +549,11 @@ class CallService:
             calls = self.db.execute_query(
                 """SELECT c.*, creator.username as creator_username
                    FROM calls c
-                   JOIN users creator ON c.creator_id = creator.id
+                   JOIN users creator ON c.creator_userid = creator.userid
                    JOIN call_participants cp ON c.call_id = cp.call_id
-                   WHERE cp.user_id = ? AND cp.status = 'active' AND c.status = 'active'
+                   WHERE cp.userid = ? AND cp.status = 'active' AND c.status = 'active'
                    ORDER BY c.created_at DESC""",
-                (user['id'],),
+                (user['userid'],),
                 fetch='all'
             )
             
@@ -567,7 +567,7 @@ class CallService:
         """Update user presence status"""
         try:
             user = self.db.execute_query(
-                "SELECT id FROM users WHERE username = ?",
+                "SELECT userid FROM users WHERE username = ?",
                 (username,),
                 fetch='one'
             )
@@ -577,14 +577,20 @@ class CallService:
             
             # Insert or update presence
             self.db.execute_query(
-                """INSERT INTO user_presence (user_id, status, socket_id, updated_at)
+                """INSERT INTO user_presence (userid, status, socket_id, updated_at)
                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                   ON CONFLICT(user_id) DO UPDATE SET
+                   ON CONFLICT(userid) DO UPDATE SET
                    status = excluded.status,
                    socket_id = excluded.socket_id,
                    updated_at = excluded.updated_at""",
-                (user['id'], status, socket_id)
+                (user['userid'], status, socket_id)
             )
+            
+            # Also update the online_users table if the user is going online
+            if status == 'online':
+                self.db.add_online_user(user['userid'])
+            elif status == 'offline':
+                self.db.remove_online_user(user['userid'])
             
             return True
             
@@ -626,7 +632,7 @@ class CallService:
             if username:
                 # Get calls for specific user
                 user = self.db.execute_query(
-                    "SELECT id FROM users WHERE username = ?",
+                    "SELECT userid FROM users WHERE username = ?",
                     (username,),
                     fetch='one'
                 )
@@ -636,13 +642,13 @@ class CallService:
                 
                 calls = self.db.execute_query(
                     """SELECT * FROM call_history ch
-                       WHERE ch.creator_id = ? OR EXISTS (
+                       WHERE ch.creator_userid = ? OR EXISTS (
                            SELECT 1 FROM call_participants cp 
-                           WHERE cp.call_id = ch.call_id AND cp.user_id = ?
+                           WHERE cp.call_id = ch.call_id AND cp.userid = ?
                        )
                        ORDER BY ch.created_at DESC
                        LIMIT ?""",
-                    (user['id'], user['id'], limit),
+                    (user['userid'], user['userid'], limit),
                     fetch='all'
                 )
             else:
