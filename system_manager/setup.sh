@@ -9,7 +9,8 @@ sudo apt install -y --no-install-recommends \
   xserver-xorg xinit x11-xserver-utils \
   plymouth plymouth-themes \
   pipewire pipewire-pulse wireplumber \
-  unclutter
+  unclutter \
+  python3-pip python3-flask python3-flask-cors
 
 echo "🧹 Disabling resource-intensive desktop environment..."
 sudo systemctl disable lightdm.service || true
@@ -73,9 +74,35 @@ EOF
 
 sudo chmod 440 /etc/sudoers.d/smarttv-shutdown
 
-echo "🔄 Reloading systemd and enabling smarttv.service..."
+echo "🐍 Installing local system management server..."
+# Create directory for SmartTV system files
+sudo mkdir -p /usr/local/share/smarttv
+
+# Copy local system server to system location
+sudo cp "$(dirname "$0")/local_system_server.py" /usr/local/share/smarttv/
+sudo chmod +x /usr/local/share/smarttv/local_system_server.py
+
+# Install systemd service for local system server
+sudo cp "$(dirname "$0")/smarttv-local-system.service" /etc/systemd/system/
+
+echo "🔄 Reloading systemd and enabling services..."
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl enable smarttv.service
+sudo systemctl enable smarttv-local-system.service
 
-echo "✅ Done. Reboot now to start the Electron app automatically!"
+echo "🚀 Starting local system management server..."
+sudo systemctl start smarttv-local-system.service
+
+echo "📊 Service status:"
+sudo systemctl status smarttv-local-system.service --no-pager -l
+
+echo "✅ Done! Services installed:"
+echo "  - smarttv.service: Main SmartTV kiosk application"
+echo "  - smarttv-local-system.service: Local system management (shutdown/reboot)"
+echo ""
+echo "📝 Logs:"
+echo "  - SmartTV App: journalctl -u smarttv.service -f"
+echo "  - Local System: journalctl -u smarttv-local-system.service -f"
+echo ""
+echo "🔄 Reboot now to start the SmartTV kiosk automatically!"
