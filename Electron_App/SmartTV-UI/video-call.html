@@ -6,13 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Family Video Call | Smart Family Console</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="config-browser.js"></script>
     <script>
-        // Initialize config early - will be overwritten by main process if available
-        // Default to remote server, main process will inject local server if USE_LOCAL_SERVER is set
-        window.appConfig = window.appConfig || {
-            SERVER_URL: 'http://20.244.19.161:3001',
+        // Fallback config if config-browser.js doesn't load
+        window.appConfig = window.APP_CONFIG || window.appConfig || {
+            SERVER_URL: 'http://localhost:3001',
             WEBSOCKET_URL: 'ws://localhost:3000',
-            isDevelopment: false,
+            isDevelopment: true,
             isLocalDev: false
         };
         console.log('Early config initialized:', window.appConfig);

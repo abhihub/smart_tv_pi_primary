@@ -147,7 +147,21 @@ class UserService:
         try:
             user = self.get_user_by_username(username)
             if not user:
-                logger.warning(f"Cannot create session for non-existent user: {username}")
+                logger.warning(f"User {username} not found, attempting auto-registration...")
+                # Try auto-registration to fix race condition
+                import secrets
+                import string
+                userid = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(17))
+                registration_result = self.register_or_update_user(userid, username)
+                if registration_result and registration_result.get('userid'):
+                    logger.info(f"Auto-registered user {username} during session creation with ID {registration_result['userid']}")
+                    user = self.get_user_by_username(username)
+                else:
+                    logger.error(f"Failed to auto-register user {username}")
+                    return None
+                
+            if not user:
+                logger.error(f"Cannot create session for user: {username}")
                 return None
             
             # Generate session token (simple timestamp-based for now)

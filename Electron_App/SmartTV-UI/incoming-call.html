@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Incoming Call - SmartTV</title>
+    <script src="config-browser.js"></script>
     <style>
         * {
             margin: 0;
@@ -326,9 +327,11 @@
         let callerUsername = null;
         let currentUser = null;
 
-        // Get server URL from config
+        // Config helper function with logging
         function getServerUrl() {
-            return window.appConfig?.SERVER_URL || 'http://20.244.19.161:3001';
+            const config = window.APP_CONFIG || window.appConfig;
+            console.log('🔗 INCOMING-CALL: Getting server URL from config:', config);
+            return config?.SERVER_URL || 'http://localhost:3001';
         }
 
         // Initialize the page

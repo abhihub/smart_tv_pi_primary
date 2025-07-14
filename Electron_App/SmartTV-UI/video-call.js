@@ -26,13 +26,11 @@ let currentUserName = "Family Member";
 let currentRoomName = "family-room";
 let localTracks = [];
 
-// Wait for config to be available
+// Config loaded via window.APP_CONFIG from config-browser.js
 function getServerUrl() {
-    const config = window.appConfig;
-    console.log('Current window.appConfig:', config);
-    const serverUrl = config?.SERVER_URL || 'http://20.244.19.161:3001';
-    console.log('SERVER_URL being used:', serverUrl);
-    return serverUrl;
+    const config = window.APP_CONFIG || window.appConfig;
+    console.log('🔗 FRONTEND: Getting server URL from config:', config);
+    return config?.SERVER_URL || 'http://localhost:3001';
 } 
 
 function showStatusMessage(message, duration = 3000) {
@@ -97,6 +95,9 @@ async function connectToRoom() {
         roomName: currentRoomName,
         serverUrl: getServerUrl()
     });
+    
+    console.log('🔗 FRONTEND: Using server URL:', getServerUrl());
+    console.log('🔗 FRONTEND: Full config:', window.APP_CONFIG || window.appConfig);
     
     if (!currentRoomName) {
         console.error('❌ No room name provided');

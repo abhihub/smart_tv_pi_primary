@@ -1,3 +1,17 @@
+// Config helper function with logging
+function getServerUrl() {
+    // Try to get config from browser context or fallback to require for Node.js
+    let config;
+    if (typeof window !== 'undefined') {
+        config = window.APP_CONFIG || window.appConfig;
+        console.log('🔗 CALL-MONITOR: Getting server URL from browser config:', config);
+    } else {
+        config = require('./config');
+        console.log('🔗 CALL-MONITOR: Getting server URL from Node.js config:', config);
+    }
+    return config?.SERVER_URL || 'http://localhost:3001';
+}
+
 // Call monitoring service for incoming calls
 class CallMonitor {
     constructor() {
@@ -5,11 +19,6 @@ class CallMonitor {
         this.currentUser = null;
         this.checkInterval = null;
         this.notificationInterval = 3000; // Check every 3 seconds
-    }
-
-    // Get server URL from config
-    getServerUrl() {
-        return window.appConfig?.SERVER_URL || 'http://20.244.19.161:3001';
     }
 
     // Start monitoring for incoming calls
@@ -55,7 +64,7 @@ class CallMonitor {
         if (!this.currentUser || !this.isMonitoring) return;
 
         try {
-            const response = await fetch(`${this.getServerUrl()}/api/calls/pending/${this.currentUser.username}`);
+            const response = await fetch(`${getServerUrl()}/api/calls/pending/${this.currentUser.username}`);
             
             if (!response.ok) {
                 // Don't log errors for monitoring checks to avoid spam
@@ -195,7 +204,7 @@ class CallMonitor {
         try {
             this.hideNotification();
 
-            const response = await fetch(`${this.getServerUrl()}/api/calls/answer`, {
+            const response = await fetch(`${getServerUrl()}/api/calls/answer`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -229,7 +238,7 @@ class CallMonitor {
         try {
             this.hideNotification();
 
-            const response = await fetch(`${this.getServerUrl()}/api/calls/decline`, {
+            const response = await fetch(`${getServerUrl()}/api/calls/decline`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -288,7 +297,7 @@ class CallMonitor {
         if (!this.currentUser) return;
 
         try {
-            await fetch(`${this.getServerUrl()}/api/calls/presence`, {
+            await fetch(`${getServerUrl()}/api/calls/presence`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
