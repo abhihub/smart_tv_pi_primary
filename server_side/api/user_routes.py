@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('users', __name__)
 user_service = UserService()
 
 @user_bp.route('/register', methods=['POST'])
