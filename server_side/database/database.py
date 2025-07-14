@@ -87,6 +87,56 @@ class DatabaseManager:
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }
+    
+    def add_online_user(self, userid: str) -> bool:
+        """Add user to online users table"""
+        try:
+            query = """
+            INSERT OR REPLACE INTO online_users (userid, status, connected_at)
+            VALUES (?, 'online', CURRENT_TIMESTAMP)
+            """
+            self.execute_query(query, (userid,))
+            logger.info(f"User {userid} added to online users")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to add online user {userid}: {e}")
+            return False
+    
+    def remove_online_user(self, userid: str) -> bool:
+        """Remove user from online users table"""
+        try:
+            query = "DELETE FROM online_users WHERE userid = ?"
+            self.execute_query(query, (userid,))
+            logger.info(f"User {userid} removed from online users")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to remove online user {userid}: {e}")
+            return False
+    
+    def get_online_users(self) -> list:
+        """Get list of all online users"""
+        try:
+            query = """
+            SELECT ou.userid, ou.status, ou.connected_at, u.username, u.display_name
+            FROM online_users ou
+            JOIN users u ON ou.userid = u.userid
+            ORDER BY ou.connected_at DESC
+            """
+            result = self.execute_query(query, fetch='all')
+            return [dict(row) for row in result] if result else []
+        except Exception as e:
+            logger.error(f"Failed to get online users: {e}")
+            return []
+    
+    def is_user_online(self, userid: str) -> bool:
+        """Check if user is online"""
+        try:
+            query = "SELECT 1 FROM online_users WHERE userid = ?"
+            result = self.execute_query(query, (userid,), fetch='one')
+            return result is not None
+        except Exception as e:
+            logger.error(f"Failed to check if user {userid} is online: {e}")
+            return False
 
 # Global database instance
 db_manager = DatabaseManager()

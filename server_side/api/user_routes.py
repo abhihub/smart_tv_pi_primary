@@ -670,6 +670,120 @@ def search_users():
             'error': f'User search failed: {str(e)}'
         }), 500
 
+@user_bp.route('/online/connect', methods=['POST'])
+def connect_user():
+    """
+    Mark user as online when they start the console
+    
+    Expected JSON payload:
+    {
+        "userid": "APP123456789"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        userid = data.get('userid')
+        
+        if not userid:
+            return jsonify({'error': 'userid is required'}), 400
+        
+        success = user_service.add_online_user(userid)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'User marked as online'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to mark user as online'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Failed to connect user: {e}")
+        return jsonify({
+            'error': f'Connection failed: {str(e)}'
+        }), 500
+
+@user_bp.route('/online/disconnect', methods=['POST'])
+def disconnect_user():
+    """
+    Remove user from online users when they go offline
+    
+    Expected JSON payload:
+    {
+        "userid": "APP123456789"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body must be JSON'}), 400
+        
+        userid = data.get('userid')
+        
+        if not userid:
+            return jsonify({'error': 'userid is required'}), 400
+        
+        success = user_service.remove_online_user(userid)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'User removed from online users'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to remove user from online users'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Failed to disconnect user: {e}")
+        return jsonify({
+            'error': f'Disconnection failed: {str(e)}'
+        }), 500
+
+@user_bp.route('/online', methods=['GET'])
+def get_online_users():
+    """Get list of all online users"""
+    try:
+        online_users = user_service.get_online_users()
+        
+        return jsonify({
+            'success': True,
+            'online_users': online_users,
+            'count': len(online_users)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to get online users: {e}")
+        return jsonify({
+            'error': f'Failed to get online users: {str(e)}'
+        }), 500
+
+@user_bp.route('/online/check/<userid>', methods=['GET'])
+def check_user_online(userid):
+    """Check if a specific user is online"""
+    try:
+        is_online = user_service.is_user_online(userid)
+        
+        return jsonify({
+            'success': True,
+            'userid': userid,
+            'is_online': is_online
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Failed to check user online status: {e}")
+        return jsonify({
+            'error': f'Failed to check online status: {str(e)}'
+        }), 500
+
 @user_bp.route('/health', methods=['GET'])
 def user_service_health():
     """Health check for user service"""
