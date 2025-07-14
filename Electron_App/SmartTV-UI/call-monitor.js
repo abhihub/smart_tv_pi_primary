@@ -9,7 +9,7 @@ class CallMonitor {
 
     // Get server URL from config
     getServerUrl() {
-        return window.appConfig?.SERVER_URL || 'http://167.71.0.87:3001';
+        return window.appConfig?.SERVER_URL || 'http://20.244.19.161:3001';
     }
 
     // Start monitoring for incoming calls
@@ -32,7 +32,7 @@ class CallMonitor {
                 this.checkForPendingCalls();
             }, this.notificationInterval);
 
-            // Do an immediate check
+            // Do an immediate checki think har 3-4 mins check kar raha hai or something? 
             this.checkForPendingCalls();
 
         } catch (error) {
@@ -122,7 +122,7 @@ class CallMonitor {
                 color: white;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             ">
-                <div style="font-size: 1.2rem; opacity: 0.7; margin-bottom: 20px;">Incoming Call</div>
+                <div style="font-size: 1.2rem; opacity: 0.7; margin-bottom: 20px;">📞 Incoming Call</div>
                 <div style="
                     width: 100px;
                     height: 100px;

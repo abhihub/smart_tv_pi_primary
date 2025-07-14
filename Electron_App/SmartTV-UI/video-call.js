@@ -30,7 +30,7 @@ let localTracks = [];
 function getServerUrl() {
     const config = window.appConfig;
     console.log('Current window.appConfig:', config);
-    const serverUrl = config?.SERVER_URL || 'http://167.71.0.87:3001';
+    const serverUrl = config?.SERVER_URL || 'http://20.244.19.161:3001';
     console.log('SERVER_URL being used:', serverUrl);
     return serverUrl;
 } 
@@ -528,25 +528,49 @@ async function loadFriendsOnlineStatus() {
             return;
         }
         
-        // Get online users using the same backend method
-        const response = await fetch(`${getServerUrl()}/api/calls/online-users`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        // Get friends list first, then check their online status
+        const friendsResponse = await fetch(`${getServerUrl()}/api/users/friends/${currentUser.username}`);
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (!friendsResponse.ok) {
+            throw new Error(`HTTP ${friendsResponse.status}: ${friendsResponse.statusText}`);
         }
         
-        const data = await response.json();
-        console.log('🔵 Online users response:', data);
+        const friendsData = await friendsResponse.json();
         
-        if (data.success && data.users) {
-            displayFriendsOnlineStatus(data.users, currentUser.username);
+        if (friendsData.success && friendsData.friends && friendsData.friends.length > 0) {
+            // Get online users to check friend status
+            const onlineResponse = await fetch(`${getServerUrl()}/api/calls/online-users`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (onlineResponse.ok) {
+                const onlineData = await onlineResponse.json();
+                const onlineUsers = onlineData.users || [];
+                
+                // Create friends list with online status
+                const friendsWithStatus = friendsData.friends.map(friend => {
+                    const isOnline = onlineUsers.some(user => user.username === friend.friend_username);
+                    return {
+                        username: friend.friend_username,
+                        display_name: friend.friend_username,
+                        is_online: isOnline
+                    };
+                });
+                
+                displayFriendsOnlineStatus(friendsWithStatus, currentUser.username);
+            } else {
+                // Just show friends without online status
+                displayFriendsOnlineStatus(friendsData.friends.map(f => ({
+                    username: f.friend_username,
+                    display_name: f.friend_username,
+                    is_online: false
+                })), currentUser.username);
+            }
         } else {
-            console.warn('Invalid response format:', data);
+            console.log('No friends found');
             showNoFriendsMessage();
         }
         
@@ -556,37 +580,37 @@ async function loadFriendsOnlineStatus() {
     }
 }
 
-function displayFriendsOnlineStatus(onlineUsers, currentUsername) {
+function displayFriendsOnlineStatus(friends, currentUsername) {
     const friendsList = document.getElementById('friendsList');
     
     if (!friendsList) return;
     
-    // Filter out current user from online users
-    const friends = onlineUsers.filter(user => user.username !== currentUsername);
+    // Filter out current user from friends (if any)
+    const filteredFriends = friends.filter(friend => friend.username !== currentUsername);
     
-    if (friends.length === 0) {
+    if (filteredFriends.length === 0) {
         showNoFriendsMessage();
         return;
     }
     
     // Create friends list HTML
-    friendsList.innerHTML = friends.map(friend => `
+    friendsList.innerHTML = filteredFriends.map(friend => `
         <div class="friend-item" data-username="${friend.username}">
             <div class="friend-avatar">
                 ${friend.display_name ? friend.display_name.charAt(0).toUpperCase() : friend.username.charAt(0).toUpperCase()}
-                <div class="friend-online-dot"></div>
+                <div class="friend-online-dot ${friend.is_online ? '' : 'offline'}" style="${friend.is_online ? '' : 'background: #95a5a6;'}"></div>
             </div>
             <div class="friend-info">
                 <div class="friend-name">${friend.display_name || friend.username}</div>
-                <div class="friend-status">Online now</div>
+                <div class="friend-status">${friend.is_online ? 'Online now' : 'Offline'}</div>
             </div>
-            <button class="friend-call-btn" onclick="startCallWithFriend('${friend.username}')">
+            <button class="friend-call-btn" onclick="startCallWithFriend('${friend.username}')" ${friend.is_online ? '' : 'disabled style="opacity: 0.5; cursor: not-allowed;"'}>
                 <i class="fas fa-phone"></i>
             </button>
         </div>
     `).join('');
     
-    console.log(`🔵 Displayed ${friends.length} online friends`);
+    console.log(`🔵 Displayed ${filteredFriends.length} friends (${filteredFriends.filter(f => f.is_online).length} online)`);
 }
 
 function showNoFriendsMessage() {
@@ -597,7 +621,10 @@ function showNoFriendsMessage() {
     friendsList.innerHTML = `
         <div class="no-friends">
             <div class="no-friends-icon">👥</div>
-            <p>No friends online right now</p>
+            <p>No friends to call right now</p>
+            <p style="font-size: 0.9rem; opacity: 0.7; margin-top: 10px;">
+                Add friends in the User Directory to start calling them!
+            </p>
         </div>
     `;
 }

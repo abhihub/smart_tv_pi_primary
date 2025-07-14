@@ -16,7 +16,7 @@ import sys
 import os
 
 class SmartTVAPITester:
-    def __init__(self, base_url: str = "http://localhost:3001"):
+    def __init__(self, base_url: str = "http://20.244.19.161:3001"):
         self.base_url = base_url.rstrip('/')
         self.session = requests.Session()
         self.test_data = {}
@@ -653,7 +653,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='SmartTV API Test Suite')
-    parser.add_argument('--url', default='http://localhost:3001', 
+    parser.add_argument('--url', default='http://20.244.19.161:3001', 
                        help='Base URL of the SmartTV server')
     parser.add_argument('--save', action='store_true', 
                        help='Save test results to JSON file')

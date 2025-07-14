@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const config = {
   // Backend server configuration
-  SERVER_URL: process.env.SERVER_URL || 'http://167.71.0.87:3001',
+  SERVER_URL: process.env.SERVER_URL || 'http://20.244.19.161:3001',
   
   // WebSocket configuration  
   WEBSOCKET_URL: process.env.WEBSOCKET_URL || 'ws://localhost:3000',
