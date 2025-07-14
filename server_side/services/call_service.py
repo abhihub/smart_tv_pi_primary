@@ -173,6 +173,58 @@ class CallService:
         except Exception as e:
             logger.error(f"Failed to join call: {e}")
             return None
+        
+    def get_call_invitation_status(self, call_id: str) -> Optional[Dict[str, Any]]:
+        """Get current status of call invitations"""
+        try:
+            # Get call invitations with user details
+            invitations = self.db.execute_query(
+                """SELECT ci.*, 
+                        inviter.username as inviter_username,
+                        inviter.display_name as inviter_display_name,
+                        invitee.username as invitee_username,
+                        invitee.display_name as invitee_display_name
+                FROM call_invitations ci
+                JOIN users inviter ON ci.inviter_userid = inviter.userid
+                JOIN users invitee ON ci.invitee_userid = invitee.userid
+                WHERE ci.call_id = ?
+                ORDER BY ci.invited_at""",
+                (call_id,),
+                fetch='all'
+            )
+            
+            if not invitations:
+                return None
+            
+            # Convert to list of dictionaries
+            invitation_list = [dict(inv) for inv in invitations]
+            
+            # Determine overall call status based on invitations
+            invitation_statuses = [inv['status'] for inv in invitation_list]
+            
+            if 'accepted' in invitation_statuses:
+                overall_status = 'accepted'
+            elif all(status == 'declined' for status in invitation_statuses):
+                overall_status = 'declined'
+            elif 'cancelled' in invitation_statuses:
+                overall_status = 'cancelled'
+            else:
+                overall_status = 'pending'
+            
+            return {
+                'call_id': call_id,
+                'status': overall_status,
+                'invitations': invitation_list,
+                'total_invitations': len(invitation_list),
+                'pending_count': invitation_statuses.count('pending'),
+                'accepted_count': invitation_statuses.count('accepted'),
+                'declined_count': invitation_statuses.count('declined'),
+                'cancelled_count': invitation_statuses.count('cancelled')
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get call invitation status: {e}")
+            return None
     
     def leave_call(self, call_id: str, username: str) -> bool:
         """Leave a call"""
