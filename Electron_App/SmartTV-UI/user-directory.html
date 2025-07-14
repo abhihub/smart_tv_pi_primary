@@ -921,10 +921,12 @@
 
     <script>
         // Initialize config early - will be overwritten by main process if available
+        // Default to remote server, main process will inject local server if USE_LOCAL_SERVER is set
         window.appConfig = window.appConfig || {
-            SERVER_URL: 'http://localhost:3001',
+            SERVER_URL: 'http://20.244.19.161:3001',
             WEBSOCKET_URL: 'ws://localhost:3000',
-            isDevelopment: false
+            isDevelopment: false,
+            isLocalDev: false
         };
         console.log('Config initialized:', window.appConfig);
     </script>
@@ -936,7 +938,7 @@
 
         // Get server URL from config
         function getServerUrl() {
-            const url = window.appConfig?.SERVER_URL || 'http://localhost:3001';
+            const url = window.appConfig?.SERVER_URL || 'http://20.244.19.161:3001';
             console.log('🔗 Using server URL:', url);
             return url;
         }

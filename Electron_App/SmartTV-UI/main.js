@@ -3,10 +3,12 @@ const path = require('path');
 require('dotenv').config();
 
 // Store config in global for preload script access
+const isLocalDev = process.env.USE_LOCAL_SERVER === 'true' || process.env.NODE_ENV === 'development';
 global.appConfig = {
-  SERVER_URL: process.env.SERVER_URL || 'http://localhost:3001',
+  SERVER_URL: process.env.SERVER_URL || (isLocalDev ? 'http://localhost:3001' : 'http://20.244.19.161:3001'),
   WEBSOCKET_URL: process.env.WEBSOCKET_URL || 'ws://localhost:3000',
-  isDevelopment: process.env.NODE_ENV === 'development'
+  isDevelopment: process.env.NODE_ENV === 'development',
+  isLocalDev: isLocalDev
 };
 
 console.log('🚀 MAIN PROCESS STARTING');

@@ -30,7 +30,7 @@ let localTracks = [];
 function getServerUrl() {
     const config = window.appConfig;
     console.log('Current window.appConfig:', config);
-    const serverUrl = config?.SERVER_URL || 'http://localhost:3001';
+    const serverUrl = config?.SERVER_URL || 'http://20.244.19.161:3001';
     console.log('SERVER_URL being used:', serverUrl);
     return serverUrl;
 } 

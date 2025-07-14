@@ -82,16 +82,38 @@ The app creates a 1280x800 window by default:
 
 Create `.env` file with:
 ```
-BACKEND_URL=http://localhost:3001
-TWILIO_REGION=us1
+# Set to 'true' for local development, 'false' or unset for remote server
+USE_LOCAL_SERVER=false
+
+# Optional: Override server URL directly
+# SERVER_URL=http://localhost:3001
+
+# WebSocket URL for trivia games
+WEBSOCKET_URL=ws://localhost:3000
+
+# Environment (automatically enables local server when set to 'development')
+NODE_ENV=production
 ```
 
 Use `.env.example` as a template.
+
+### Server Configuration
+
+The app automatically switches between local and remote servers:
+
+- **Remote Server (Default)**: `http://20.244.19.161:3001`
+- **Local Server**: `http://localhost:3001`
+
+**To use local server:**
+1. Set `USE_LOCAL_SERVER=true` in `.env` file, OR
+2. Set `NODE_ENV=development` in `.env` file, OR 
+3. Set `SERVER_URL=http://localhost:3001` directly
 
 ### Config Management
 
 The `config.js` file handles:
 - Environment variable loading
+- Automatic server URL selection
 - Default configuration values
 - Runtime configuration management
 

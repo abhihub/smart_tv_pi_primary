@@ -9,7 +9,7 @@ class CallMonitor {
 
     // Get server URL from config
     getServerUrl() {
-        return window.appConfig?.SERVER_URL || 'http://localhost:3001';
+        return window.appConfig?.SERVER_URL || 'http://20.244.19.161:3001';
     }
 
     // Start monitoring for incoming calls

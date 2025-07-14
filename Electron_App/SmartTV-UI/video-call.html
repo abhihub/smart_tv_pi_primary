@@ -8,10 +8,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
         // Initialize config early - will be overwritten by main process if available
+        // Default to remote server, main process will inject local server if USE_LOCAL_SERVER is set
         window.appConfig = window.appConfig || {
-            SERVER_URL: 'http://localhost:3001',
+            SERVER_URL: 'http://20.244.19.161:3001',
             WEBSOCKET_URL: 'ws://localhost:3000',
-            isDevelopment: false
+            isDevelopment: false,
+            isLocalDev: false
         };
         console.log('Early config initialized:', window.appConfig);
         
