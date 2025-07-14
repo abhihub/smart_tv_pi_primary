@@ -19,6 +19,42 @@
             height: 100vh;
             overflow: hidden;
             cursor: none;
+            position: relative;
+        }
+
+        /* Live video background */
+        #videoBackground {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+            opacity: 0.6;
+            filter: blur(0.5px) brightness(0.9);
+            transition: opacity 0.5s ease;
+        }
+
+        #videoBackground.active {
+            opacity: 0.8;
+        }
+
+        /* Overlay to ensure readability */
+        .video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(
+                135deg, 
+                rgba(15, 15, 35, 0.3) 0%, 
+                rgba(26, 26, 46, 0.2) 50%, 
+                rgba(22, 33, 62, 0.3) 100%
+            );
+            z-index: 0;
+            pointer-events: none;
         }
 
         .container {
@@ -26,6 +62,8 @@
             display: flex;
             flex-direction: column;
             padding: 40px;
+            position: relative;
+            z-index: 1;
         }
 
         .header {
@@ -269,6 +307,9 @@
     </style>
 </head>
 <body>
+    <!-- Live video background -->
+    <video id="videoBackground" autoplay playsinline muted></video>
+    <div class="video-overlay"></div>
     <div class="container">
         <div class="header">
             <h1>Smart Family Console</h1>
@@ -286,37 +327,6 @@
                 <div class="tile-icon">🎮</div>
                 <div class="tile-title">Games Hub</div>
                 <div class="tile-subtitle">Interactive family games</div>
-            </div>
-
-            <div class="tile streaming card" tabindex="0" data-app="streaming" data-focusable="true" data-shortcut="3">
-                <div class="tile-icon">🎬</div>
-                <div class="tile-title">Streaming</div>
-                <div class="tile-subtitle">Movies, shows & content</div>
-            </div>
-
-            <div class="tile photos card" tabindex="0" data-app="photos" data-focusable="true" data-shortcut="4">
-                <div class="tile-icon">📸</div>
-                <div class="tile-title">Photo Gallery</div>
-                <div class="tile-subtitle">Memories & moments</div>
-            </div>
-
-            <div class="tile learning card" tabindex="0" data-app="learning" data-focusable="true" data-shortcut="5">
-                <div class="tile-icon">🧠</div>
-                <div class="tile-title">Learning Center</div>
-                <div class="tile-subtitle">Educational content & activities</div>
-            </div>
-
-            <div class="tile settings card" tabindex="0" data-app="settings" data-focusable="true" data-shortcut="6">
-                <div class="tile-icon">⚙️</div>
-                <div class="tile-title">Settings</div>
-                <div class="tile-subtitle">System preferences</div>
-            </div>
-        </div>
-
-        <div class="footer">
-            <div class="gesture-hint">
-                <span class="wave-emoji">👋</span>
-                <span>Wave or touch to navigate • Voice commands enabled</span>
             </div>
         </div>
     </div>
@@ -514,12 +524,148 @@
     <script src="user-utils.js"></script>
     <script src="call-monitor.js"></script>
     <script src="tv-remote.js"></script>
+    
     <script>
-        // Initialize TV remote with 3-column grid
-        document.addEventListener('DOMContentLoaded', () => {
+        // Live Video Background System
+        class LiveVideoBackground {
+            constructor() {
+                this.videoElement = document.getElementById('videoBackground');
+                this.isActive = false;
+                this.stream = null;
+            }
+
+            async initialize() {
+                try {
+                    console.log('🎥 Initializing live video background...');
+                    
+                    // Request camera and microphone access
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 },
+                            facingMode: 'user' // Front-facing camera
+                        },
+                        audio: true
+                    });
+
+                    // Attach stream to video element
+                    this.videoElement.srcObject = this.stream;
+                    
+                    // Wait for video to be ready
+                    await new Promise((resolve) => {
+                        this.videoElement.addEventListener('loadedmetadata', resolve, { once: true });
+                    });
+
+                    // Activate the background
+                    this.videoElement.classList.add('active');
+                    this.isActive = true;
+                    
+                    console.log('✅ Live video background activated');
+                    
+                    // Show status message
+                    this.showStatusMessage('📹 Live video background active', 3000);
+
+                } catch (error) {
+                    console.error('❌ Failed to initialize camera:', error);
+                    this.handleCameraError(error);
+                }
+            }
+
+            handleCameraError(error) {
+                let message = 'Camera access denied';
+                
+                if (error.name === 'NotAllowedError') {
+                    message = 'Camera permission denied. Please allow camera access.';
+                } else if (error.name === 'NotFoundError') {
+                    message = 'No camera found on this device.';
+                } else if (error.name === 'NotReadableError') {
+                    message = 'Camera is already in use by another application.';
+                }
+                
+                console.warn('📹 Camera not available:', message);
+                this.showStatusMessage(`📹 ${message}`, 5000);
+                
+                // Hide video element and show gradient background
+                this.videoElement.style.display = 'none';
+            }
+
+            showStatusMessage(message, duration = 3000) {
+                // Create status message element
+                const statusEl = document.createElement('div');
+                statusEl.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 15px 25px;
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    z-index: 1000;
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    animation: slideInRight 0.3s ease-out;
+                `;
+                statusEl.textContent = message;
+                
+                // Add animation keyframes
+                if (!document.querySelector('#statusAnimations')) {
+                    const style = document.createElement('style');
+                    style.id = 'statusAnimations';
+                    style.textContent = `
+                        @keyframes slideInRight {
+                            from { transform: translateX(100%); opacity: 0; }
+                            to { transform: translateX(0); opacity: 1; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                document.body.appendChild(statusEl);
+                
+                // Remove after duration
+                setTimeout(() => {
+                    statusEl.style.animation = 'slideInRight 0.3s ease-out reverse';
+                    setTimeout(() => statusEl.remove(), 300);
+                }, duration);
+            }
+
+            // Public methods for control
+            toggleBackground() {
+                if (this.videoElement) {
+                    this.videoElement.classList.toggle('active');
+                    this.isActive = !this.isActive;
+                    console.log(`🎥 Video background ${this.isActive ? 'enabled' : 'disabled'}`);
+                }
+            }
+
+            cleanup() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    console.log('🎥 Video background stream stopped');
+                }
+            }
+        }
+
+        // Global instance
+        window.liveVideoBackground = new LiveVideoBackground();
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize live video background
+            await window.liveVideoBackground.initialize();
+            
+            // Initialize TV remote with 3-column grid
             if (window.tvRemote) {
                 window.tvRemote.setGridColumns(3);
                 console.log('🎮 TV Remote initialized for homepage');
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (window.liveVideoBackground) {
+                window.liveVideoBackground.cleanup();
             }
         });
     </script>
