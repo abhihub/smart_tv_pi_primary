@@ -413,19 +413,6 @@ class TVRemoteController {
         this.gridColumns = columns;
         console.log(`🎮 Grid columns set to: ${columns}`);
     }
-}
-
-// Global instance
-window.tvRemote = new TVRemoteController();
-
-// Auto-refresh when page content changes
-const observer = new MutationObserver(() => {
-    if (window.tvRemote) {
-        clearTimeout(window.tvRemote.refreshTimeout);
-        window.tvRemote.refreshTimeout = setTimeout(() => {
-            window.tvRemote.scanFocusableElements();
-        }, 500);
-    }
     
     getActionByKeyCode(keyCode) {
         return this.keyCodeMappings[keyCode];
@@ -468,6 +455,19 @@ const observer = new MutationObserver(() => {
         if (gamepad.axes[0] > 0.5) this.handleAction('right');
         if (gamepad.axes[1] < -0.5) this.handleAction('up');
         if (gamepad.axes[1] > 0.5) this.handleAction('down');
+    }
+}
+
+// Global instance
+window.tvRemote = new TVRemoteController();
+
+// Auto-refresh when page content changes
+const observer = new MutationObserver(() => {
+    if (window.tvRemote) {
+        clearTimeout(window.tvRemote.refreshTimeout);
+        window.tvRemote.refreshTimeout = setTimeout(() => {
+            window.tvRemote.scanFocusableElements();
+        }, 500);
     }
 });
 

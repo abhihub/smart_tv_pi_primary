@@ -304,6 +304,110 @@
             50% { transform: scale(1.1); }
             100% { transform: scale(1); }
         }
+
+        /* STT Transcription UI */
+        .stt-container {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            z-index: 1000;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transform: translateY(0);
+            transition: transform 0.3s ease-out;
+        }
+
+        .stt-container.hidden {
+            transform: translateY(100%);
+        }
+
+        .stt-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse-stt 1.5s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+
+        .stt-indicator.active {
+            background: #44ff44;
+            animation: pulse-stt-active 0.8s ease-in-out infinite;
+        }
+
+        @keyframes pulse-stt {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        @keyframes pulse-stt-active {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.3); }
+        }
+
+        .stt-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stt-status {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            font-weight: 300;
+        }
+
+        .stt-text {
+            color: #00ff88;
+            font-size: 1.2rem;
+            font-weight: 400;
+            line-height: 1.4;
+            min-height: 24px;
+            text-shadow: 0 0 4px rgba(0, 255, 136, 0.3);
+        }
+
+        .stt-text.empty {
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .stt-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .stt-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .stt-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .stt-toggle.active {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: rgba(0, 255, 136, 0.6);
+            color: #00ff88;
+        }
     </style>
 </head>
 <body>
@@ -328,6 +432,18 @@
                 <div class="tile-title">Games Hub</div>
                 <div class="tile-subtitle">Interactive family games</div>
             </div>
+        </div>
+    </div>
+
+    <!-- STT Transcription Container -->
+    <div class="stt-container" id="sttContainer">
+        <div class="stt-indicator" id="sttIndicator"></div>
+        <div class="stt-content">
+            <div class="stt-status" id="sttStatus">OpenAI Whisper Ready</div>
+            <div class="stt-text empty" id="sttText">Click "Start Listening" to begin speech transcription</div>
+        </div>
+        <div class="stt-controls">
+            <button class="stt-toggle" id="sttToggle">Start Listening</button>
         </div>
     </div>
 
@@ -647,26 +763,618 @@
             }
         }
 
-        // Global instance
-        window.liveVideoBackground = new LiveVideoBackground();
+        // OpenAI Whisper STT System
+        class OpenAIWhisperSTT {
+            constructor() {
+                this.isActive = false;
+                this.isRecording = false;
+                this.audioContext = null;
+                this.mediaRecorder = null;
+                this.audioChunks = [];
+                this.stream = null;
+                
+                // UI elements
+                this.sttContainer = document.getElementById('sttContainer');
+                this.sttIndicator = document.getElementById('sttIndicator');
+                this.sttStatus = document.getElementById('sttStatus');
+                this.sttText = document.getElementById('sttText');
+                this.sttToggle = document.getElementById('sttToggle');
+                
+                // OpenAI API configuration
+                // Note: In production, API key should be stored securely on the server
+                this.apiKey = this.getApiKey();
+                this.apiUrl = 'https://api.openai.com/v1/audio/transcriptions';
+                
+                this.setupEventListeners();
+            }
+
+            getApiKey() {
+                // Get API key from Electron environment variables
+                const envKey = window.electronAPI?.getEnvVariable?.('OPEN_AI');
+                if (envKey) {
+                    console.log('✅ Using OpenAI API key from environment variables');
+                    return envKey;
+                }
+                
+                // Fallback to localStorage for development
+                const storedKey = localStorage.getItem('openai_api_key');
+                if (storedKey) return storedKey;
+                
+                // If no key found, will prompt when needed
+                return null;
+            }
+
+            async promptForApiKey() {
+                return new Promise((resolve) => {
+                    const modal = document.createElement('div');
+                    modal.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        background: rgba(0, 0, 0, 0.8);
+                        z-index: 10000;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    `;
+                    
+                    const dialog = document.createElement('div');
+                    dialog.style.cssText = `
+                        background: rgba(20, 20, 30, 0.95);
+                        padding: 30px;
+                        border-radius: 15px;
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                        max-width: 500px;
+                        text-align: center;
+                    `;
+                    
+                    dialog.innerHTML = `
+                        <h3 style="color: white; margin-bottom: 20px;">OpenAI API Key Required</h3>
+                        <p style="color: rgba(255, 255, 255, 0.8); margin-bottom: 20px;">
+                            Enter your OpenAI API key to use Whisper STT:
+                        </p>
+                        <input type="password" id="apiKeyInput" style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 1px solid rgba(255, 255, 255, 0.3);
+                            border-radius: 5px;
+                            background: rgba(255, 255, 255, 0.1);
+                            color: white;
+                            margin-bottom: 20px;
+                        " placeholder="sk-...">
+                        <div>
+                            <button id="confirmKey" style="
+                                background: #00ff88;
+                                color: black;
+                                border: none;
+                                padding: 10px 20px;
+                                border-radius: 5px;
+                                margin-right: 10px;
+                                cursor: pointer;
+                            ">Confirm</button>
+                            <button id="cancelKey" style="
+                                background: rgba(255, 255, 255, 0.2);
+                                color: white;
+                                border: none;
+                                padding: 10px 20px;
+                                border-radius: 5px;
+                                cursor: pointer;
+                            ">Cancel</button>
+                        </div>
+                    `;
+                    
+                    modal.appendChild(dialog);
+                    document.body.appendChild(modal);
+                    
+                    const input = dialog.querySelector('#apiKeyInput');
+                    const confirmBtn = dialog.querySelector('#confirmKey');
+                    const cancelBtn = dialog.querySelector('#cancelKey');
+                    
+                    confirmBtn.addEventListener('click', () => {
+                        const key = input.value.trim();
+                        if (key) {
+                            localStorage.setItem('openai_api_key', key);
+                            this.apiKey = key;
+                            document.body.removeChild(modal);
+                            resolve(key);
+                        }
+                    });
+                    
+                    cancelBtn.addEventListener('click', () => {
+                        document.body.removeChild(modal);
+                        resolve(null);
+                    });
+                    
+                    input.focus();
+                });
+            }
+
+            setupEventListeners() {
+                this.sttToggle.addEventListener('click', () => {
+                    this.toggleSTT();
+                });
+            }
+
+            async toggleSTT() {
+                console.log('🎤 STT toggle requested. Current state:', this.isActive ? 'ACTIVE' : 'INACTIVE');
+                
+                if (!this.isActive) {
+                    console.log('🎤 Starting STT...');
+                    await this.startListening();
+                } else {
+                    console.log('🎤 Stopping STT...');
+                    this.stopListening();
+                }
+            }
+
+            async startListening() {
+                try {
+                    console.log('🎤 Starting OpenAI Whisper STT...');
+                    
+                    // Check API key and prompt if needed
+                    if (!this.apiKey) {
+                        this.updateStatus('API key required...');
+                        const apiKey = await this.promptForApiKey();
+                        if (!apiKey) {
+                            throw new Error('OpenAI API key is required to use Whisper STT');
+                        }
+                    }
+                    
+                    this.updateStatus('Connecting to microphone...');
+                    
+                    // Create a separate audio-only stream for STT
+                    console.log('🎤 Creating separate audio stream for STT...');
+                    
+                    try {
+                        // Get fresh audio stream specifically for STT
+                        this.stream = await navigator.mediaDevices.getUserMedia({
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: true,
+                                autoGainControl: true,
+                                sampleRate: 16000 // Whisper prefers 16kHz
+                            },
+                            video: false
+                        });
+                        
+                        console.log('✅ Created separate audio stream for STT');
+                        
+                        // Verify audio tracks
+                        const audioTracks = this.stream.getAudioTracks();
+                        console.log('🎤 Available audio tracks:', audioTracks.length);
+                        if (audioTracks.length === 0) {
+                            throw new Error('No audio tracks available in the stream');
+                        }
+                        
+                        audioTracks.forEach((track, index) => {
+                            console.log(`🎤 Audio track ${index}:`, track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
+                        });
+                        
+                    } catch (error) {
+                        console.error('❌ Failed to create separate audio stream:', error);
+                        console.log('🔄 Falling back to shared video stream...');
+                        
+                        // Fallback to shared stream
+                        if (!window.liveVideoBackground.stream) {
+                            throw new Error('No audio stream available. Please enable camera access first.');
+                        }
+                        
+                        this.stream = window.liveVideoBackground.stream;
+                        console.log('🔗 Using shared audio stream from video background');
+                        
+                        // Verify audio tracks
+                        const audioTracks = this.stream.getAudioTracks();
+                        console.log('🎤 Available audio tracks:', audioTracks.length);
+                        if (audioTracks.length === 0) {
+                            throw new Error('No audio tracks available in the stream');
+                        }
+                        
+                        audioTracks.forEach((track, index) => {
+                            console.log(`🎤 Audio track ${index}:`, track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
+                        });
+                    }
+                    
+                    // Setup audio recording
+                    await this.setupAudioRecording();
+                    
+                    // Set active state BEFORE starting recording
+                    this.isActive = true;
+                    this.sttIndicator.classList.add('active');
+                    this.sttToggle.classList.add('active');
+                    this.sttToggle.textContent = 'Stop Listening';
+                    this.updateStatus('🎤 Listening... Speak now');
+                    
+                    // Start recording and transcription
+                    this.startRecording();
+                    
+                    console.log('✅ OpenAI Whisper STT started');
+
+                } catch (error) {
+                    console.error('❌ Failed to start STT:', error);
+                    this.showError('Failed to start: ' + error.message);
+                }
+            }
+
+            async setupAudioRecording() {
+                // Create audio context for processing
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 16000 // Whisper prefers 16kHz
+                });
+
+                // Create media recorder for audio capture with specific options
+                const options = {
+                    mimeType: 'audio/webm;codecs=opus',
+                    audioBitsPerSecond: 64000 // Reduced bitrate for faster processing
+                };
+
+                // Fallback to default if webm is not supported
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'audio/webm';
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options.mimeType = 'audio/mp4';
+                    }
+                }
+
+                console.log('🎤 Using MediaRecorder with mime type:', options.mimeType);
+                
+                try {
+                    this.mediaRecorder = new MediaRecorder(this.stream, options);
+                    console.log('✅ MediaRecorder created successfully');
+                } catch (error) {
+                    console.error('❌ Failed to create MediaRecorder:', error);
+                    // Try with basic options
+                    console.log('🔄 Trying with basic MediaRecorder options...');
+                    this.mediaRecorder = new MediaRecorder(this.stream);
+                    console.log('✅ MediaRecorder created with basic options');
+                }
+
+                this.audioChunks = [];
+
+                this.mediaRecorder.ondataavailable = (event) => {
+                    console.log('🎵 Audio data available:', event.data.size, 'bytes', 'type:', event.data.type, 'timestamp:', new Date().toISOString());
+                    if (event.data.size > 0) {
+                        this.audioChunks.push(event.data);
+                        console.log('🎵 Total chunks collected:', this.audioChunks.length);
+                        
+                        // For real-time processing, process immediately if we have enough data
+                        if (this.audioChunks.length >= 2) {
+                            console.log('🎵 Processing audio chunk immediately for real-time response');
+                            this.processAudioChunk();
+                        }
+                    } else {
+                        console.warn('⚠️ Received empty audio data chunk');
+                    }
+                };
+
+                this.mediaRecorder.onstop = async () => {
+                    console.log('🎵 MediaRecorder stopped at:', new Date().toISOString());
+                    console.log('🎵 Audio chunks collected:', this.audioChunks.length);
+                    
+                    if (this.audioChunks.length > 0) {
+                        const totalSize = this.audioChunks.reduce((sum, chunk) => sum + chunk.size, 0);
+                        console.log('🎵 Total audio data size:', totalSize, 'bytes');
+                        console.log('🎵 Processing remaining audio chunks...');
+                        await this.processAudioChunk();
+                    } else {
+                        console.warn('⚠️ No audio chunks to process');
+                    }
+                };
+
+                this.mediaRecorder.onstart = () => {
+                    console.log('🎵 MediaRecorder started at:', new Date().toISOString());
+                    console.log('🎵 MediaRecorder state:', this.mediaRecorder.state);
+                    console.log('🎵 MediaRecorder mimeType:', this.mediaRecorder.mimeType);
+                    console.log('🎵 MediaRecorder videoBitsPerSecond:', this.mediaRecorder.videoBitsPerSecond);
+                    console.log('🎵 MediaRecorder audioBitsPerSecond:', this.mediaRecorder.audioBitsPerSecond);
+                };
+
+                this.mediaRecorder.onerror = (error) => {
+                    console.error('❌ MediaRecorder error at:', new Date().toISOString());
+                    console.error('❌ Error details:', error);
+                    console.error('❌ MediaRecorder state:', this.mediaRecorder.state);
+                    this.showError('MediaRecorder error: ' + error.message);
+                };
+
+                this.mediaRecorder.onpause = () => {
+                    console.log('🎵 MediaRecorder paused at:', new Date().toISOString());
+                };
+
+                this.mediaRecorder.onresume = () => {
+                    console.log('🎵 MediaRecorder resumed at:', new Date().toISOString());
+                };
+
+                console.log('🎤 Audio recording setup complete');
+            }
+
+            startRecording() {
+                // Start recording in chunks for real-time processing
+                const recordingInterval = 2000; // 2 seconds per chunk for faster response
+                
+                const recordChunk = () => {
+                    if (!this.isActive) {
+                        console.log('🎵 STT not active, stopping recording loop at:', new Date().toISOString());
+                        return;
+                    }
+                    
+                    console.log('🎵 Starting new recording chunk at:', new Date().toISOString());
+                    console.log('🎵 MediaRecorder state before start:', this.mediaRecorder.state);
+                    console.log('🎵 Audio stream active:', this.stream && this.stream.active);
+                    console.log('🎵 Audio tracks count:', this.stream ? this.stream.getAudioTracks().length : 0);
+                    
+                    // Check audio tracks status
+                    if (this.stream) {
+                        this.stream.getAudioTracks().forEach((track, index) => {
+                            console.log(`🎵 Track ${index} - enabled: ${track.enabled}, readyState: ${track.readyState}, muted: ${track.muted}`);
+                        });
+                    }
+                    
+                    this.audioChunks = [];
+                    
+                    try {
+                        // Start recording
+                        console.log('🎵 Calling MediaRecorder.start()...');
+                        this.mediaRecorder.start();
+                        console.log('🎵 MediaRecorder.start() called successfully');
+                        
+                        // Stop recording after interval
+                        setTimeout(() => {
+                            console.log('🎵 Recording interval elapsed. Checking state...');
+                            console.log('🎵 isActive:', this.isActive, 'MediaRecorder state:', this.mediaRecorder.state);
+                            
+                            if (this.isActive && this.mediaRecorder.state === 'recording') {
+                                console.log('🎵 Stopping recording chunk at:', new Date().toISOString());
+                                this.mediaRecorder.stop();
+                                // Schedule next chunk after a short delay
+                                setTimeout(() => {
+                                    console.log('🎵 Scheduling next recording chunk...');
+                                    recordChunk();
+                                }, 200); // Reduced delay between chunks
+                            } else {
+                                console.log('🎵 Recording chunk not active or not recording. State:', this.mediaRecorder.state, 'isActive:', this.isActive);
+                                if (!this.isActive) {
+                                    console.log('🎵 STT deactivated, stopping recording loop');
+                                } else {
+                                    console.warn('⚠️ MediaRecorder not in recording state, attempting to restart...');
+                                    setTimeout(recordChunk, 1000);
+                                }
+                            }
+                        }, recordingInterval);
+                    } catch (error) {
+                        console.error('❌ Error starting MediaRecorder at:', new Date().toISOString());
+                        console.error('❌ Error details:', error);
+                        console.error('❌ MediaRecorder state:', this.mediaRecorder.state);
+                        console.error('❌ Stream active:', this.stream ? this.stream.active : 'no stream');
+                        this.showError('Recording error: ' + error.message);
+                    }
+                };
+                
+                recordChunk();
+                this.isRecording = true;
+                console.log('🎵 Started recording audio chunks');
+            }
+
+            async processAudioChunk() {
+                if (this.audioChunks.length === 0) {
+                    console.log('🎵 No audio chunks to process');
+                    return;
+                }
+                
+                // Create a copy of current chunks and clear the array for new chunks
+                const chunksToProcess = [...this.audioChunks];
+                this.audioChunks = [];
+                
+                console.log('🎵 Processing', chunksToProcess.length, 'audio chunks');
+                await this.sendToOpenAI(chunksToProcess);
+            }
+
+            async sendToOpenAI(chunks = null) {
+                try {
+                    console.log('📤 Starting OpenAI transcription process at:', new Date().toISOString());
+                    
+                    // Use passed chunks or current chunks
+                    const chunksToUse = chunks || this.audioChunks;
+                    console.log('📤 Audio chunks to process:', chunksToUse.length);
+                    
+                    // Convert audio chunks to blob
+                    const audioBlob = new Blob(chunksToUse, { type: 'audio/webm' });
+                    console.log('📤 Created audio blob - size:', audioBlob.size, 'bytes, type:', audioBlob.type);
+                    
+                    if (audioBlob.size < 500) { // Reduced threshold for smaller chunks
+                        console.log('⏭️ Audio chunk too small, skipping... Size:', audioBlob.size, 'bytes');
+                        return;
+                    }
+                    
+                    console.log(`📤 Sending audio to OpenAI (${audioBlob.size} bytes)...`);
+                    this.updateStatus('🔄 Processing speech...');
+                    
+                    // Prepare form data for OpenAI API
+                    const formData = new FormData();
+                    formData.append('file', audioBlob, 'audio.webm');
+                    formData.append('model', 'whisper-1');
+                    formData.append('language', 'en');
+                    formData.append('response_format', 'text');
+                    
+                    console.log('📤 FormData prepared. Making API request...');
+                    
+                    // Send to OpenAI Whisper API
+                    const startTime = Date.now();
+                    const response = await fetch(this.apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${this.apiKey}`
+                        },
+                        body: formData
+                    });
+                    
+                    const requestTime = Date.now() - startTime;
+                    console.log('📤 OpenAI API request completed in:', requestTime, 'ms');
+                    console.log('📤 Response status:', response.status, response.statusText);
+                    console.log('📤 Response headers:', Object.fromEntries(response.headers.entries()));
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('❌ OpenAI API error response:', errorText);
+                        throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
+                    }
+                    
+                    const transcription = await response.text();
+                    console.log('📝 OpenAI API response received:', transcription.length, 'characters');
+                    console.log('📝 Raw transcription:', JSON.stringify(transcription));
+                    
+                    if (transcription && transcription.trim()) {
+                        console.log('📝 Processing transcription:', transcription.trim());
+                        this.displayTranscription(transcription.trim());
+                        this.updateStatus('🎤 Listening... Speak now');
+                    } else {
+                        console.log('🔇 No speech detected in audio chunk (empty response)');
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ OpenAI API error at:', new Date().toISOString());
+                    console.error('❌ Error type:', error.constructor.name);
+                    console.error('❌ Error message:', error.message);
+                    console.error('❌ Error stack:', error.stack);
+                    this.showError('API Error: ' + error.message);
+                    this.updateStatus('⚠️ Transcription error - retrying...');
+                }
+            }
+
+            stopListening() {
+                console.log('🛑 Stopping OpenAI Whisper STT at:', new Date().toISOString());
+                console.log('🛑 Current state - isActive:', this.isActive, 'isRecording:', this.isRecording);
+                
+                this.isActive = false;
+                this.isRecording = false;
+                
+                if (this.mediaRecorder) {
+                    console.log('🛑 MediaRecorder state before stop:', this.mediaRecorder.state);
+                    if (this.mediaRecorder.state !== 'inactive') {
+                        console.log('🛑 Stopping MediaRecorder...');
+                        this.mediaRecorder.stop();
+                    } else {
+                        console.log('🛑 MediaRecorder already inactive');
+                    }
+                }
+                
+                if (this.audioContext) {
+                    console.log('🛑 Closing AudioContext...');
+                    this.audioContext.close();
+                    this.audioContext = null;
+                }
+                
+                // Clean up separate audio stream if it exists
+                if (this.stream && this.stream !== window.liveVideoBackground.stream) {
+                    console.log('🛑 Cleaning up separate audio stream...');
+                    this.stream.getTracks().forEach(track => {
+                        track.stop();
+                        console.log('🛑 Stopped separate audio track:', track.label);
+                    });
+                } else if (this.stream) {
+                    console.log('🛑 Using shared stream, not stopping tracks');
+                } else {
+                    console.log('🛑 No stream to clean up');
+                }
+                
+                this.sttIndicator.classList.remove('active');
+                this.sttToggle.classList.remove('active');
+                this.sttToggle.textContent = 'Start Listening';
+                this.updateStatus('OpenAI Whisper Ready');
+                
+                console.log('✅ STT stopped at:', new Date().toISOString());
+            }
+
+            displayTranscription(text) {
+                console.log('📝 Displaying transcription:', text);
+                this.sttText.textContent = text;
+                this.sttText.classList.remove('empty');
+                
+                // Auto-clear after 5 seconds for more responsive feel
+                clearTimeout(this.clearTimer);
+                this.clearTimer = setTimeout(() => {
+                    if (this.isActive) {
+                        console.log('📝 Auto-clearing transcription after timeout');
+                        this.sttText.textContent = 'Listening for speech...';
+                        this.sttText.classList.add('empty');
+                    }
+                }, 5000); // Reduced from 8 seconds to 5 seconds
+            }
+
+            updateStatus(message) {
+                console.log('📱 Status update:', message);
+                this.sttStatus.textContent = message;
+            }
+
+            showError(error) {
+                console.error('📱 Showing error to user:', error);
+                this.sttText.textContent = error;
+                this.sttText.classList.add('empty');
+                this.sttText.style.color = '#ff6b6b';
+                
+                setTimeout(() => {
+                    console.log('📱 Clearing error message');
+                    this.sttText.style.color = '';
+                    if (this.isActive) {
+                        this.updateStatus('🎤 Listening... Speak now');
+                    } else {
+                        this.sttText.textContent = 'Click "Start Listening" to begin speech transcription';
+                        this.updateStatus('OpenAI Whisper Ready');
+                    }
+                }, 3000);
+            }
+        }
 
         // Initialize everything when page loads
         document.addEventListener('DOMContentLoaded', async () => {
-            // Initialize live video background
-            await window.liveVideoBackground.initialize();
+            console.log('🚀 Page DOMContentLoaded event fired at:', new Date().toISOString());
             
-            // Initialize TV remote with 3-column grid
-            if (window.tvRemote) {
-                window.tvRemote.setGridColumns(3);
-                console.log('🎮 TV Remote initialized for homepage');
+            try {
+                console.log('🎥 Initializing live video background...');
+                // Initialize live video background first
+                window.liveVideoBackground = new LiveVideoBackground();
+                await window.liveVideoBackground.initialize();
+                console.log('✅ Live video background initialized');
+                
+                console.log('🎤 Initializing OpenAI Whisper STT...');
+                // Initialize STT after video background is ready
+                window.openAIWhisperSTT = new OpenAIWhisperSTT();
+                console.log('✅ OpenAI Whisper STT initialized and ready');
+                
+                console.log('🎮 Initializing TV remote...');
+                // Initialize TV remote with 3-column grid
+                if (window.tvRemote) {
+                    window.tvRemote.setGridColumns(3);
+                    console.log('✅ TV Remote initialized for homepage');
+                } else {
+                    console.warn('⚠️ TV Remote not available');
+                }
+                
+                console.log('🚀 All systems initialized successfully at:', new Date().toISOString());
+                
+            } catch (error) {
+                console.error('❌ Initialization error at:', new Date().toISOString());
+                console.error('❌ Error type:', error.constructor.name);
+                console.error('❌ Error message:', error.message);
+                console.error('❌ Error stack:', error.stack);
             }
         });
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
+            console.log('🧹 Page unload event fired, cleaning up at:', new Date().toISOString());
+            
             if (window.liveVideoBackground) {
+                console.log('🧹 Cleaning up live video background...');
                 window.liveVideoBackground.cleanup();
             }
+            
+            if (window.openAIWhisperSTT) {
+                console.log('🧹 Cleaning up OpenAI Whisper STT...');
+                window.openAIWhisperSTT.stopListening();
+            }
+            
+            console.log('🧹 Page cleanup completed at:', new Date().toISOString());
         });
     </script>
 </body>
