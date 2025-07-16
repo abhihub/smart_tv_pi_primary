@@ -74,14 +74,17 @@ document.getElementById('backToConsoleBtn').addEventListener('click', (e) => {
         const confirmLeave = confirm("Are you sure you want to leave the video call?");
         if (confirmLeave) {
             if (activeRoom) {
-                activeRoom.disconnect();
+                activeRoom.disconnect(); // This will trigger roomDisconnected which handles redirect
             }
-            window.location.href = "homepage.html";
-            alert("Redirecting back to console...");
         }
     } else {
-        window.location.href = "homepage.html";
-        alert("Redirecting back to console...");
+        // Not in active call, determine where to go back
+        const urlParams = new URLSearchParams(window.location.search);
+        const answered = urlParams.get('answered');
+        
+        const redirectUrl = answered === 'true' ? 'user-directory.html' : 'homepage.html';
+        console.log('🔵 Navigating back to:', redirectUrl);
+        window.location.href = redirectUrl;
     }
 });
 
@@ -171,7 +174,17 @@ async function connectToRoom() {
         showStatusMessage(`Connected to ${currentRoomName} room`);
     } catch (error) {
         console.error('Unable to connect to room:', error);
-        showStatusMessage(`Connection failed: ${error.message}`, 5000);
+        showStatusMessage(`Connection failed: ${error.message}`, 3000);
+        
+        // Redirect back after connection failure
+        setTimeout(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const answered = urlParams.get('answered');
+            const redirectUrl = answered === 'true' ? 'user-directory.html' : 'homepage.html';
+            
+            console.log('🔴 Connection failed, redirecting to:', redirectUrl);
+            window.location.href = redirectUrl;
+        }, 4000);
     }
 }
 
@@ -271,27 +284,12 @@ function detachTrack(track, participant) {
 
 // Handle room disconnection
 function roomDisconnected(room) {
+    console.log('🔴 Room disconnected, cleaning up and redirecting...');
+    
     // Detach all tracks
     room.localParticipant.tracks.forEach(trackPublication => {
         trackPublication.track.stop();
     });
-    
-    // Clear UI
-    videoContainer.innerHTML = '';
-    const selfView = document.createElement('div');
-    selfView.className = 'self-view';
-    const selfVideo = document.createElement('video');
-    selfVideo.id = 'selfVideo';
-    selfVideo.autoplay = true;
-    selfVideo.playsInline = true;
-    selfView.appendChild(selfVideo);
-    videoContainer.appendChild(selfView);
-    
-    // Show connection UI
-    connectionUI.style.display = 'flex';
-    callHeader.style.display = 'none';
-    videoContainer.style.display = 'none';
-    controls.style.display = 'none';
     
     // Stop timer
     stopCallTimer();
@@ -300,7 +298,29 @@ function roomDisconnected(room) {
     callActive = false;
     activeRoom = null;
     
-    showStatusMessage("Disconnected from room");
+    // Show disconnection message briefly, then redirect
+    showStatusMessage("Call ended. Returning to console...");
+    
+    // Determine where to redirect based on URL parameters or default to homepage
+    let redirectUrl = 'homepage.html';
+    
+    // Check if we came from user directory (when answering calls)
+    const urlParams = new URLSearchParams(window.location.search);
+    const answered = urlParams.get('answered');
+    
+    if (answered === 'true') {
+        // User answered a call, likely came from user-directory
+        redirectUrl = 'user-directory.html';
+    } else {
+        // User initiated call, likely came from homepage
+        redirectUrl = 'homepage.html';
+    }
+    
+    // Redirect after a brief delay
+    setTimeout(() => {
+        console.log('🔴 Redirecting to:', redirectUrl);
+        window.location.href = redirectUrl;
+    }, 2000);
 }
 
 // Event Listeners
