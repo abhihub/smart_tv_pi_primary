@@ -302,6 +302,152 @@ class CallMonitor {
             console.debug('Failed to update presence:', error.message);
         }
     }
+
+    // Static method to create beautiful incoming call UI for any page
+    static createIncomingCallUI(call, answerCallback, declineCallback) {
+        // Remove existing notification if any
+        const existing = document.getElementById('incomingCallNotification');
+        if (existing) {
+            existing.remove();
+        }
+
+        // Create notification overlay
+        const notification = document.createElement('div');
+        notification.id = 'incomingCallNotification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.5s ease-out;
+        `;
+
+        // Generate initials for avatar
+        const initials = call.caller_username.substring(0, 2).toUpperCase();
+
+        notification.innerHTML = `
+            <div style="
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(20px);
+                border-radius: 30px;
+                padding: 60px;
+                text-align: center;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                max-width: 500px;
+                width: 90%;
+                color: white;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                animation: scaleIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            ">
+                <div style="font-size: 1.2rem; opacity: 0.7; margin-bottom: 20px; animation: fadeIn 1s ease-out 0.5s both;">Incoming Call</div>
+                <div style="
+                    width: 150px;
+                    height: 150px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 4rem;
+                    font-weight: bold;
+                    margin: 0 auto 30px auto;
+                    animation: pulse 2s ease-in-out infinite;
+                    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7);
+                ">${initials}</div>
+                <div style="font-size: 2.5rem; font-weight: 600; margin-bottom: 10px; animation: fadeIn 1s ease-out 0.7s both;">${call.caller_username}</div>
+                <div style="font-size: 1.1rem; opacity: 0.6; margin-bottom: 40px; animation: fadeIn 1s ease-out 0.9s both;">is calling you</div>
+                <div style="display: flex; gap: 40px; justify-content: center; animation: fadeIn 1s ease-out 1.1s both;">
+                    <button id="answerCallBtn" style="
+                        width: 80px;
+                        height: 80px;
+                        border-radius: 50%;
+                        border: none;
+                        background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+                        color: white;
+                        font-size: 2rem;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+                    " onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 15px 35px rgba(46, 204, 113, 0.4)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.3)'">📞</button>
+                    <button id="declineCallBtn" style="
+                        width: 80px;
+                        height: 80px;
+                        border-radius: 50%;
+                        border: none;
+                        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+                        color: white;
+                        font-size: 2rem;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+                    " onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 15px 35px rgba(231, 76, 60, 0.4)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.3)'">❌</button>
+                </div>
+            </div>
+        `;
+
+        // Add CSS animations if not already added
+        if (!document.getElementById('incomingCallStyles')) {
+            const style = document.createElement('style');
+            style.id = 'incomingCallStyles';
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes scaleIn {
+                    from { opacity: 0; transform: scale(0.8); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+                @keyframes pulse {
+                    0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+                    70% { box-shadow: 0 0 0 20px rgba(102, 126, 234, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        document.body.appendChild(notification);
+
+        // Add event listeners
+        document.getElementById('answerCallBtn').addEventListener('click', () => {
+            answerCallback(call);
+        });
+
+        document.getElementById('declineCallBtn').addEventListener('click', () => {
+            declineCallback(call);
+        });
+
+        // Auto-decline after 30 seconds
+        setTimeout(() => {
+            if (document.getElementById('incomingCallNotification')) {
+                declineCallback(call);
+            }
+        }, 30000);
+
+        return notification;
+    }
+
+    // Static method to hide incoming call UI
+    static hideIncomingCallUI() {
+        const notification = document.getElementById('incomingCallNotification');
+        if (notification) {
+            notification.remove();
+        }
+    }
 }
 
 // Create global instance

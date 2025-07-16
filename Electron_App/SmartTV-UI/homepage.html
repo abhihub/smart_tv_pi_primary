@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Family Console</title>
+    <title>Family Time</title>
     <link rel="stylesheet" href="tv-remote.css">
     <style>
         * {
@@ -86,6 +86,27 @@
             font-size: 1.2rem;
             opacity: 0.7;
             font-weight: 300;
+        }
+
+        .user-id-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 1rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            z-index: 10;
+        }
+
+        .user-id-display span {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 1.1rem;
         }
 
         .grid {
@@ -271,6 +292,17 @@
                 font-size: 2.5rem;
             }
             
+            .user-id-display {
+                top: 10px;
+                right: 10px;
+                padding: 8px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .user-id-display span {
+                font-size: 1rem;
+            }
+            
             .container {
                 padding: 20px;
             }
@@ -416,8 +448,11 @@
     <div class="video-overlay"></div>
     <div class="container">
         <div class="header">
-            <h1>Smart Family Console</h1>
-            <p class="subtitle">Your Gateway to Digital Entertainment</p>
+            <div class="user-id-display">
+                Your ID: <span id="userIdDisplay">Loading...</span>
+            </div>
+            <h1>Family Time</h1>
+            <p class="subtitle">Your Gateway to Family Entertainment</p>
         </div>
 
         <div class="grid">
@@ -640,6 +675,27 @@
     <script src="user-utils.js"></script>
     <script src="call-monitor.js"></script>
     <script src="tv-remote.js"></script>
+    
+    <script>
+        // Display user ID in header
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const currentUser = await getCurrentUser();
+                const userIdElement = document.getElementById('userIdDisplay');
+                
+                if (currentUser && currentUser.username) {
+                    userIdElement.textContent = currentUser.username;
+                } else {
+                    userIdElement.textContent = 'Not Set';
+                    userIdElement.style.color = '#ff6b6b';
+                }
+            } catch (error) {
+                console.error('Error displaying user ID:', error);
+                document.getElementById('userIdDisplay').textContent = 'Error';
+                document.getElementById('userIdDisplay').style.color = '#ff6b6b';
+            }
+        });
+    </script>
     
     <script>
         // Live Video Background System
