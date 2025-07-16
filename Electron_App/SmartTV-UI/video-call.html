@@ -616,12 +616,6 @@
             <div class="btn-label">Video</div>
         </div>
 
-        <div class="control-btn" id="cameraBtn" data-focusable="true" tabindex="0">
-            <div class="btn-circle">
-                <i class="fas fa-sync"></i>
-            </div>
-            <div class="btn-label">Switch Camera</div>
-        </div>
 
         <div class="control-btn" id="effectsBtn" data-focusable="true" tabindex="0">
             <div class="btn-circle">
@@ -645,7 +639,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             if (window.tvRemote) {
                 // Set linear navigation for video call controls
-                window.tvRemote.setGridColumns(5); // 5 controls in a row
+                window.tvRemote.setGridColumns(4); // 4 controls in a row
                 console.log('🎮 TV Remote initialized for video call');
             }
         });

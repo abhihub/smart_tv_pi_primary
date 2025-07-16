@@ -6,7 +6,6 @@ const controls = document.getElementById('controls');
 const selfVideo = document.getElementById('selfVideo');
 const muteBtn = document.getElementById('muteBtn');
 const videoBtn = document.getElementById('videoBtn');
-const cameraBtn = document.getElementById('cameraBtn');
 const endCallBtn = document.getElementById('endCallBtn');
 // const connectBtn = document.getElementById('connectBtn');
 const userNameInput = document.getElementById('userName');
@@ -359,53 +358,6 @@ videoBtn.addEventListener('click', () => {
     }
 });
 
-// Switch camera
-cameraBtn.addEventListener('click', async () => {
-    if (!activeRoom) return;
-    
-    const icon = cameraBtn.querySelector('i');
-    icon.style.transform = 'rotate(180deg)';
-    setTimeout(() => {
-        icon.style.transform = 'rotate(0deg)';
-    }, 500);
-    
-    try {
-        // Get all video devices
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        
-        if (videoDevices.length < 2) {
-            showStatusMessage("No other camera available");
-            return;
-        }
-        
-        // Determine next camera
-        const currentDeviceId = localTracks[0].mediaStreamTrack.getSettings().deviceId;
-        const currentIndex = videoDevices.findIndex(device => device.deviceId === currentDeviceId);
-        const nextIndex = (currentIndex + 1) % videoDevices.length;
-        const nextDevice = videoDevices[nextIndex];
-        
-        // Create new video track
-        const newTrack = await Twilio.Video.createLocalVideoTrack({
-            deviceId: { exact: nextDevice.deviceId }
-        });
-        
-        // Replace existing video tracks
-        const oldTrack = localTracks[0];
-        activeRoom.localParticipant.unpublishTrack(oldTrack);
-        oldTrack.stop();
-        
-        activeRoom.localParticipant.publishTrack(newTrack);
-        newTrack.attach(selfVideo);
-        
-        localTracks = [newTrack];
-        
-        showStatusMessage(`Switched to ${nextDevice.label || 'camera'}`);
-    } catch (error) {
-        console.error('Error switching camera:', error);
-        showStatusMessage("Failed to switch camera");
-    }
-});
 
 // End call
 endCallBtn.addEventListener('click', () => {
