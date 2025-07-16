@@ -517,11 +517,11 @@
         }
 
         /* Transition between interfaces */
-        #autoConnectUI, #manualConnectUI {
+        #autoConnectUI {
             transition: opacity 0.5s ease, transform 0.5s ease;
         }
 
-        #autoConnectUI.show, #manualConnectUI.show {
+        #autoConnectUI.show {
             opacity: 1;
             transform: translateY(0);
         }
@@ -576,34 +576,9 @@
                 </div>
             </div>
 
-            <!-- Manual connection interface (fallback for direct access) -->
-            <div id="manualConnectUI">
-                <h1 class="connection-title">Join Family Video Call</h1>
-
-                <div class="input-group">
-                    <label for="userName">Your Name</label>
-                    <input type="text" id="userName" placeholder="Enter your name" value="Family Member" data-focusable="true" tabindex="0">
-                </div>
-
-                <div class="input-group">
-                    <label for="roomName">Room Name</label>
-                    <input type="text" id="roomName" placeholder="Enter room name" value="family-room" data-focusable="true" tabindex="0">
-                </div>
-
-                <button class="btn-connect" id="connectBtn" data-focusable="true" tabindex="0">
-                    <i class="fas fa-video"></i> Connect to Video Call
-                </button>
-
-                <div class="room-list">
-                    <h3>Popular Family Rooms</h3>
-                    <div class="rooms">
-                        <div class="room-tag" data-room="family-room" data-focusable="true" tabindex="0">Family Room</div>
-                        <div class="room-tag" data-room="grandparents" data-focusable="true" tabindex="0">Grandparents</div>
-                        <div class="room-tag" data-room="cousins" data-focusable="true" tabindex="0">Cousins</div>
-                        <div class="room-tag" data-room="game-night" data-focusable="true" tabindex="0">Game Night</div>
-                    </div>
-                </div>
-            </div>
+           <!-- Hidden input fields for backend compatibility -->
+        <input type="hidden" id="userName" value="Family Member">
+       <input type="hidden" id="roomName" value="family-room">
         </div>
     </div>
 

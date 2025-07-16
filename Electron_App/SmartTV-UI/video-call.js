@@ -8,13 +8,13 @@ const muteBtn = document.getElementById('muteBtn');
 const videoBtn = document.getElementById('videoBtn');
 const cameraBtn = document.getElementById('cameraBtn');
 const endCallBtn = document.getElementById('endCallBtn');
-const connectBtn = document.getElementById('connectBtn');
+// const connectBtn = document.getElementById('connectBtn');
 const userNameInput = document.getElementById('userName');
 const roomNameInput = document.getElementById('roomName');
 const callTimer = document.getElementById('callTimer');
 const participantCount = document.getElementById('participantCount');
 const statusMessage = document.getElementById('statusMessage');
-const roomTags = document.querySelectorAll('.room-tag');
+// const roomTags = document.querySelectorAll('.room-tag');
 
 let isMuted = false;
 let isVideoOn = true;
@@ -99,8 +99,9 @@ async function connectToRoom() {
     });
     
     if (!currentRoomName) {
-        console.error('❌ No room name provided');
-        showStatusMessage("Please enter a room name");
+        // console.error('❌ No room name provided');
+        // showStatusMessage("Please enter a room name");
+        showStatusMessage("No room name provided");
         return;
     }
     
@@ -304,13 +305,13 @@ function roomDisconnected(room) {
 }
 
 // Event Listeners
-connectBtn.addEventListener('click', connectToRoom);
+// connectBtn.addEventListener('click', connectToRoom);
 
-roomTags.forEach(tag => {
-    tag.addEventListener('click', () => {
-        roomNameInput.value = tag.dataset.room;
-    });
-});
+// roomTags.forEach(tag => {
+//     tag.addEventListener('click', () => {
+//         roomNameInput.value = tag.dataset.room;
+//     });
+// });
 
 // Toggle mute
 muteBtn.addEventListener('click', () => {
@@ -441,10 +442,10 @@ function debugVideoCallParams() {
 // Interface switching functions
 function showAutoConnectInterface(currentUser, roomName, callerParam, calleeParam, answeredParam) {
     const autoUI = document.getElementById('autoConnectUI');
-    const manualUI = document.getElementById('manualConnectUI');
+    // const manualUI = document.getElementById('manualConnectUI');
     
     // Hide manual interface
-    manualUI.style.display = 'none';
+    // manualUI.style.display = 'none';
     
     // Show auto-connecting interface
     autoUI.style.display = 'block';
@@ -470,16 +471,16 @@ function showAutoConnectInterface(currentUser, roomName, callerParam, calleePara
     }
 }
 
-function showManualConnectInterface() {
-    const autoUI = document.getElementById('autoConnectUI');
-    const manualUI = document.getElementById('manualConnectUI');
+// function showManualConnectInterface() {
+//     const autoUI = document.getElementById('autoConnectUI');
+//     const manualUI = document.getElementById('manualConnectUI');
     
-    // Hide auto interface
-    autoUI.style.display = 'none';
+//     // Hide auto interface
+//     autoUI.style.display = 'none';
     
-    // Show manual interface
-    manualUI.style.display = 'block';
-}
+//     // Show manual interface
+//     manualUI.style.display = 'block';
+// }
 
 function updateAutoConnectStatus(title, message, step = 1) {
     const callParticipants = document.getElementById('callParticipants');
@@ -601,9 +602,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }, 2000);
             }
         } else {
-            console.log('🔵 MANUAL MODE: No room parameters, waiting for user input');
-            showManualConnectInterface();
-            showStatusMessage("Camera and microphone ready", 2000);
+            // console.log('🔵 MANUAL MODE: No room parameters, waiting for user input');
+            // showManualConnectInterface();
+            // showStatusMessage("Camera and microphone ready", 2000);
+            console.log('🔵 NO ROOM PARAMETERS: Direct access not supported, redirecting to homepage');
+            showStatusMessage("Video call requires room parameters. Redirecting to homepage...", 3000);
+            setTimeout(() => {
+                window.location.href = "homepage.html";
+            }, 3000);
         }
     } catch (error) {
         console.error('Unable to access camera and microphone:', error);
