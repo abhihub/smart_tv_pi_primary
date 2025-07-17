@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e
-
+AUTHKEY="tskey-auth-kfR7cQJRAe11CNTRL-9HoznDzEvMbNhyqwcNMvMbTGftUFhV9WT"
 echo "🛠 Installing minimal X stack and dependencies..."
 
 sudo apt update
@@ -10,7 +10,16 @@ sudo apt install -y --no-install-recommends \
   plymouth plymouth-themes \
   pipewire pipewire-pulse wireplumber \
   unclutter \
-  python3-pip python3-flask python3-flask-cors
+  python3-pip python3-flask python3-flask-cors tailscale
+
+echo "Setting up Tailscale Network..."
+sudo systemctl start tailscaled
+sudo systemctl enable tailscaled
+sudo tailscale up --authkey="${AUTHKEY}"
+
+echo "Enabling SSH..."
+sudo systemctl start ssh
+sudo systemctl enable ssh
 
 echo "🧹 Disabling resource-intensive desktop environment..."
 sudo systemctl disable lightdm.service || true
