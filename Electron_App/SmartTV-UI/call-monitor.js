@@ -7,9 +7,52 @@ class CallMonitor {
         this.notificationInterval = 3000; // Check every 3 seconds
     }
 
-    // Get server URL from config
-    getServerUrl() {
-        return window.appConfig?.SERVER_URL || 'http://167.71.0.87:3001';
+    // Get server URL from config - waits for config to be ready
+    async getServerUrl() {
+        // Try electronAPI first (preload script)
+        if (window.electronAPI?.getAppConfig) {
+            const config = window.electronAPI.getAppConfig();
+            if (config?.SERVER_URL) {
+                return config.SERVER_URL;
+            }
+        }
+        
+        // Try window.appConfig (main process injection)
+        if (window.appConfig?.SERVER_URL) {
+            return window.appConfig.SERVER_URL;
+        }
+        
+        // Wait for config to be ready
+        return new Promise((resolve) => {
+            const checkConfig = () => {
+                // Check electronAPI again
+                if (window.electronAPI?.getAppConfig) {
+                    const config = window.electronAPI.getAppConfig();
+                    if (config?.SERVER_URL) {
+                        resolve(config.SERVER_URL);
+                        return;
+                    }
+                }
+                
+                // Check window.appConfig again
+                if (window.appConfig?.SERVER_URL) {
+                    resolve(window.appConfig.SERVER_URL);
+                    return;
+                }
+                
+                // Wait a bit and try again
+                setTimeout(checkConfig, 100);
+            };
+            
+            // Also listen for configReady event
+            window.addEventListener('configReady', (event) => {
+                if (event.detail?.SERVER_URL) {
+                    resolve(event.detail.SERVER_URL);
+                }
+            }, { once: true });
+            
+            checkConfig();
+        });
     }
 
     // Start monitoring for incoming calls
@@ -55,7 +98,8 @@ class CallMonitor {
         if (!this.currentUser || !this.isMonitoring) return;
 
         try {
-            const response = await fetch(`${this.getServerUrl()}/api/calls/pending/${this.currentUser.username}`);
+            const serverUrl = await this.getServerUrl();
+            const response = await fetch(`${serverUrl}/api/calls/pending/${this.currentUser.username}`);
             
             if (!response.ok) {
                 // Don't log errors for monitoring checks to avoid spam
@@ -195,7 +239,8 @@ class CallMonitor {
         try {
             this.hideNotification();
 
-            const response = await fetch(`${this.getServerUrl()}/api/calls/answer`, {
+            const serverUrl = await this.getServerUrl();
+            const response = await fetch(`${serverUrl}/api/calls/answer`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -229,7 +274,8 @@ class CallMonitor {
         try {
             this.hideNotification();
 
-            const response = await fetch(`${this.getServerUrl()}/api/calls/decline`, {
+            const serverUrl = await this.getServerUrl();
+            const response = await fetch(`${serverUrl}/api/calls/decline`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -288,7 +334,8 @@ class CallMonitor {
         if (!this.currentUser) return;
 
         try {
-            await fetch(`${this.getServerUrl()}/api/calls/presence`, {
+            const serverUrl = await this.getServerUrl();
+            await fetch(`${serverUrl}/api/calls/presence`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

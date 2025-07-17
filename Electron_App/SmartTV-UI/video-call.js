@@ -25,13 +25,58 @@ let currentUserName = "Family Member";
 let currentRoomName = "family-room";
 let localTracks = [];
 
-// Wait for config to be available
-function getServerUrl() {
-    const config = window.appConfig;
-    console.log('Current window.appConfig:', config);
-    const serverUrl = config?.SERVER_URL || 'http://167.71.0.87:3001';
-    console.log('SERVER_URL being used:', serverUrl);
-    return serverUrl;
+// Get server URL from config - waits for config to be ready
+async function getServerUrl() {
+    // Try electronAPI first (preload script)
+    if (window.electronAPI?.getAppConfig) {
+        const config = window.electronAPI.getAppConfig();
+        if (config?.SERVER_URL) {
+            console.log('SERVER_URL from electronAPI:', config.SERVER_URL);
+            return config.SERVER_URL;
+        }
+    }
+    
+    // Try window.appConfig (main process injection)
+    if (window.appConfig?.SERVER_URL) {
+        console.log('SERVER_URL from window.appConfig:', window.appConfig.SERVER_URL);
+        return window.appConfig.SERVER_URL;
+    }
+    
+    // Wait for config to be ready
+    console.log('Waiting for config to be ready...');
+    return new Promise((resolve) => {
+        const checkConfig = () => {
+            // Check electronAPI again
+            if (window.electronAPI?.getAppConfig) {
+                const config = window.electronAPI.getAppConfig();
+                if (config?.SERVER_URL) {
+                    console.log('SERVER_URL ready from electronAPI:', config.SERVER_URL);
+                    resolve(config.SERVER_URL);
+                    return;
+                }
+            }
+            
+            // Check window.appConfig again
+            if (window.appConfig?.SERVER_URL) {
+                console.log('SERVER_URL ready from window.appConfig:', window.appConfig.SERVER_URL);
+                resolve(window.appConfig.SERVER_URL);
+                return;
+            }
+            
+            // Wait a bit and try again
+            setTimeout(checkConfig, 100);
+        };
+        
+        // Also listen for configReady event
+        window.addEventListener('configReady', (event) => {
+            if (event.detail?.SERVER_URL) {
+                console.log('SERVER_URL ready from configReady event:', event.detail.SERVER_URL);
+                resolve(event.detail.SERVER_URL);
+            }
+        }, { once: true });
+        
+        checkConfig();
+    });
 } 
 
 function showStatusMessage(message, duration = 3000) {
@@ -97,7 +142,7 @@ async function connectToRoom() {
     console.log('🔵 Connection parameters:', {
         userName: currentUserName,
         roomName: currentRoomName,
-        serverUrl: getServerUrl()
+        serverUrl: await getServerUrl()
     });
     
     if (!currentRoomName) {
@@ -117,7 +162,8 @@ async function connectToRoom() {
         };
         console.log('🔵 Token request body:', tokenRequest);
         
-        const response = await fetch(`${getServerUrl()}/api/token`, {
+        const serverUrl = await getServerUrl();
+        const response = await fetch(`${serverUrl}/api/token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -406,7 +452,7 @@ function debugVideoCallParams() {
     
     // Check config
     console.log('App Config:', window.appConfig);
-    console.log('Server URL:', getServerUrl());
+    // Server URL will be fetched when needed in async functions
     
     return { room, caller, callee, answered };
 }

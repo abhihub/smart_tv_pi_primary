@@ -1,5 +1,12 @@
 class MultiplayerTriviaClient {
-    constructor(serverUrl = window.appConfig?.WEBSOCKET_URL || 'ws://localhost:3000') {
+    constructor(serverUrl = null) {
+        if (!serverUrl) {
+            if (!window.appConfig?.WEBSOCKET_URL) {
+                console.error('WEBSOCKET_URL not configured in window.appConfig');
+                throw new Error('WebSocket URL not configured');
+            }
+            serverUrl = window.appConfig.WEBSOCKET_URL;
+        }
         this.serverUrl = serverUrl;
         this.socket = null;
         this.playerId = null;

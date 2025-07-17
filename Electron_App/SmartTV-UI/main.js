@@ -107,6 +107,12 @@ function createWindow() {
       console.log('🔧 Injecting config from main process');
       window.appConfig = ${JSON.stringify(global.appConfig)};
       console.log('📋 Config injected:', window.appConfig);
+      
+      // Trigger custom event to notify scripts that config is ready
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('configReady', { detail: window.appConfig }));
+        console.log('📋 ConfigReady event dispatched');
+      }, 100);
     `).catch(error => {
       console.error('❌ Failed to inject config:', error);
     });

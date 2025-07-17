@@ -5,8 +5,41 @@ class UserUtils {
     constructor() {
         this.storageKey = 'smarttv_user_id';
         this.username = this.getOrCreateUsername();
-        this.serverUrl = window.appConfig?.SERVER_URL || 'http://167.71.0.87:3001';
+        this.serverUrl = null;
         this.isRegistered = false;
+        this.configReady = false;
+        
+        // Try to get config immediately
+        this.initializeConfig();
+    }
+    
+    initializeConfig() {
+        // Try electronAPI first (preload script)
+        if (window.electronAPI?.getAppConfig) {
+            const config = window.electronAPI.getAppConfig();
+            if (config?.SERVER_URL) {
+                this.serverUrl = config.SERVER_URL;
+                this.configReady = true;
+                console.log('Config loaded via electronAPI:', config);
+                return;
+            }
+        }
+        
+        // Try window.appConfig (main process injection)
+        if (window.appConfig?.SERVER_URL) {
+            this.serverUrl = window.appConfig.SERVER_URL;
+            this.configReady = true;
+            console.log('Config loaded via window.appConfig:', window.appConfig);
+            return;
+        }
+        
+        // Wait for config to be ready
+        console.log('Config not ready, waiting for configReady event...');
+        window.addEventListener('configReady', (event) => {
+            console.log('Config ready event received:', event.detail);
+            this.serverUrl = event.detail.SERVER_URL;
+            this.configReady = true;
+        });
     }
 
     // Generate a random 5-character alphanumeric string
@@ -192,14 +225,42 @@ class UserUtils {
         }
     }
 
+    // Wait for config to be ready
+    async waitForConfig() {
+        if (this.configReady) return;
+        
+        return new Promise((resolve) => {
+            const checkConfig = () => {
+                if (this.configReady) {
+                    resolve();
+                    return;
+                }
+                
+                // Check again in case config was set between checks
+                this.initializeConfig();
+                if (this.configReady) {
+                    resolve();
+                    return;
+                }
+                
+                // Wait a bit and try again
+                setTimeout(checkConfig, 100);
+            };
+            
+            checkConfig();
+        });
+    }
+
     // Initialize username display and register with server when DOM is ready
     async init() {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', async () => {
+                await this.waitForConfig();
                 this.displayUsername();
                 await this.registerWithServer();
             });
         } else {
+            await this.waitForConfig();
             this.displayUsername();
             await this.registerWithServer();
         }
@@ -214,6 +275,7 @@ window.userUtils.init();
 
 // Helper functions for compatibility with existing code
 async function getCurrentUser() {
+    await window.userUtils.waitForConfig();
     if (!window.userUtils.isRegistered) {
         await window.userUtils.registerWithServer();
     }
