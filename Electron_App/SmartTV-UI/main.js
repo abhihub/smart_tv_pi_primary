@@ -107,6 +107,12 @@ function createWindow() {
       console.log('🔧 Injecting config from main process');
       window.appConfig = ${JSON.stringify(global.appConfig)};
       console.log('📋 Config injected:', window.appConfig);
+      
+      // Trigger custom event to notify scripts that config is ready
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('configReady', { detail: window.appConfig }));
+        console.log('📋 ConfigReady event dispatched');
+      }, 100);
     `).catch(error => {
       console.error('❌ Failed to inject config:', error);
     });
@@ -133,8 +139,7 @@ function createWindow() {
     console.error('❌ Failed to load homepage:', error);
   });
   
-  // Enable dev tools for debugging
-  win.webContents.openDevTools();
+  // Dev tools can be opened with F12 or Ctrl+Shift+I if needed
 }
 
 console.log('⏳ Waiting for app to be ready...');

@@ -6,15 +6,14 @@ const controls = document.getElementById('controls');
 const selfVideo = document.getElementById('selfVideo');
 const muteBtn = document.getElementById('muteBtn');
 const videoBtn = document.getElementById('videoBtn');
-const cameraBtn = document.getElementById('cameraBtn');
 const endCallBtn = document.getElementById('endCallBtn');
-const connectBtn = document.getElementById('connectBtn');
+// const connectBtn = document.getElementById('connectBtn');
 const userNameInput = document.getElementById('userName');
 const roomNameInput = document.getElementById('roomName');
 const callTimer = document.getElementById('callTimer');
 const participantCount = document.getElementById('participantCount');
 const statusMessage = document.getElementById('statusMessage');
-const roomTags = document.querySelectorAll('.room-tag');
+// const roomTags = document.querySelectorAll('.room-tag');
 
 let isMuted = false;
 let isVideoOn = true;
@@ -26,13 +25,58 @@ let currentUserName = "Family Member";
 let currentRoomName = "family-room";
 let localTracks = [];
 
-// Wait for config to be available
-function getServerUrl() {
-    const config = window.appConfig;
-    console.log('Current window.appConfig:', config);
-    const serverUrl = config?.SERVER_URL || 'http://167.71.0.87:3001';
-    console.log('SERVER_URL being used:', serverUrl);
-    return serverUrl;
+// Get server URL from config - waits for config to be ready
+async function getServerUrl() {
+    // Try electronAPI first (preload script)
+    if (window.electronAPI?.getAppConfig) {
+        const config = window.electronAPI.getAppConfig();
+        if (config?.SERVER_URL) {
+            console.log('SERVER_URL from electronAPI:', config.SERVER_URL);
+            return config.SERVER_URL;
+        }
+    }
+    
+    // Try window.appConfig (main process injection)
+    if (window.appConfig?.SERVER_URL) {
+        console.log('SERVER_URL from window.appConfig:', window.appConfig.SERVER_URL);
+        return window.appConfig.SERVER_URL;
+    }
+    
+    // Wait for config to be ready
+    console.log('Waiting for config to be ready...');
+    return new Promise((resolve) => {
+        const checkConfig = () => {
+            // Check electronAPI again
+            if (window.electronAPI?.getAppConfig) {
+                const config = window.electronAPI.getAppConfig();
+                if (config?.SERVER_URL) {
+                    console.log('SERVER_URL ready from electronAPI:', config.SERVER_URL);
+                    resolve(config.SERVER_URL);
+                    return;
+                }
+            }
+            
+            // Check window.appConfig again
+            if (window.appConfig?.SERVER_URL) {
+                console.log('SERVER_URL ready from window.appConfig:', window.appConfig.SERVER_URL);
+                resolve(window.appConfig.SERVER_URL);
+                return;
+            }
+            
+            // Wait a bit and try again
+            setTimeout(checkConfig, 100);
+        };
+        
+        // Also listen for configReady event
+        window.addEventListener('configReady', (event) => {
+            if (event.detail?.SERVER_URL) {
+                console.log('SERVER_URL ready from configReady event:', event.detail.SERVER_URL);
+                resolve(event.detail.SERVER_URL);
+            }
+        }, { once: true });
+        
+        checkConfig();
+    });
 } 
 
 function showStatusMessage(message, duration = 3000) {
@@ -75,14 +119,17 @@ document.getElementById('backToConsoleBtn').addEventListener('click', (e) => {
         const confirmLeave = confirm("Are you sure you want to leave the video call?");
         if (confirmLeave) {
             if (activeRoom) {
-                activeRoom.disconnect();
+                activeRoom.disconnect(); // This will trigger roomDisconnected which handles redirect
             }
-            window.location.href = "homepage.html";
-            alert("Redirecting back to console...");
         }
     } else {
-        window.location.href = "homepage.html";
-        alert("Redirecting back to console...");
+        // Not in active call, determine where to go back
+        const urlParams = new URLSearchParams(window.location.search);
+        const answered = urlParams.get('answered');
+        
+        const redirectUrl = answered === 'true' ? 'user-directory.html' : 'homepage.html';
+        console.log('🔵 Navigating back to:', redirectUrl);
+        window.location.href = redirectUrl;
     }
 });
 
@@ -95,12 +142,13 @@ async function connectToRoom() {
     console.log('🔵 Connection parameters:', {
         userName: currentUserName,
         roomName: currentRoomName,
-        serverUrl: getServerUrl()
+        serverUrl: await getServerUrl()
     });
     
     if (!currentRoomName) {
-        console.error('❌ No room name provided');
-        showStatusMessage("Please enter a room name");
+        // console.error('❌ No room name provided');
+        // showStatusMessage("Please enter a room name");
+        showStatusMessage("No room name provided");
         return;
     }
     
@@ -114,7 +162,8 @@ async function connectToRoom() {
         };
         console.log('🔵 Token request body:', tokenRequest);
         
-        const response = await fetch(`${getServerUrl()}/api/token`, {
+        const serverUrl = await getServerUrl();
+        const response = await fetch(`${serverUrl}/api/token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -171,7 +220,17 @@ async function connectToRoom() {
         showStatusMessage(`Connected to ${currentRoomName} room`);
     } catch (error) {
         console.error('Unable to connect to room:', error);
-        showStatusMessage(`Connection failed: ${error.message}`, 5000);
+        showStatusMessage(`Connection failed: ${error.message}`, 3000);
+        
+        // Redirect back after connection failure
+        setTimeout(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const answered = urlParams.get('answered');
+            const redirectUrl = answered === 'true' ? 'user-directory.html' : 'homepage.html';
+            
+            console.log('🔴 Connection failed, redirecting to:', redirectUrl);
+            window.location.href = redirectUrl;
+        }, 4000);
     }
 }
 
@@ -271,27 +330,12 @@ function detachTrack(track, participant) {
 
 // Handle room disconnection
 function roomDisconnected(room) {
+    console.log('🔴 Room disconnected, cleaning up and redirecting...');
+    
     // Detach all tracks
     room.localParticipant.tracks.forEach(trackPublication => {
         trackPublication.track.stop();
     });
-    
-    // Clear UI
-    videoContainer.innerHTML = '';
-    const selfView = document.createElement('div');
-    selfView.className = 'self-view';
-    const selfVideo = document.createElement('video');
-    selfVideo.id = 'selfVideo';
-    selfVideo.autoplay = true;
-    selfVideo.playsInline = true;
-    selfView.appendChild(selfVideo);
-    videoContainer.appendChild(selfView);
-    
-    // Show connection UI
-    connectionUI.style.display = 'flex';
-    callHeader.style.display = 'none';
-    videoContainer.style.display = 'none';
-    controls.style.display = 'none';
     
     // Stop timer
     stopCallTimer();
@@ -300,17 +344,39 @@ function roomDisconnected(room) {
     callActive = false;
     activeRoom = null;
     
-    showStatusMessage("Disconnected from room");
+    // Show disconnection message briefly, then redirect
+    showStatusMessage("Call ended. Returning to console...");
+    
+    // Determine where to redirect based on URL parameters or default to homepage
+    let redirectUrl = 'homepage.html';
+    
+    // Check if we came from user directory (when answering calls)
+    const urlParams = new URLSearchParams(window.location.search);
+    const answered = urlParams.get('answered');
+    
+    if (answered === 'true') {
+        // User answered a call, likely came from user-directory
+        redirectUrl = 'user-directory.html';
+    } else {
+        // User initiated call, likely came from homepage
+        redirectUrl = 'homepage.html';
+    }
+    
+    // Redirect after a brief delay
+    setTimeout(() => {
+        console.log('🔴 Redirecting to:', redirectUrl);
+        window.location.href = redirectUrl;
+    }, 2000);
 }
 
 // Event Listeners
-connectBtn.addEventListener('click', connectToRoom);
+// connectBtn.addEventListener('click', connectToRoom);
 
-roomTags.forEach(tag => {
-    tag.addEventListener('click', () => {
-        roomNameInput.value = tag.dataset.room;
-    });
-});
+// roomTags.forEach(tag => {
+//     tag.addEventListener('click', () => {
+//         roomNameInput.value = tag.dataset.room;
+//     });
+// });
 
 // Toggle mute
 muteBtn.addEventListener('click', () => {
@@ -358,53 +424,6 @@ videoBtn.addEventListener('click', () => {
     }
 });
 
-// Switch camera
-cameraBtn.addEventListener('click', async () => {
-    if (!activeRoom) return;
-    
-    const icon = cameraBtn.querySelector('i');
-    icon.style.transform = 'rotate(180deg)';
-    setTimeout(() => {
-        icon.style.transform = 'rotate(0deg)';
-    }, 500);
-    
-    try {
-        // Get all video devices
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        
-        if (videoDevices.length < 2) {
-            showStatusMessage("No other camera available");
-            return;
-        }
-        
-        // Determine next camera
-        const currentDeviceId = localTracks[0].mediaStreamTrack.getSettings().deviceId;
-        const currentIndex = videoDevices.findIndex(device => device.deviceId === currentDeviceId);
-        const nextIndex = (currentIndex + 1) % videoDevices.length;
-        const nextDevice = videoDevices[nextIndex];
-        
-        // Create new video track
-        const newTrack = await Twilio.Video.createLocalVideoTrack({
-            deviceId: { exact: nextDevice.deviceId }
-        });
-        
-        // Replace existing video tracks
-        const oldTrack = localTracks[0];
-        activeRoom.localParticipant.unpublishTrack(oldTrack);
-        oldTrack.stop();
-        
-        activeRoom.localParticipant.publishTrack(newTrack);
-        newTrack.attach(selfVideo);
-        
-        localTracks = [newTrack];
-        
-        showStatusMessage(`Switched to ${nextDevice.label || 'camera'}`);
-    } catch (error) {
-        console.error('Error switching camera:', error);
-        showStatusMessage("Failed to switch camera");
-    }
-});
 
 // End call
 endCallBtn.addEventListener('click', () => {
@@ -433,7 +452,7 @@ function debugVideoCallParams() {
     
     // Check config
     console.log('App Config:', window.appConfig);
-    console.log('Server URL:', getServerUrl());
+    // Server URL will be fetched when needed in async functions
     
     return { room, caller, callee, answered };
 }
@@ -441,10 +460,10 @@ function debugVideoCallParams() {
 // Interface switching functions
 function showAutoConnectInterface(currentUser, roomName, callerParam, calleeParam, answeredParam) {
     const autoUI = document.getElementById('autoConnectUI');
-    const manualUI = document.getElementById('manualConnectUI');
+    // const manualUI = document.getElementById('manualConnectUI');
     
     // Hide manual interface
-    manualUI.style.display = 'none';
+    // manualUI.style.display = 'none';
     
     // Show auto-connecting interface
     autoUI.style.display = 'block';
@@ -470,16 +489,16 @@ function showAutoConnectInterface(currentUser, roomName, callerParam, calleePara
     }
 }
 
-function showManualConnectInterface() {
-    const autoUI = document.getElementById('autoConnectUI');
-    const manualUI = document.getElementById('manualConnectUI');
+// function showManualConnectInterface() {
+//     const autoUI = document.getElementById('autoConnectUI');
+//     const manualUI = document.getElementById('manualConnectUI');
     
-    // Hide auto interface
-    autoUI.style.display = 'none';
+//     // Hide auto interface
+//     autoUI.style.display = 'none';
     
-    // Show manual interface
-    manualUI.style.display = 'block';
-}
+//     // Show manual interface
+//     manualUI.style.display = 'block';
+// }
 
 function updateAutoConnectStatus(title, message, step = 1) {
     const callParticipants = document.getElementById('callParticipants');
@@ -601,9 +620,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }, 2000);
             }
         } else {
-            console.log('🔵 MANUAL MODE: No room parameters, waiting for user input');
-            showManualConnectInterface();
-            showStatusMessage("Camera and microphone ready", 2000);
+            // console.log('🔵 MANUAL MODE: No room parameters, waiting for user input');
+            // showManualConnectInterface();
+            // showStatusMessage("Camera and microphone ready", 2000);
+            console.log('🔵 NO ROOM PARAMETERS: Direct access not supported, redirecting to homepage');
+            showStatusMessage("Video call requires room parameters. Redirecting to homepage...", 3000);
+            setTimeout(() => {
+                window.location.href = "homepage.html";
+            }, 3000);
         }
     } catch (error) {
         console.error('Unable to access camera and microphone:', error);

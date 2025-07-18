@@ -402,7 +402,7 @@
         </div>
 
         <!-- Test Call Button (temporary workaround) -->
-        <div style="text-align: center; margin-top: 20px;">
+        <!-- <div style="text-align: center; margin-top: 20px;">
             <button onclick="testCall()" data-focusable="true" tabindex="0" style="
                 background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
                 border: none;
@@ -438,7 +438,7 @@
                 transition: all 0.3s ease;
                 margin: 5px;
             ">🗑️ Clear All Calls</button>
-        </div>
+        </div> -->
     </div>
 
     <!-- Call Status Overlay -->
@@ -453,24 +453,63 @@
     </div>
 
     <script>
-        // Initialize config early - will be overwritten by main process if available
-        window.appConfig = window.appConfig || {
-            SERVER_URL: 'http://167.71.0.87:3001',
-            WEBSOCKET_URL: 'ws://localhost:3000',
-            isDevelopment: false
-        };
+        // Config will be injected by main process - no fallback values
         console.log('Config initialized:', window.appConfig);
     </script>
     <script src="user-utils.js"></script>
+    <script src="call-monitor.js"></script>
     <script src="tv-remote.js"></script>
     <script>
         let currentUser = null;
         let currentCallId = null;
         let refreshInterval = null;
 
-        // Get server URL from config
-        function getServerUrl() {
-            return window.appConfig?.SERVER_URL || 'http://167.71.0.87:3001';
+        // Get server URL from config - waits for config to be ready
+        async function getServerUrl() {
+            // Try electronAPI first (preload script)
+            if (window.electronAPI?.getAppConfig) {
+                const config = window.electronAPI.getAppConfig();
+                if (config?.SERVER_URL) {
+                    return config.SERVER_URL;
+                }
+            }
+            
+            // Try window.appConfig (main process injection)
+            if (window.appConfig?.SERVER_URL) {
+                return window.appConfig.SERVER_URL;
+            }
+            
+            // Wait for config to be ready
+            return new Promise((resolve) => {
+                const checkConfig = () => {
+                    // Check electronAPI again
+                    if (window.electronAPI?.getAppConfig) {
+                        const config = window.electronAPI.getAppConfig();
+                        if (config?.SERVER_URL) {
+                            resolve(config.SERVER_URL);
+                            return;
+                        }
+                    }
+                    
+                    // Check window.appConfig again
+                    if (window.appConfig?.SERVER_URL) {
+                        resolve(window.appConfig.SERVER_URL);
+                        return;
+                    }
+                    
+                    // Wait a bit and try again
+                    setTimeout(checkConfig, 100);
+                };
+                
+                // Also listen for configReady event
+                window.addEventListener('configReady', (event) => {
+                    if (event.detail?.SERVER_URL) {
+                        resolve(event.detail.SERVER_URL);
+                    }
+                }, { once: true });
+                
+                checkConfig();
+            });
         }
 
         // Initialize the page
@@ -511,7 +550,8 @@
                 // Update presence first to mark this user as active
                 await updatePresence();
 
-                const response = await fetch(`${getServerUrl()}/api/calls/online-users?exclude_user=${currentUser.username}`);
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/calls/online-users?exclude_user=${currentUser.username}`);
                 
                 if (!response.ok) {
                     throw new Error('Failed to fetch online users');
@@ -533,7 +573,8 @@
 
             try {
                 // Update both presence and last_seen by calling the user profile update
-                await fetch(`${getServerUrl()}/api/users/session/start`, {
+                const serverUrl = await getServerUrl();
+                await fetch(`${serverUrl}/api/users/session/start`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -544,7 +585,8 @@
                 });
 
                 // Also update presence specifically
-                await fetch(`${getServerUrl()}/api/calls/presence`, {
+                const serverUrl2 = await getServerUrl();
+                await fetch(`${serverUrl2}/api/calls/presence`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -611,7 +653,8 @@
             try {
                 showCallStatus(`Calling ${calleeUsername}...`, 'Connecting...');
 
-                const response = await fetch(`${getServerUrl()}/api/calls/invite`, {
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/calls/invite`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -656,7 +699,8 @@
                 }
 
                 try {
-                    const response = await fetch(`${getServerUrl()}/api/calls/status/${currentCallId}`);
+                    const serverUrl = await getServerUrl();
+                    const response = await fetch(`${serverUrl}/api/calls/status/${currentCallId}`);
                     const data = await response.json();
 
                     if (data.success && data.call) {
@@ -693,7 +737,8 @@
             if (!currentCallId) return;
 
             try {
-                const response = await fetch(`${getServerUrl()}/api/calls/cancel`, {
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/calls/cancel`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -729,51 +774,24 @@
             document.getElementById('callOverlay').classList.remove('show');
         }
 
-        // Show incoming call dialog
+        // Show incoming call dialog using beautiful shared UI
         function showIncomingCallDialog(call) {
-            // Don't show multiple incoming call dialogs
-            if (document.getElementById('callOverlay').classList.contains('show')) {
-                return;
-            }
-
-            const title = `📞 Incoming Call`;
-            const message = `${call.caller_username} is calling you...`;
-            
-            document.getElementById('callStatusTitle').textContent = title;
-            document.getElementById('callStatusMessage').textContent = message;
-            
-            // Replace the cancel button with answer/decline buttons
-            const actionsDiv = document.querySelector('.call-actions');
-            actionsDiv.innerHTML = `
-                <button class="call-btn" onclick="answerIncomingCall('${call.call_id}', '${call.caller_username}')" style="
-                    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
-                    border: none;
-                    color: white;
-                    padding: 12px 25px;
-                    border-radius: 25px;
-                    font-size: 1rem;
-                    cursor: pointer;
-                    margin: 0 10px;
-                ">📞 Answer</button>
-                <button class="cancel-btn" onclick="declineIncomingCall('${call.call_id}')" style="
-                    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-                    border: none;
-                    color: white;
-                    padding: 12px 25px;
-                    border-radius: 25px;
-                    font-size: 1rem;
-                    cursor: pointer;
-                    margin: 0 10px;
-                ">❌ Decline</button>
-            `;
-            
-            document.getElementById('callOverlay').classList.add('show');
+            // Use the beautiful shared incoming call UI from CallMonitor
+            CallMonitor.createIncomingCallUI(
+                call,
+                (call) => answerIncomingCall(call.call_id, call.caller_username),
+                (call) => declineIncomingCall(call.call_id)
+            );
         }
 
         // Answer incoming call
         async function answerIncomingCall(callId, callerUsername) {
             try {
-                const response = await fetch(`${getServerUrl()}/api/calls/answer`, {
+                // Hide the beautiful incoming call UI
+                CallMonitor.hideIncomingCallUI();
+                
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/calls/answer`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -785,7 +803,6 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    hideCallStatus();
                     showError(`✅ Call answered! Connecting to ${callerUsername}...`);
                     
                     // Redirect to video call
@@ -797,7 +814,7 @@
                 }
             } catch (error) {
                 console.error('Failed to answer call:', error);
-                hideCallStatus();
+                CallMonitor.hideIncomingCallUI();
                 showError(`Failed to answer call: ${error.message}`);
             }
         }
@@ -805,7 +822,11 @@
         // Decline incoming call
         async function declineIncomingCall(callId) {
             try {
-                const response = await fetch(`${getServerUrl()}/api/calls/decline`, {
+                // Hide the beautiful incoming call UI
+                CallMonitor.hideIncomingCallUI();
+                
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/calls/decline`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -817,14 +838,13 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    hideCallStatus();
                     showError(`Call declined`);
                 } else {
                     throw new Error(data.error || 'Failed to decline call');
                 }
             } catch (error) {
                 console.error('Failed to decline call:', error);
-                hideCallStatus();
+                CallMonitor.hideIncomingCallUI();
                 showError(`Failed to decline call: ${error.message}`);
             }
         }
@@ -862,7 +882,8 @@
         // Force clear all calls
         async function forceClearCalls() {
             try {
-                const response = await fetch(`${getServerUrl()}/api/calls/cleanup`, {
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/calls/cleanup`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({hours: 0})
@@ -884,7 +905,8 @@
             if (!currentUser) return;
 
             try {
-                const response = await fetch(`${getServerUrl()}/api/calls/pending/${currentUser.username}`);
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/calls/pending/${currentUser.username}`);
                 const data = await response.json();
 
                 if (data.success && data.calls && data.calls.length > 0) {
@@ -907,7 +929,8 @@
             }
 
             try {
-                const response = await fetch(`${getServerUrl()}/api/calls/pending/${currentUser.username}`);
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/calls/pending/${currentUser.username}`);
                 const data = await response.json();
 
                 console.log('Pending calls for', currentUser.username, ':', data);
@@ -919,7 +942,8 @@
                     // Automatically try to answer the call
                     setTimeout(async () => {
                         try {
-                            const answerResponse = await fetch(`${getServerUrl()}/api/calls/answer`, {
+                            const serverUrl = await getServerUrl();
+                            const answerResponse = await fetch(`${serverUrl}/api/calls/answer`, {
                                 method: 'POST',
                                 headers: {'Content-Type': 'application/json'},
                                 body: JSON.stringify({
@@ -969,13 +993,14 @@
                 showCallStatus(`Creating test call...`, 'Registering test users...');
 
                 // Register test users first
-                await fetch(`${getServerUrl()}/api/users/register`, {
+                const serverUrl = await getServerUrl();
+                await fetch(`${serverUrl}/api/users/register`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({username: testCaller, device_type: 'test'})
                 });
 
-                await fetch(`${getServerUrl()}/api/users/register`, {
+                await fetch(`${serverUrl}/api/users/register`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({username: testCallee, device_type: 'test'})
@@ -983,7 +1008,7 @@
 
                 showCallStatus(`Test call: ${testCaller} → ${testCallee}`, 'Creating call...');
 
-                const response = await fetch(`${getServerUrl()}/api/calls/invite`, {
+                const response = await fetch(`${serverUrl}/api/calls/invite`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1010,7 +1035,8 @@
                     try {
                         showCallStatus('Answering test call...', 'Processing...');
 
-                        const answerResponse = await fetch(`${getServerUrl()}/api/calls/answer`, {
+                        const serverUrl = await getServerUrl();
+                        const answerResponse = await fetch(`${serverUrl}/api/calls/answer`, {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({

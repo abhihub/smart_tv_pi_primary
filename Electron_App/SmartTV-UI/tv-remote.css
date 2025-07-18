@@ -61,9 +61,9 @@ button.tv-focused {
     outline: none !important;
 }
 
-/* Hide cursor in kiosk mode */
+/* Show cursor in kiosk mode */
 body.kiosk-mode {
-    cursor: none !important;
+    cursor: auto !important;
 }
 
 /* Smooth transitions for all focusable elements */
