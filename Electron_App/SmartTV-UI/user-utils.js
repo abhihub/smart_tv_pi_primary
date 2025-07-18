@@ -104,7 +104,7 @@ class UserUtils {
         // Create username display element
         const userDisplay = document.createElement('div');
         userDisplay.id = 'user-id-display';
-        userDisplay.innerHTML = `Your Call ID is: ${this.username}`;
+        userDisplay.innerHTML = `Your Call ID is: ${this.username} | <a href="super.html" style="color: rgba(255,255,255,0.8); text-decoration: none;">🔧 Admin</a>`;
         
         // Style the display element
         userDisplay.style.cssText = `
@@ -119,7 +119,7 @@ class UserUtils {
             font-size: 14px;
             font-weight: bold;
             z-index: 1000;
-            pointer-events: none;
+            pointer-events: auto;
             user-select: none;
         `;
 
