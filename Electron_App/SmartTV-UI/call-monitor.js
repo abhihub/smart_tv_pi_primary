@@ -4,7 +4,7 @@ class CallMonitor {
         this.isMonitoring = false;
         this.currentUser = null;
         this.checkInterval = null;
-        this.notificationInterval = 3000; // Check every 3 seconds
+        this.notificationInterval = 1000; // Check every 1 seconds
     }
 
     // Get server URL from config - waits for config to be ready

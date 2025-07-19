@@ -529,7 +529,7 @@
                 refreshInterval = setInterval(() => {
                     loadOnlineUsers();
                     checkForIncomingCalls(); // Check for incoming calls automatically
-                }, 10000); // Check every 10 seconds to reduce server load
+                }, 2000); // Check every 2 seconds to reduce server load
             } catch (error) {
                 console.error('Failed to initialize user directory:', error);
                 showError('Failed to load user directory');
