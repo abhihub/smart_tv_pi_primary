@@ -274,6 +274,26 @@ def get_database_stats():
             'error': str(e)
         }), 500
 
+@admin_bp.route('/background-service')
+def background_service_status():
+    """Get background service status and job information"""
+    try:
+        from services.background_service import background_service
+        
+        status = background_service.get_status()
+        
+        return jsonify({
+            'success': True,
+            'background_service': status
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to get background service status: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @admin_bp.route('/health')
 def admin_health():
     """Admin health check endpoint"""
@@ -281,10 +301,15 @@ def admin_health():
         # Test database connection
         health_data = db_manager.health_check()
         
+        # Check background service
+        from services.background_service import background_service
+        bg_status = background_service.get_status()
+        
         return jsonify({
             'success': True,
             'admin_status': 'healthy',
-            'database': health_data
+            'database': health_data,
+            'background_service': bg_status
         })
         
     except Exception as e:

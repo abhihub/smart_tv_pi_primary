@@ -16,34 +16,22 @@ class CallService:
     def get_online_users(self, exclude_username: str = None) -> List[Dict[str, Any]]:
         """Get list of users who are currently online"""
         try:
-            # Extended time window to handle timezone issues - 30 minutes
-            thirty_minutes_ago = datetime.now() - timedelta(minutes=30)
-            
             exclude_clause = ""
-            params = (thirty_minutes_ago.isoformat(),)
+            params = ()
             
             if exclude_username:
                 exclude_clause = "AND u.username != ?"
-                params = (thirty_minutes_ago.isoformat(), exclude_username)
+                params = (exclude_username,)
             
-            # More flexible query that checks multiple time formats
+            # Use presence table status as primary source of truth
             query = f"""
                 SELECT u.username, u.display_name, u.last_seen,
                        COALESCE(up.status, 'offline') as presence_status
                 FROM users u
                 LEFT JOIN user_presence up ON u.id = up.user_id
-                WHERE (
-                    datetime(u.last_seen) > datetime(?) OR
-                    u.last_seen > ? OR
-                    julianday('now') - julianday(u.last_seen) < 0.021
-                ) {exclude_clause}
-                ORDER BY u.last_seen DESC
+                WHERE COALESCE(up.status, 'offline') = 'online' {exclude_clause}
+                ORDER BY up.updated_at DESC, u.last_seen DESC
             """
-            
-            # Use the same timestamp for both comparisons
-            params = (thirty_minutes_ago.isoformat(), thirty_minutes_ago.isoformat())
-            if exclude_username:
-                params = (thirty_minutes_ago.isoformat(), thirty_minutes_ago.isoformat(), exclude_username)
             
             results = self.db.execute_query(query, params, fetch='all')
             return [dict(row) for row in results] if results else []

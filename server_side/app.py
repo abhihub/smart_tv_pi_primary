@@ -1,10 +1,15 @@
 import os
+import logging
+import atexit
 from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 
 def create_app():
     app = Flask(__name__)
@@ -31,6 +36,27 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(call_bp, url_prefix='/api/calls')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    
+    # Start background service
+    from services.background_service import background_service
+    
+    # Start background tasks immediately when app is created
+    try:
+        background_service.start()
+        logging.info("✅ Background service started with Flask app")
+    except Exception as e:
+        logging.error(f"❌ Failed to start background service: {e}")
+    
+    # Graceful shutdown
+    def shutdown_background_service():
+        """Stop background service on app shutdown"""
+        try:
+            background_service.stop()
+            logging.info("🛑 Background service stopped gracefully")
+        except Exception as e:
+            logging.error(f"Error stopping background service: {e}")
+    
+    atexit.register(shutdown_background_service)
     
     return app
 
