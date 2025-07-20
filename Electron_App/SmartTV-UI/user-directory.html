@@ -32,7 +32,6 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 40px;
-            animation: fadeInDown 1s ease-out;
         }
 
         .header h1 {
@@ -617,7 +616,7 @@
             }
 
             usersGrid.innerHTML = users.map(user => `
-                <div class="user-card" onclick="initiateCall('${user.username}')" data-focusable="true" tabindex="0" style="animation: fadeInUp 0.6s ease-out">
+                <div class="user-card" onclick="initiateCall('${user.username}')" data-focusable="true" tabindex="0">
                     <div class="user-card-avatar">
                         ${user.username.substring(0, 2)}
                         <div class="online-indicator"></div>
