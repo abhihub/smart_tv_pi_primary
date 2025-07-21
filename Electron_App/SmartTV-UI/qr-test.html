@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR WiFi Test Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid rgba(0, 255, 136, 0.6);
+            color: #00ff88;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        button:hover {
+            background: rgba(0, 255, 136, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .qr-output {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        #qrcode {
+            display: inline-block;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .output-text {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            margin-top: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .format-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .format-section h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+        
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 15px;
+        }
+        
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .reset-btn {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid rgba(255, 107, 107, 0.6);
+            color: #ff6b6b;
+        }
+        
+        .reset-btn:hover {
+            background: rgba(255, 107, 107, 0.3);
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 QR WiFi Test Generator</h1>
+        
+        <div class="form-group">
+            <label for="ssid">WiFi Network Name (SSID):</label>
+            <input type="text" id="ssid" placeholder="MyWiFiNetwork" value="TestNetwork">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">WiFi Password:</label>
+            <input type="text" id="password" placeholder="mypassword123" value="testpass123">
+        </div>
+        
+        <div class="form-group">
+            <label for="security">Security Type:</label>
+            <select id="security">
+                <option value="WPA">WPA</option>
+                <option value="WPA2" selected>WPA2</option>
+                <option value="WEP">WEP</option>
+                <option value="nopass">Open (No Password)</option>
+            </select>
+        </div>
+        
+        <div class="btn-group">
+            <button onclick="generateStandardQR()">Generate Standard WiFi QR</button>
+            <button onclick="generateJSONQR()">Generate JSON Format QR</button>
+            <button onclick="generateSimpleQR()">Generate Simple Format QR</button>
+        </div>
+        
+        <div class="btn-group">
+            <button class="reset-btn" onclick="resetFirstTimeUser()">Reset First-Time User Status</button>
+        </div>
+        
+        <div class="qr-output">
+            <div id="qrcode"></div>
+            <div class="output-text" id="outputText">
+                Enter WiFi credentials above and click a generate button to create a test QR code.
+            </div>
+        </div>
+        
+        <div class="format-section">
+            <h3>Supported QR Formats:</h3>
+            <p><strong>1. Standard WiFi QR:</strong> <code>WIFI:T:WPA2;S:NetworkName;P:Password;H:false;;</code></p>
+            <p><strong>2. JSON Format:</strong> <code>{"ssid": "NetworkName", "password": "Password", "security": "WPA2"}</code></p>
+            <p><strong>3. Simple Format:</strong> Line-separated key:value pairs</p>
+        </div>
+        
+        <div class="instructions">
+            <h3>How to Test:</h3>
+            <ol>
+                <li>Fill in the WiFi credentials above</li>
+                <li>Click one of the generate buttons to create a QR code</li>
+                <li>Open the SmartTV app (homepage.html)</li>
+                <li>If it's a first-time user, the QR scanner will appear automatically</li>
+                <li>Point your device's camera at the QR code displayed here</li>
+                <li>The app should detect and process the WiFi credentials</li>
+                <li>Use "Reset First-Time User Status" to test the first-time experience again</li>
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        function generateStandardQR() {
+            const ssid = document.getElementById('ssid').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const security = document.getElementById('security').value;
+            
+            if (!ssid) {
+                alert('Please enter a network name (SSID)');
+                return;
+            }
+            
+            // Standard WiFi QR format
+            const qrData = `WIFI:T:${security};S:${ssid};P:${password};H:false;;`;
+            generateQRCode(qrData, 'Standard WiFi QR Format');
+        }
+        
+        function generateJSONQR() {
+            const ssid = document.getElementById('ssid').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const security = document.getElementById('security').value;
+            
+            if (!ssid) {
+                alert('Please enter a network name (SSID)');
+                return;
+            }
+            
+            // JSON format
+            const qrData = JSON.stringify({
+                ssid: ssid,
+                password: password,
+                security: security
+            });
+            generateQRCode(qrData, 'JSON Format');
+        }
+        
+        function generateSimpleQR() {
+            const ssid = document.getElementById('ssid').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const security = document.getElementById('security').value;
+            
+            if (!ssid) {
+                alert('Please enter a network name (SSID)');
+                return;
+            }
+            
+            // Simple line-separated format
+            const qrData = `ssid: ${ssid}
+password: ${password}
+security: ${security}`;
+            generateQRCode(qrData, 'Simple Format');
+        }
+        
+        function generateQRCode(data, formatName) {
+            console.log('Generating QR code:', data);
+            
+            // Clear previous QR code
+            document.getElementById('qrcode').innerHTML = '';
+            
+            // Generate new QR code
+            QRCode.toCanvas(document.getElementById('qrcode'), data, {
+                width: 256,
+                height: 256,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) {
+                    console.error('QR generation error:', error);
+                    document.getElementById('outputText').textContent = 'Error generating QR code: ' + error;
+                } else {
+                    document.getElementById('outputText').innerHTML = `
+                        <strong>${formatName}</strong><br>
+                        QR Code generated successfully!<br>
+                        <br>
+                        <strong>Data:</strong><br>
+                        <code>${data}</code>
+                    `;
+                }
+            });
+        }
+        
+        function resetFirstTimeUser() {
+            // Clear all WiFi setup related localStorage items
+            localStorage.removeItem('wifiSetupComplete');
+            localStorage.removeItem('hasConnectedWifi');
+            localStorage.removeItem('wifiSetupSkipped');
+            localStorage.removeItem('wifiConfig');
+            
+            alert('First-time user status reset! The SmartTV app will now show the QR scanner again on next load.');
+            console.log('First-time user status reset - localStorage cleared');
+        }
+        
+        // Auto-generate a sample QR on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(generateStandardQR, 500);
+        });
+    </script>
+</body>
+</html>

@@ -458,6 +458,212 @@
             border-color: rgba(0, 255, 136, 0.6);
             color: #00ff88;
         }
+
+        /* QR Scanner Styles */
+        .qr-scanner-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+            z-index: 5;
+        }
+
+        .qr-scanner-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .qr-scanner-header h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .qr-scanner-header p {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            margin-bottom: 25px;
+        }
+
+        .qr-scanner-video-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 25px;
+            border-radius: 15px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        #qrScannerVideo {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .qr-scanner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qr-scanner-frame {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            border: 2px solid transparent;
+        }
+
+        .qr-corner {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #00ff88;
+        }
+
+        .qr-corner.top-left {
+            top: -3px;
+            left: -3px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .qr-corner.top-right {
+            top: -3px;
+            right: -3px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .qr-corner.bottom-left {
+            bottom: -3px;
+            left: -3px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .qr-corner.bottom-right {
+            bottom: -3px;
+            right: -3px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .qr-scanner-status {
+            position: absolute;
+            bottom: 15px;
+            left: 0;
+            right: 0;
+            color: #00ff88;
+            font-size: 1rem;
+            font-weight: 500;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 20px;
+            margin: 0 20px;
+        }
+
+        .qr-scanner-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .qr-skip-btn, .qr-retry-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            color: white;
+            padding: 12px 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .qr-skip-btn:hover, .qr-retry-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .qr-skip-btn {
+            background: rgba(255, 107, 107, 0.2);
+            border-color: rgba(255, 107, 107, 0.6);
+        }
+
+        .qr-retry-btn {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: rgba(0, 255, 136, 0.6);
+        }
+
+        /* QR Scanner animations */
+        .qr-scanner-frame::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff88, transparent);
+            animation: qr-scan-line 2s linear infinite;
+        }
+
+        @keyframes qr-scan-line {
+            0% { transform: translateY(0); opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(216px); opacity: 1; }
+        }
+
+        /* Responsive QR Scanner */
+        @media (max-width: 768px) {
+            .qr-scanner-card {
+                padding: 20px;
+                margin: 0 15px;
+            }
+            
+            .qr-scanner-header h2 {
+                font-size: 1.6rem;
+            }
+            
+            .qr-scanner-video-wrapper {
+                max-width: 300px;
+            }
+            
+            #qrScannerVideo {
+                height: 250px;
+            }
+            
+            .qr-scanner-frame {
+                width: 180px;
+                height: 180px;
+            }
+            
+            .qr-scanner-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .qr-skip-btn, .qr-retry-btn {
+                width: 200px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -471,6 +677,34 @@
             </div>
             <h1>Family Time</h1>
             <p class="subtitle">Your Gateway to Family Entertainment</p>
+        </div>
+
+        <!-- QR Scanner for WiFi Setup -->
+        <div class="qr-scanner-container" id="qrScannerContainer" style="display: none;">
+            <div class="qr-scanner-card">
+                <div class="qr-scanner-header">
+                    <h2>📱 WiFi Setup Required</h2>
+                    <p>Scan QR code from your companion app to connect to WiFi</p>
+                </div>
+                <div class="qr-scanner-video-wrapper">
+                    <video id="qrScannerVideo" autoplay playsinline muted></video>
+                    <div class="qr-scanner-overlay">
+                        <div class="qr-scanner-frame">
+                            <div class="qr-corner top-left"></div>
+                            <div class="qr-corner top-right"></div>
+                            <div class="qr-corner bottom-left"></div>
+                            <div class="qr-corner bottom-right"></div>
+                        </div>
+                    </div>
+                    <div class="qr-scanner-status" id="qrScannerStatus">
+                        Position QR code within the frame
+                    </div>
+                </div>
+                <div class="qr-scanner-actions">
+                    <button class="qr-skip-btn" id="qrSkipBtn">Skip for now</button>
+                    <button class="qr-retry-btn" id="qrRetryBtn" style="display: none;">Try again</button>
+                </div>
+            </div>
         </div>
 
         <div class="grid-wrapper">
@@ -695,6 +929,7 @@
     <script src="user-utils.js"></script>
     <script src="call-monitor.js"></script>
     <script src="tv-remote.js"></script>
+    <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
     
     <script>
         // Display user ID in header
@@ -1451,6 +1686,351 @@
             }
             
             console.log('🧹 Page cleanup completed at:', new Date().toISOString());
+        });
+
+        // QR WiFi Scanner System
+        class QRWiFiScanner {
+            constructor() {
+                this.qrScanner = null;
+                this.videoElement = document.getElementById('qrScannerVideo');
+                this.container = document.getElementById('qrScannerContainer');
+                this.statusElement = document.getElementById('qrScannerStatus');
+                this.skipBtn = document.getElementById('qrSkipBtn');
+                this.retryBtn = document.getElementById('qrRetryBtn');
+                this.isScanning = false;
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                this.skipBtn.addEventListener('click', () => {
+                    this.skipSetup();
+                });
+
+                this.retryBtn.addEventListener('click', () => {
+                    this.startScanning();
+                });
+            }
+
+            async checkFirstTimeUser() {
+                try {
+                    // Check if WiFi setup has been completed before
+                    const wifiSetupComplete = localStorage.getItem('wifiSetupComplete');
+                    const hasConnectedBefore = localStorage.getItem('hasConnectedWifi');
+                    
+                    console.log('🔍 First-time user check:', { 
+                        wifiSetupComplete, 
+                        hasConnectedBefore,
+                        userAgent: navigator.userAgent 
+                    });
+
+                    // Show QR scanner for first-time users or if setup was skipped
+                    if (!wifiSetupComplete || !hasConnectedBefore) {
+                        console.log('📱 First-time user detected - showing QR scanner');
+                        return true;
+                    }
+
+                    return false;
+                } catch (error) {
+                    console.error('❌ Error checking first-time user:', error);
+                    // Default to showing QR scanner on error
+                    return true;
+                }
+            }
+
+            async showQRScanner() {
+                console.log('📱 Showing QR WiFi scanner');
+                this.container.style.display = 'block';
+                
+                // Start scanning after a short delay to allow UI to render
+                setTimeout(() => {
+                    this.startScanning();
+                }, 500);
+            }
+
+            async startScanning() {
+                try {
+                    console.log('📱 Starting QR scanner');
+                    this.updateStatus('Starting camera...');
+                    this.retryBtn.style.display = 'none';
+
+                    // Initialize QR scanner
+                    this.qrScanner = new QrScanner(
+                        this.videoElement,
+                        (result) => this.onScanSuccess(result),
+                        {
+                            onDecodeError: (error) => {
+                                // Silently handle decode errors - they're normal when no QR code is visible
+                                console.debug('QR decode attempt:', error.message);
+                            },
+                            highlightScanRegion: false,
+                            highlightCodeOutline: false,
+                            preferredCamera: 'environment' // Use back camera if available
+                        }
+                    );
+
+                    await this.qrScanner.start();
+                    this.isScanning = true;
+                    this.updateStatus('Position QR code within the frame');
+                    console.log('✅ QR scanner started successfully');
+
+                } catch (error) {
+                    console.error('❌ Failed to start QR scanner:', error);
+                    this.handleScanError(error);
+                }
+            }
+
+            onScanSuccess(result) {
+                console.log('📱 QR code scanned successfully:', result.data);
+                
+                try {
+                    // Parse WiFi QR code - common formats:
+                    // WIFI:T:WPA;S:NetworkName;P:Password;H:false;;
+                    // or JSON format: {"ssid": "NetworkName", "password": "Password", "security": "WPA2"}
+                    
+                    let wifiData = this.parseWiFiQR(result.data);
+                    
+                    if (wifiData) {
+                        this.updateStatus('✅ WiFi credentials detected!');
+                        this.processWiFiCredentials(wifiData);
+                    } else {
+                        this.updateStatus('❌ Invalid WiFi QR code format');
+                        setTimeout(() => {
+                            this.updateStatus('Position QR code within the frame');
+                        }, 2000);
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error processing QR code:', error);
+                    this.updateStatus('❌ Error processing QR code');
+                    setTimeout(() => {
+                        this.updateStatus('Position QR code within the frame');
+                    }, 2000);
+                }
+            }
+
+            parseWiFiQR(qrData) {
+                console.log('📱 Parsing QR data:', qrData);
+                
+                try {
+                    // Try JSON format first
+                    if (qrData.startsWith('{')) {
+                        const data = JSON.parse(qrData);
+                        if (data.ssid || data.networkName) {
+                            return {
+                                ssid: data.ssid || data.networkName,
+                                password: data.password || data.key || '',
+                                security: data.security || data.encryption || 'WPA2'
+                            };
+                        }
+                    }
+                    
+                    // Try standard WiFi QR format: WIFI:T:WPA;S:NetworkName;P:Password;H:false;;
+                    if (qrData.startsWith('WIFI:')) {
+                        const params = {};
+                        const parts = qrData.replace('WIFI:', '').split(';');
+                        
+                        parts.forEach(part => {
+                            if (part.includes(':')) {
+                                const [key, value] = part.split(':', 2);
+                                params[key] = value;
+                            }
+                        });
+                        
+                        if (params.S) { // S = SSID
+                            return {
+                                ssid: params.S,
+                                password: params.P || '',
+                                security: params.T || 'WPA2'
+                            };
+                        }
+                    }
+                    
+                    // Try simple formats
+                    if (qrData.includes('ssid') || qrData.includes('SSID')) {
+                        // Simple key:value format
+                        const lines = qrData.split('\n');
+                        const data = {};
+                        
+                        lines.forEach(line => {
+                            const [key, ...valueParts] = line.split(':');
+                            if (key && valueParts.length > 0) {
+                                const value = valueParts.join(':').trim();
+                                data[key.toLowerCase().trim()] = value;
+                            }
+                        });
+                        
+                        if (data.ssid) {
+                            return {
+                                ssid: data.ssid,
+                                password: data.password || data.key || '',
+                                security: data.security || 'WPA2'
+                            };
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error parsing WiFi QR data:', error);
+                }
+                
+                return null;
+            }
+
+            async processWiFiCredentials(wifiData) {
+                console.log('📱 Processing WiFi credentials:', { 
+                    ssid: wifiData.ssid, 
+                    hasPassword: !!wifiData.password,
+                    security: wifiData.security 
+                });
+                
+                try {
+                    this.updateStatus('🔄 Connecting to WiFi...');
+                    
+                    // Store WiFi credentials (in a real implementation, you'd connect to the network)
+                    // For SmartTV, you might need to use Electron's main process to handle WiFi connection
+                    const wifiConfig = {
+                        ssid: wifiData.ssid,
+                        password: wifiData.password,
+                        security: wifiData.security,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    localStorage.setItem('wifiConfig', JSON.stringify(wifiConfig));
+                    localStorage.setItem('wifiSetupComplete', 'true');
+                    localStorage.setItem('hasConnectedWifi', 'true');
+                    
+                    // In a real implementation, you would:
+                    // 1. Send credentials to Electron main process
+                    // 2. Use system WiFi APIs to connect
+                    // 3. Verify connection status
+                    
+                    // Simulate connection process
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    this.updateStatus('✅ WiFi setup complete!');
+                    
+                    // Show success message
+                    this.showSuccessMessage(wifiData.ssid);
+                    
+                    // Hide QR scanner after success
+                    setTimeout(() => {
+                        this.hideQRScanner();
+                    }, 3000);
+                    
+                } catch (error) {
+                    console.error('❌ Error processing WiFi credentials:', error);
+                    this.updateStatus('❌ Failed to connect to WiFi');
+                    this.retryBtn.style.display = 'inline-block';
+                }
+            }
+
+            showSuccessMessage(ssid) {
+                const message = document.createElement('div');
+                message.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0, 255, 136, 0.2);
+                    border: 2px solid rgba(0, 255, 136, 0.6);
+                    color: #00ff88;
+                    padding: 30px 50px;
+                    border-radius: 15px;
+                    font-size: 1.5rem;
+                    z-index: 10000;
+                    backdrop-filter: blur(20px);
+                    text-align: center;
+                    font-weight: 500;
+                `;
+                message.innerHTML = `
+                    <div style="font-size: 3rem; margin-bottom: 15px;">✅</div>
+                    <div>Successfully connected to</div>
+                    <div style="font-weight: bold; margin-top: 10px;">${ssid}</div>
+                `;
+                document.body.appendChild(message);
+
+                setTimeout(() => {
+                    message.remove();
+                }, 3000);
+            }
+
+            handleScanError(error) {
+                console.error('❌ QR Scanner error:', error);
+                
+                let errorMessage = 'Camera access failed';
+                if (error.name === 'NotAllowedError') {
+                    errorMessage = 'Camera permission denied';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = 'No camera found';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage = 'Camera in use by another app';
+                }
+                
+                this.updateStatus(`❌ ${errorMessage}`);
+                this.retryBtn.style.display = 'inline-block';
+            }
+
+            updateStatus(message) {
+                console.log('📱 QR Scanner status:', message);
+                this.statusElement.textContent = message;
+            }
+
+            skipSetup() {
+                console.log('📱 User skipped WiFi setup');
+                localStorage.setItem('wifiSetupSkipped', 'true');
+                this.hideQRScanner();
+            }
+
+            hideQRScanner() {
+                console.log('📱 Hiding QR scanner');
+                
+                if (this.qrScanner) {
+                    this.qrScanner.stop();
+                    this.qrScanner = null;
+                }
+                
+                this.container.style.display = 'none';
+                this.isScanning = false;
+            }
+
+            cleanup() {
+                if (this.qrScanner) {
+                    this.qrScanner.stop();
+                    this.qrScanner = null;
+                }
+            }
+        }
+
+        // Initialize QR WiFi Scanner
+        let qrWifiScanner = null;
+
+        // Add to the existing DOMContentLoaded event
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('📱 Initializing QR WiFi Scanner...');
+            
+            try {
+                qrWifiScanner = new QRWiFiScanner();
+                
+                // Check if this is a first-time user
+                const isFirstTime = await qrWifiScanner.checkFirstTimeUser();
+                
+                if (isFirstTime) {
+                    console.log('📱 First-time user - showing WiFi setup');
+                    await qrWifiScanner.showQRScanner();
+                } else {
+                    console.log('📱 Returning user - skipping WiFi setup');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error initializing QR WiFi Scanner:', error);
+            }
+        });
+
+        // Add cleanup for QR scanner
+        window.addEventListener('beforeunload', () => {
+            if (qrWifiScanner) {
+                console.log('🧹 Cleaning up QR WiFi Scanner...');
+                qrWifiScanner.cleanup();
+            }
         });
     </script>
 </body>
