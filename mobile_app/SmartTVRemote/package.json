@@ -3,14 +3,21 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "lint": "eslint .",
-    "start": "react-native start",
-    "test": "jest"
+    "start": "expo start",
+    "test": "jest",
+    "build:android:preview": "eas build --platform android --profile preview",
+    "build:android:production": "eas build --platform android --profile production"
   },
   "dependencies": {
+    "@expo/cli": "^0.24.20",
+    "@expo/vector-icons": "^14.1.0",
     "@react-native/new-app-screen": "0.80.1",
+    "eas-cli": "^16.17.0",
+    "expo": "^53.0.20",
+    "expo-build-properties": "^0.14.8",
     "react": "19.1.0",
     "react-native": "0.80.1",
     "react-native-vector-icons": "^10.2.0",
