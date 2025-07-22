@@ -4,214 +4,327 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
+  Dimensions,
+  StatusBar,
+  Modal,
+  TextInput,
   Alert,
+  Vibration,
 } from 'react-native';
 import RemoteControlService from '../services/RemoteControlService';
 
+const { width, height } = Dimensions.get('window');
+
 const RemoteControlScreen = ({ device, onDisconnect, connectionState }) => {
-  const [currentPage, setCurrentPage] = useState('unknown');
-  const [appState, setAppState] = useState(null);
+  const [currentApp, setCurrentApp] = useState('homepage');
+  const [videoCallData, setVideoCallData] = useState({});
+  const [textInputModal, setTextInputModal] = useState({
+    visible: false,
+    field: '',
+    placeholder: '',
+    currentValue: '',
+    mode: 'general'
+  });
+  const [inputText, setInputText] = useState('');
 
   useEffect(() => {
-    // Request initial app state
-    RemoteControlService.requestAppState();
-
-    // Set up state change handler
-    const originalCallback = RemoteControlService.onStateChange;
+    // Set up message handlers
     RemoteControlService.setStateChangeCallback((type, data) => {
-      if (originalCallback) originalCallback(type, data);
-      
-      if (type === 'app_state' && data) {
-        setAppState(data);
-        // Extract page name from pathname
-        const pageName = data.currentPage?.split('/').pop()?.replace('.html', '') || 'unknown';
-        setCurrentPage(pageName);
-      } else if (type === 'page_changed') {
-        setCurrentPage(data);
+      switch (type) {
+        case 'app_state_change':
+          setCurrentApp(data.currentApp);
+          break;
+        case 'video_call_update':
+          setVideoCallData(data);
+          break;
+        case 'show_text_input':
+          setTextInputModal({
+            visible: true,
+            field: data.field,
+            placeholder: data.placeholder,
+            currentValue: data.currentValue,
+            mode: data.mode
+          });
+          setInputText(data.currentValue || '');
+          break;
+        case 'disconnected':
+        case 'error':
+          onDisconnect();
+          break;
       }
     });
+
+    // Request current app state
+    RemoteControlService.requestAppState();
+
+    return () => {
+      // Cleanup
+    };
   }, []);
 
-  const handleNavigationPress = (page) => {
-    RemoteControlService.navigateToPage(page);
+  // Haptic feedback for button presses
+  const hapticFeedback = () => {
+    Vibration.vibrate(50);
   };
 
-  const handleGesturePress = (gesture) => {
-    switch (gesture) {
+  // Navigation button handlers
+  const handleNavigation = (direction) => {
+    hapticFeedback();
+    switch (direction) {
       case 'up':
-        RemoteControlService.swipeUp();
+        RemoteControlService.navigateUp();
         break;
       case 'down':
-        RemoteControlService.swipeDown();
+        RemoteControlService.navigateDown();
         break;
       case 'left':
-        RemoteControlService.swipeLeft();
+        RemoteControlService.navigateLeft();
         break;
       case 'right':
-        RemoteControlService.swipeRight();
-        break;
-      case 'center':
-        RemoteControlService.tap();
+        RemoteControlService.navigateRight();
         break;
     }
   };
 
-  const handleKeyPress = (key) => {
-    switch (key) {
-      case 'enter':
-        RemoteControlService.pressEnter();
+  const handleSelect = () => {
+    hapticFeedback();
+    RemoteControlService.selectAction();
+  };
+
+  const handleBack = () => {
+    hapticFeedback();
+    RemoteControlService.backAction();
+  };
+
+  // App launch handlers
+  const handleAppLaunch = (app) => {
+    hapticFeedback();
+    RemoteControlService.launchApp(app);
+  };
+
+  // Video call handlers
+  const handleVideoCall = (action) => {
+    hapticFeedback();
+    switch (action) {
+      case 'connect':
+        RemoteControlService.videoCallConnect();
         break;
-      case 'escape':
-        RemoteControlService.pressEscape();
+      case 'mute':
+        RemoteControlService.videoCallToggleMute();
         break;
-      case 'backspace':
-        RemoteControlService.pressBackspace();
+      case 'video':
+        RemoteControlService.videoCallToggleVideo();
+        break;
+      case 'end':
+        RemoteControlService.videoCallEndCall();
         break;
     }
   };
 
-  const handleDisconnectPress = () => {
-    Alert.alert(
-      'Disconnect',
-      `Disconnect from ${device?.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Disconnect', style: 'destructive', onPress: onDisconnect },
-      ]
-    );
+  // Text input handlers
+  const handleTextInputSubmit = () => {
+    RemoteControlService.sendTextInput(textInputModal.field, inputText);
+    setTextInputModal({ ...textInputModal, visible: false });
+    setInputText('');
   };
 
-  const NavigationButton = ({ page, title, icon, color = '#4CAF50' }) => (
-    <TouchableOpacity
-      style={[styles.navButton, { backgroundColor: currentPage === page ? color : '#1a1a2e' }]}
-      onPress={() => handleNavigationPress(page)}
-    >
-      <Text style={styles.navButtonIcon}>{icon}</Text>
-      <Text style={styles.navButtonText}>{title}</Text>
-    </TouchableOpacity>
-  );
+  const handleTextInputCancel = () => {
+    setTextInputModal({ ...textInputModal, visible: false });
+    setInputText('');
+  };
 
-  const DirectionalPad = () => (
-    <View style={styles.dpadContainer}>
-      <TouchableOpacity
-        style={[styles.dpadButton, styles.dpadUp]}
-        onPress={() => handleGesturePress('up')}
-      >
-        <Text style={styles.dpadButtonText}>▲</Text>
-      </TouchableOpacity>
-      
-      <View style={styles.dpadMiddle}>
+  // Render TV Remote Layout
+  const renderRemoteControl = () => (
+    <View style={styles.remoteContainer}>
+      {/* Device Status */}
+      <View style={styles.deviceStatus}>
+        <View style={styles.connectionIndicator} />
+        <Text style={styles.deviceName}>{device?.name}</Text>
+        <Text style={styles.currentApp}>{currentApp}</Text>
+      </View>
+
+      {/* D-Pad Navigation */}
+      <View style={styles.dpadContainer}>
+        {/* Up Button */}
         <TouchableOpacity
-          style={[styles.dpadButton, styles.dpadLeft]}
-          onPress={() => handleGesturePress('left')}
+          style={[styles.navButton, styles.navButtonUp]}
+          onPress={() => handleNavigation('up')}
         >
-          <Text style={styles.dpadButtonText}>◀</Text>
+          <Text style={styles.navButtonText}>▲</Text>
         </TouchableOpacity>
-        
+
+        {/* Left, Center, Right Row */}
+        <View style={styles.dpadMiddleRow}>
+          <TouchableOpacity
+            style={[styles.navButton, styles.navButtonLeft]}
+            onPress={() => handleNavigation('left')}
+          >
+            <Text style={styles.navButtonText}>◀</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.selectButton]}
+            onPress={handleSelect}
+          >
+            <Text style={styles.selectButtonText}>OK</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.navButton, styles.navButtonRight]}
+            onPress={() => handleNavigation('right')}
+          >
+            <Text style={styles.navButtonText}>▶</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Down Button */}
         <TouchableOpacity
-          style={[styles.dpadButton, styles.dpadCenter]}
-          onPress={() => handleGesturePress('center')}
+          style={[styles.navButton, styles.navButtonDown]}
+          onPress={() => handleNavigation('down')}
         >
-          <Text style={styles.dpadButtonText}>●</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.dpadButton, styles.dpadRight]}
-          onPress={() => handleGesturePress('right')}
-        >
-          <Text style={styles.dpadButtonText}>▶</Text>
+          <Text style={styles.navButtonText}>▼</Text>
         </TouchableOpacity>
       </View>
-      
+
+      {/* Control Buttons Row */}
+      <View style={styles.controlButtonsRow}>
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={handleBack}
+        >
+          <Text style={styles.controlButtonText}>BACK</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => handleAppLaunch('homepage')}
+        >
+          <Text style={styles.controlButtonText}>HOME</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* App Launch Buttons */}
+      <View style={styles.appButtonsContainer}>
+        <Text style={styles.sectionTitle}>Quick Launch</Text>
+        <View style={styles.appButtonsRow}>
+          <TouchableOpacity
+            style={styles.appButton}
+            onPress={() => handleAppLaunch('video-call')}
+          >
+            <Text style={styles.appButtonText}>📞</Text>
+            <Text style={styles.appButtonLabel}>Video Call</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.appButton}
+            onPress={() => handleAppLaunch('trivia-game')}
+          >
+            <Text style={styles.appButtonText}>🎮</Text>
+            <Text style={styles.appButtonLabel}>Trivia</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.appButton}
+            onPress={() => handleAppLaunch('gamepage')}
+          >
+            <Text style={styles.appButtonText}>🕹️</Text>
+            <Text style={styles.appButtonLabel}>Games</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Video Call Controls (when in call) */}
+      {currentApp === 'video-call' && (
+        <View style={styles.videoCallControls}>
+          <Text style={styles.sectionTitle}>Call Controls</Text>
+          <View style={styles.callButtonsRow}>
+            <TouchableOpacity
+              style={[styles.callButton, videoCallData.isMuted && styles.callButtonActive]}
+              onPress={() => handleVideoCall('mute')}
+            >
+              <Text style={styles.callButtonText}>{videoCallData.isMuted ? '🔇' : '🔊'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.callButton, !videoCallData.isVideoOn && styles.callButtonActive]}
+              onPress={() => handleVideoCall('video')}
+            >
+              <Text style={styles.callButtonText}>{videoCallData.isVideoOn ? '📹' : '📷'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.callButton, styles.endCallButton]}
+              onPress={() => handleVideoCall('end')}
+            >
+              <Text style={styles.callButtonText}>📞</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Disconnect Button */}
       <TouchableOpacity
-        style={[styles.dpadButton, styles.dpadDown]}
-        onPress={() => handleGesturePress('down')}
+        style={styles.disconnectButton}
+        onPress={onDisconnect}
       >
-        <Text style={styles.dpadButtonText}>▼</Text>
+        <Text style={styles.disconnectButtonText}>Disconnect</Text>
       </TouchableOpacity>
     </View>
   );
 
-  const ControlButton = ({ title, icon, onPress, color = '#FF5722' }) => (
-    <TouchableOpacity
-      style={[styles.controlButton, { backgroundColor: color }]}
-      onPress={onPress}
+  // Text Input Modal
+  const renderTextInputModal = () => (
+    <Modal
+      visible={textInputModal.visible}
+      animationType="slide"
+      transparent={true}
     >
-      <Text style={styles.controlButtonIcon}>{icon}</Text>
-      <Text style={styles.controlButtonText}>{title}</Text>
-    </TouchableOpacity>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>
+            {textInputModal.mode === 'username' ? 'Enter Your Name' :
+             textInputModal.mode === 'roomname' ? 'Enter Room Name' :
+             'Enter Text'}
+          </Text>
+          
+          <TextInput
+            style={styles.textInput}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder={textInputModal.placeholder}
+            placeholderTextColor="#a0a0a0"
+            autoFocus={true}
+            multiline={false}
+            returnKeyType="done"
+            onSubmitEditing={handleTextInputSubmit}
+          />
+          
+          <View style={styles.modalButtonsRow}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={handleTextInputCancel}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.modalButton, styles.submitButton]}
+              onPress={handleTextInputSubmit}
+            >
+              <Text style={styles.submitButtonText}>Submit</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.header}>
-        <View style={styles.deviceInfo}>
-          <Text style={styles.deviceName}>{device?.name || 'Smart TV'}</Text>
-          <Text style={styles.currentPage}>Currently on: {currentPage}</Text>
-        </View>
-        <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnectPress}>
-          <Text style={styles.disconnectButtonText}>✕</Text>
-        </TouchableOpacity>
-      </View>
-
-      {connectionState !== 'connected' && (
-        <View style={styles.connectionWarning}>
-          <Text style={styles.connectionWarningText}>
-            {connectionState === 'disconnected' ? 'Disconnected' : 'Connecting...'}
-          </Text>
-        </View>
-      )}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Navigation</Text>
-        <View style={styles.navigationGrid}>
-          <NavigationButton page="home" title="Home" icon="🏠" />
-          <NavigationButton page="video-call" title="Video Call" icon="📹" />
-          <NavigationButton page="trivia" title="Trivia" icon="🎯" />
-          <NavigationButton page="games" title="Games" icon="🎮" />
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Remote Control</Text>
-        <DirectionalPad />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.controlGrid}>
-          <ControlButton
-            title="Enter"
-            icon="⏎"
-            onPress={() => handleKeyPress('enter')}
-            color="#4CAF50"
-          />
-          <ControlButton
-            title="Back"
-            icon="←"
-            onPress={() => handleKeyPress('escape')}
-            color="#FF9800"
-          />
-          <ControlButton
-            title="Delete"
-            icon="⌫"
-            onPress={() => handleKeyPress('backspace')}
-            color="#F44336"
-          />
-        </View>
-      </View>
-
-      {appState && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App Status</Text>
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusText}>Title: {appState.title}</Text>
-            <Text style={styles.statusText}>Page: {appState.currentPage}</Text>
-          </View>
-        </View>
-      )}
-    </ScrollView>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0f0f23" />
+      {renderRemoteControl()}
+      {renderTextInputModal()}
+    </View>
   );
 };
 
@@ -220,150 +333,235 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f0f23',
   },
-  contentContainer: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
-    paddingTop: 20,
-  },
-  deviceInfo: {
+  remoteContainer: {
     flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  deviceStatus: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a3e',
+    marginBottom: 30,
+  },
+  connectionIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#4CAF50',
+    marginBottom: 8,
   },
   deviceName: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
     marginBottom: 4,
   },
-  currentPage: {
+  currentApp: {
     fontSize: 14,
     color: '#a0a0a0',
   },
-  disconnectButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F44336',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  disconnectButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  connectionWarning: {
-    backgroundColor: '#FF5722',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  connectionWarningText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  section: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 16,
-  },
-  navigationGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  navButton: {
-    width: '48%',
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2a2a3e',
-  },
-  navButtonIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  navButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
   dpadContainer: {
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 30,
   },
-  dpadMiddle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  dpadButton: {
+  navButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
     backgroundColor: '#1a1a2e',
+    borderWidth: 2,
+    borderColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#2a2a3e',
+    margin: 5,
   },
-  dpadUp: {},
-  dpadDown: {},
-  dpadLeft: {},
-  dpadRight: {},
-  dpadCenter: {
-    backgroundColor: '#4CAF50',
-    marginHorizontal: 12,
+  navButtonUp: {
+    marginBottom: 10,
   },
-  dpadButtonText: {
-    color: '#ffffff',
+  navButtonDown: {
+    marginTop: 10,
+  },
+  navButtonLeft: {
+    marginRight: 10,
+  },
+  navButtonRight: {
+    marginLeft: 10,
+  },
+  navButtonText: {
+    color: '#4CAF50',
     fontSize: 20,
     fontWeight: 'bold',
   },
-  controlGrid: {
+  dpadMiddleRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  controlButton: {
-    width: '30%',
-    padding: 16,
-    borderRadius: 8,
     alignItems: 'center',
+    marginVertical: 10,
   },
-  controlButtonIcon: {
-    fontSize: 18,
-    marginBottom: 4,
-    color: '#ffffff',
+  selectButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 10,
   },
-  controlButtonText: {
+  selectButtonText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  statusContainer: {
+  controlButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 20,
+  },
+  controlButton: {
     backgroundColor: '#1a1a2e',
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#2a2a3e',
+    minWidth: 80,
+    alignItems: 'center',
   },
-  statusText: {
-    color: '#a0a0a0',
+  controlButtonText: {
+    color: '#ffffff',
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  appButtonsContainer: {
+    marginVertical: 20,
+  },
+  sectionTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  appButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  appButton: {
+    backgroundColor: '#1a1a2e',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2a2a3e',
+  },
+  appButtonText: {
+    fontSize: 24,
     marginBottom: 4,
+  },
+  appButtonLabel: {
+    color: '#a0a0a0',
+    fontSize: 8,
+    textAlign: 'center',
+  },
+  videoCallControls: {
+    marginVertical: 20,
+  },
+  callButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  callButton: {
+    backgroundColor: '#1a1a2e',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2a2a3e',
+  },
+  callButtonActive: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  endCallButton: {
+    backgroundColor: '#f44336',
+    borderColor: '#f44336',
+  },
+  callButtonText: {
+    fontSize: 24,
+  },
+  disconnectButton: {
+    backgroundColor: '#f44336',
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 'auto',
+    marginBottom: 20,
+  },
+  disconnectButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    padding: 20,
+    width: width - 40,
+    maxWidth: 400,
+  },
+  modalTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  textInput: {
+    backgroundColor: '#2a2a3e',
+    color: '#ffffff',
+    fontSize: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#2a2a3e',
+  },
+  submitButton: {
+    backgroundColor: '#4CAF50',
+  },
+  cancelButtonText: {
+    color: '#a0a0a0',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  submitButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

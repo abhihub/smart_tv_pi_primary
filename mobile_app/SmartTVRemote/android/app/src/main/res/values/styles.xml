@@ -6,4 +6,11 @@
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     </style>
 
+    <style name="Theme.App.SplashScreen" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- Set the splash screen background color -->
+        <item name="android:windowBackground">@android:color/white</item>
+        <!-- Optional: Hide status bar during splash -->
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
 </resources>

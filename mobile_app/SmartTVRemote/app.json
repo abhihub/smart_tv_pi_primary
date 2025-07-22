@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SmartTV Remote",
-    "slug": "mobile-app",
+    "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,7 +22,21 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.smarttvremote.app"
+      "package": "com.smarttvremote",
+      "minSdkVersion": 24,
+      "targetSdkVersion": 34,
+      "compileSdkVersion": 34,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE",
+        "CAMERA",
+        "VIBRATE"
+      ],
+      "usesCleartextTraffic": true,
+      "allowBackup": false,
+      "versionCode": 1,
+      "networkSecurityConfig": "network_security_config"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,7 +55,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "bd5002b1-07f6-4dcd-8cee-f30f8905dfc3"
+        "projectId": "0fda8e35-387c-4765-bc07-8053e4184e9e"
       }
     },
     "owner": "daksh-123"

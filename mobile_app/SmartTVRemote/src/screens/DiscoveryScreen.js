@@ -15,20 +15,26 @@ const DiscoveryScreen = ({ onDeviceConnect, connectionState }) => {
   const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
+    // Set up auto-connect callback
+    DiscoveryService.setAutoConnectCallback((device) => {
+      console.log('🤖 Auto-connecting to discovered Pi:', device.name);
+      handleDevicePress(device);
+    });
+    
     startDiscovery();
     return () => {
       DiscoveryService.stopDiscovery();
     };
   }, []);
 
-  const startDiscovery = () => {
+  const startDiscovery = async () => {
     setIsScanning(true);
     setDevices([]);
     
-    DiscoveryService.startDiscovery(
+    await DiscoveryService.startDiscovery(
       (device) => {
         setDevices(prevDevices => {
-          const existingIndex = prevDevices.findIndex(d => d.name === device.name);
+          const existingIndex = prevDevices.findIndex(d => d.name === device.name || d.fullName === device.fullName);
           if (existingIndex >= 0) {
             const updated = [...prevDevices];
             updated[existingIndex] = device;
@@ -39,15 +45,15 @@ const DiscoveryScreen = ({ onDeviceConnect, connectionState }) => {
       },
       (device) => {
         setDevices(prevDevices => 
-          prevDevices.filter(d => d.name !== device.name)
+          prevDevices.filter(d => d.name !== device.name && d.fullName !== device.fullName)
         );
       }
     );
 
-    // Stop scanning after 30 seconds
+    // Stop scanning after 45 seconds (extended for HTTP scan)
     setTimeout(() => {
       setIsScanning(false);
-    }, 30000);
+    }, 45000);
   };
 
   const handleDevicePress = async (device) => {
@@ -73,11 +79,17 @@ const DiscoveryScreen = ({ onDeviceConnect, connectionState }) => {
         <Text style={styles.deviceDetails}>
           {item.host}:{item.port}
         </Text>
-        {item.txt && (
-          <Text style={styles.deviceVersion}>
-            Version: {item.txt.version || 'Unknown'}
+        <Text style={styles.deviceVersion}>
+          Version: {item.version || item.txt?.version || 'Unknown'}
+        </Text>
+        {item.features && (
+          <Text style={styles.deviceFeatures}>
+            Features: {Array.isArray(item.features) ? item.features.join(', ') : item.features}
           </Text>
         )}
+        <Text style={styles.deviceType}>
+          {item.type === 'smarttv-pi' ? '📡 mDNS' : '🌐 HTTP'}
+        </Text>
       </View>
       <View style={styles.deviceStatus}>
         <View style={styles.statusIndicator} />
@@ -114,8 +126,13 @@ const DiscoveryScreen = ({ onDeviceConnect, connectionState }) => {
       <View style={styles.header}>
         <Text style={styles.title}>Smart TV Remote</Text>
         <Text style={styles.subtitle}>
-          {isScanning ? 'Scanning for devices...' : `Found ${devices.length} device(s)`}
+          {isScanning ? 'Scanning WiFi network...' : `Found ${devices.length} SmartTV Pi(s)`}
         </Text>
+        {!isScanning && devices.length === 0 && (
+          <Text style={styles.helpText}>
+            Make sure SmartTV Pi completed WiFi setup
+          </Text>
+        )}
       </View>
 
       {devices.length > 0 ? (
@@ -204,6 +221,22 @@ const styles = StyleSheet.create({
   deviceVersion: {
     fontSize: 12,
     color: '#4CAF50',
+    marginBottom: 2,
+  },
+  deviceFeatures: {
+    fontSize: 10,
+    color: '#a0a0a0',
+    marginBottom: 2,
+  },
+  deviceType: {
+    fontSize: 10,
+    color: '#FF9800',
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#FF9800',
+    textAlign: 'center',
+    marginTop: 5,
   },
   deviceStatus: {
     marginLeft: 16,

@@ -5,6 +5,7 @@ import {
   useColorScheme,
   View,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import DiscoveryScreen from './src/screens/DiscoveryScreen';
 import RemoteControlScreen from './src/screens/RemoteControlScreen';
@@ -24,9 +25,11 @@ function App() {
         case 'connected':
           setConnectionState('connected');
           setCurrentScreen('remote');
+          console.log('✅ Connected to SmartTV Pi - switching to remote control');
           break;
         case 'disconnected':
         case 'error':
+          console.log('📱 Disconnected from SmartTV Pi - returning to discovery');
           setConnectionState('disconnected');
           setConnectedDevice(null);
           setCurrentScreen('discovery');
@@ -47,11 +50,24 @@ function App() {
   const handleDeviceConnect = async (device) => {
     try {
       setConnectionState('connecting');
+      console.log('📱 Attempting to connect to:', device.name, device.host + ':' + device.port);
+      
       await RemoteControlService.connect(device);
       setConnectedDevice(device);
+      
+      console.log('✅ Successfully connected to SmartTV Pi');
     } catch (error) {
-      console.error('Failed to connect to device:', error);
+      console.error('❌ Failed to connect to device:', error);
       setConnectionState('disconnected');
+      
+      // Show error alert for manual connections (not auto-connect)
+      if (currentScreen === 'discovery') {
+        Alert.alert(
+          'Connection Failed',
+          `Could not connect to ${device.name}. Make sure the SmartTV Pi is running and on the same WiFi network.`,
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 

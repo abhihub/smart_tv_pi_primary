@@ -6,6 +6,11 @@ class RemoteControlService {
     this.onStateChange = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
+    this.appState = {
+      currentApp: 'homepage',
+      videoCallState: 'disconnected',
+      callData: {}
+    };
   }
 
   connect(device) {
@@ -14,8 +19,10 @@ class RemoteControlService {
         this.disconnect();
       }
 
-      const wsUrl = `ws://${device.host}:${device.port}`;
-      console.log('📱 Connecting to Smart TV:', wsUrl);
+      // Use WebSocket port 8080 for SmartTV Pi
+      const wsPort = device.port === 8080 ? 8080 : device.port;
+      const wsUrl = `ws://${device.host}:${wsPort}`;
+      console.log('📱 Connecting to Smart TV Pi:', wsUrl);
 
       this.socket = new WebSocket(wsUrl);
       this.currentDevice = device;
@@ -94,78 +101,127 @@ class RemoteControlService {
     }
   }
 
-  // Navigation commands
-  navigateToPage(page) {
-    return this.sendCommand({ action: 'navigate', page });
+  // TV Remote Navigation Commands (matching WebSocket server protocol)
+  navigateUp() {
+    return this.sendCommand({ type: 'navigate', direction: 'up' });
   }
 
-  // UI interaction commands
-  clickElement(selector) {
-    return this.sendCommand({ action: 'click', selector });
+  navigateDown() {
+    return this.sendCommand({ type: 'navigate', direction: 'down' });
   }
 
-  inputText(selector, value) {
-    return this.sendCommand({ action: 'input', selector, value });
+  navigateLeft() {
+    return this.sendCommand({ type: 'navigate', direction: 'left' });
   }
 
-  // Gesture commands
-  swipeLeft() {
-    return this.sendCommand({ action: 'gesture', gesture: 'swipe_left' });
+  navigateRight() {
+    return this.sendCommand({ type: 'navigate', direction: 'right' });
   }
 
-  swipeRight() {
-    return this.sendCommand({ action: 'gesture', gesture: 'swipe_right' });
+  selectAction() {
+    return this.sendCommand({ type: 'select' });
   }
 
-  swipeUp() {
-    return this.sendCommand({ action: 'gesture', gesture: 'swipe_up' });
+  backAction() {
+    return this.sendCommand({ type: 'back' });
   }
 
-  swipeDown() {
-    return this.sendCommand({ action: 'gesture', gesture: 'swipe_down' });
+  // App Launch Commands
+  launchApp(app) {
+    return this.sendCommand({ type: 'launch', app: app });
   }
 
-  tap() {
-    return this.sendCommand({ action: 'gesture', gesture: 'tap' });
+  // Text Input Commands
+  sendTextInput(field, value) {
+    return this.sendCommand({ type: 'input', field: field, value: value });
   }
 
-  // Key press commands
+  requestTextInput(field, currentValue = '') {
+    return this.sendCommand({ type: 'requestTextInput', field: field, value: currentValue });
+  }
+
+  // Video Call Commands
+  videoCallConnect() {
+    return this.sendCommand({ type: 'videoCall', action: 'connect' });
+  }
+
+  videoCallToggleMute() {
+    return this.sendCommand({ type: 'videoCall', action: 'toggleMute' });
+  }
+
+  videoCallToggleVideo() {
+    return this.sendCommand({ type: 'videoCall', action: 'toggleVideo' });
+  }
+
+  videoCallEndCall() {
+    return this.sendCommand({ type: 'videoCall', action: 'endCall' });
+  }
+
+  // Key Press Commands (for compatibility)
   pressKey(key) {
-    return this.sendCommand({ action: 'keypress', key });
+    return this.sendCommand({ type: 'keypress', key: key });
   }
 
   pressEnter() {
-    return this.pressKey('Return');
+    return this.selectAction();
   }
 
   pressEscape() {
-    return this.pressKey('Escape');
-  }
-
-  pressBackspace() {
-    return this.pressKey('BackSpace');
-  }
-
-  // Volume control
-  setVolume(volume) {
-    return this.sendCommand({ action: 'volume', volume });
+    return this.backAction();
   }
 
   // Get current app state
   requestAppState() {
-    return this.sendCommand({ action: 'get_state' });
+    return this.sendCommand({ type: 'get_state' });
   }
 
   handleServerMessage(message) {
     console.log('📱 Received from Smart TV:', message);
     
     switch (message.type) {
+      case 'connected':
+        console.log('✅ WebSocket connection confirmed:', message.message);
+        if (message.appState) {
+          this.appState = message.appState;
+        }
+        break;
+      
+      case 'appStateChange':
+        this.appState.currentApp = message.currentApp;
+        this.appState.videoCallState = message.videoCallState;
+        this.notifyStateChange('app_state_change', this.appState);
+        break;
+      
+      case 'videoCallUpdate':
+        this.appState.videoCallState = message.state;
+        this.appState.callData = {
+          userName: message.userName,
+          roomName: message.roomName,
+          callTimer: message.callTimer,
+          participantCount: message.participantCount,
+          isMuted: message.isMuted,
+          isVideoOn: message.isVideoOn
+        };
+        this.notifyStateChange('video_call_update', this.appState.callData);
+        break;
+      
+      case 'showTextInput':
+        this.notifyStateChange('show_text_input', {
+          mode: message.mode,
+          field: message.field,
+          placeholder: message.placeholder,
+          currentValue: message.currentValue
+        });
+        break;
+      
       case 'app_state':
         this.notifyStateChange('app_state', message.state);
         break;
+      
       case 'page_changed':
         this.notifyStateChange('page_changed', message.page);
         break;
+      
       default:
         console.log('ℹ️ Unknown message type:', message.type);
     }
@@ -185,8 +241,21 @@ class RemoteControlService {
     return {
       isConnected: this.isConnected,
       device: this.currentDevice,
-      reconnectAttempts: this.reconnectAttempts
+      reconnectAttempts: this.reconnectAttempts,
+      appState: this.appState
     };
+  }
+  
+  getCurrentApp() {
+    return this.appState.currentApp;
+  }
+  
+  getVideoCallState() {
+    return this.appState.videoCallState;
+  }
+  
+  getCallData() {
+    return this.appState.callData;
   }
 }
 
