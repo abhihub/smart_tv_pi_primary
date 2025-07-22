@@ -1,5 +1,6 @@
 const { app, BrowserWindow, session } = require('electron');
 const path = require('path');
+const RemoteControlService = require('./remote-control-service');
 require('dotenv').config();
 
 // Store config in global for preload script access
@@ -29,6 +30,8 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ UNHANDLED REJECTION at:', promise, 'reason:', reason);
 });
+
+let remoteControlService = null;
 
 function createWindow() {
   console.log('🪟 CREATING WINDOW');
@@ -138,6 +141,10 @@ function createWindow() {
   }).catch(error => {
     console.error('❌ Failed to load homepage:', error);
   });
+
+  // Start remote control service
+  remoteControlService = new RemoteControlService(win);
+  remoteControlService.start();
   
   // Dev tools can be opened with F12 or Ctrl+Shift+I if needed
 }
@@ -168,6 +175,9 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   console.log('👋 App is about to quit');
+  if (remoteControlService) {
+    remoteControlService.stop();
+  }
 });
 
 app.on('will-quit', () => {
