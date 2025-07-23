@@ -15,6 +15,8 @@ import subprocess
 import logging
 import os
 import threading
+import shutil
+import tempfile
 from datetime import datetime
 
 # Configure logging
@@ -188,6 +190,217 @@ def system_status():
             'success': False
         }), 500
 
+@app.route('/api/system/install-update', methods=['POST'])
+def install_update():
+    """
+    Install a .deb package update for the SmartTV application
+    
+    Expected JSON payload:
+    {
+        "packagePath": "/path/to/package.deb",
+        "confirm": true,
+        "restartApp": true  # optional, defaults to true
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        
+        # Basic confirmation check
+        if not data.get('confirm', False):
+            logger.warning("❌ Update installation rejected: No confirmation")
+            return jsonify({
+                'error': 'Update installation requires confirmation',
+                'required': {'confirm': True}
+            }), 400
+        
+        package_path = data.get('packagePath')
+        if not package_path:
+            return jsonify({
+                'error': 'Package path is required',
+                'required': {'packagePath': '/path/to/package.deb'}
+            }), 400
+        
+        # Verify package file exists and is a .deb file
+        if not os.path.exists(package_path):
+            logger.error(f"❌ Package file not found: {package_path}")
+            return jsonify({
+                'error': f'Package file not found: {package_path}',
+                'success': False
+            }), 404
+        
+        if not package_path.endswith('.deb'):
+            logger.error(f"❌ Invalid package file: {package_path}")
+            return jsonify({
+                'error': 'Package must be a .deb file',
+                'success': False
+            }), 400
+        
+        restart_app = data.get('restartApp', True)
+        
+        logger.info(f"📦 Update installation requested from {request.remote_addr}")
+        logger.info(f"📁 Package: {package_path}")
+        logger.info(f"🔄 Restart app after install: {restart_app}")
+        
+        # Install the package using dpkg
+        def execute_installation():
+            try:
+                # First, try to install the package
+                install_cmd = ['dpkg', '-i', package_path]
+                logger.info(f"🔧 Executing: {' '.join(install_cmd)}")
+                
+                result = subprocess.run(install_cmd, 
+                                      capture_output=True, 
+                                      text=True, 
+                                      check=False)
+                
+                if result.returncode != 0:
+                    logger.error(f"❌ Package installation failed: {result.stderr}")
+                    # Try to fix dependencies if installation failed
+                    logger.info("🔧 Attempting to fix dependencies...")
+                    fix_cmd = ['apt-get', 'install', '-f', '-y']
+                    fix_result = subprocess.run(fix_cmd, 
+                                              capture_output=True, 
+                                              text=True, 
+                                              check=False)
+                    
+                    if fix_result.returncode == 0:
+                        logger.info("✅ Dependencies fixed, retrying installation...")
+                        # Retry installation
+                        result = subprocess.run(install_cmd, 
+                                              capture_output=True, 
+                                              text=True, 
+                                              check=False)
+                    
+                    if result.returncode != 0:
+                        logger.error(f"❌ Installation still failed after dependency fix: {result.stderr}")
+                        return
+                
+                logger.info("✅ Package installation completed successfully")
+                logger.info(f"📄 Installation output: {result.stdout}")
+                
+                # Clean up the package file
+                try:
+                    os.remove(package_path)
+                    logger.info(f"🗑️ Cleaned up package file: {package_path}")
+                except Exception as cleanup_error:
+                    logger.warning(f"⚠️ Failed to clean up package file: {cleanup_error}")
+                
+                # Restart the SmartTV application if requested
+                if restart_app:
+                    logger.info("🔄 Restarting SmartTV application...")
+                    try:
+                        # Kill existing SmartTV processes
+                        subprocess.run(['pkill', '-f', 'smart-tv-ui'], 
+                                     capture_output=True, 
+                                     check=False)
+                        
+                        # Wait a moment for processes to terminate
+                        threading.Event().wait(2)
+                        
+                        # Start the SmartTV application
+                        # Assuming it's installed as a system service or has a launch script
+                        restart_cmd = ['systemctl', '--user', 'restart', 'smarttv.service']
+                        restart_result = subprocess.run(restart_cmd, 
+                                                      capture_output=True, 
+                                                      text=True, 
+                                                      check=False)
+                        
+                        if restart_result.returncode == 0:
+                            logger.info("✅ SmartTV application restarted successfully")
+                        else:
+                            logger.warning(f"⚠️ Failed to restart SmartTV service: {restart_result.stderr}")
+                            # Try alternative restart method
+                            logger.info("🔄 Trying alternative restart method...")
+                            subprocess.Popen(['smart-tv-ui'], 
+                                           stdout=subprocess.DEVNULL, 
+                                           stderr=subprocess.DEVNULL)
+                            
+                    except Exception as restart_error:
+                        logger.error(f"❌ Failed to restart application: {restart_error}")
+                
+            except Exception as e:
+                logger.error(f"❌ Installation execution error: {e}")
+        
+        # Execute installation in background thread
+        installation_thread = threading.Thread(target=execute_installation)
+        installation_thread.daemon = True
+        installation_thread.start()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Update installation initiated',
+            'packagePath': package_path,
+            'restartApp': restart_app,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Update installation request failed: {e}")
+        return jsonify({
+            'error': f'Update installation failed: {str(e)}',
+            'success': False
+        }), 500
+
+@app.route('/api/system/verify-package', methods=['POST'])
+def verify_package():
+    """
+    Verify a .deb package before installation
+    
+    Expected JSON payload:
+    {
+        "packagePath": "/path/to/package.deb"
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        package_path = data.get('packagePath')
+        
+        if not package_path:
+            return jsonify({
+                'error': 'Package path is required'
+            }), 400
+        
+        if not os.path.exists(package_path):
+            return jsonify({
+                'success': False,
+                'error': 'Package file not found'
+            }), 404
+        
+        # Get package information using dpkg
+        info_cmd = ['dpkg', '--info', package_path]
+        result = subprocess.run(info_cmd, 
+                              capture_output=True, 
+                              text=True, 
+                              check=False)
+        
+        if result.returncode != 0:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid .deb package',
+                'details': result.stderr
+            }), 400
+        
+        # Parse package info
+        package_info = {}
+        for line in result.stdout.split('\n'):
+            if ':' in line and line.strip():
+                key, value = line.split(':', 1)
+                package_info[key.strip()] = value.strip()
+        
+        return jsonify({
+            'success': True,
+            'valid': True,
+            'packageInfo': package_info,
+            'size': os.path.getsize(package_path)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Package verification failed: {e}")
+        return jsonify({
+            'error': f'Package verification failed: {str(e)}',
+            'success': False
+        }), 500
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """
@@ -204,6 +417,8 @@ if __name__ == '__main__':
     logger.info("📋 Available endpoints:")
     logger.info("  POST /api/system/shutdown - Shutdown local system")
     logger.info("  POST /api/system/reboot - Reboot local system")
+    logger.info("  POST /api/system/install-update - Install .deb package update")
+    logger.info("  POST /api/system/verify-package - Verify .deb package")
     logger.info("  GET  /api/system/status - Get system status")
     logger.info("  GET  /health - Health check")
     

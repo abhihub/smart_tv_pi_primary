@@ -122,10 +122,10 @@
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             grid-template-rows: 1fr;
             gap: 50px;
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             width: 100%;
             align-items: center;
@@ -282,10 +282,10 @@
         /* Responsive design */
         @media (max-width: 1024px) {
             .grid {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(3, 1fr);
                 grid-template-rows: 1fr;
-                gap: 40px;
-                max-width: 700px;
+                gap: 30px;
+                max-width: 900px;
             }
             
             .tile {
@@ -324,7 +324,7 @@
             
             .grid {
                 grid-template-columns: 1fr;
-                grid-template-rows: repeat(2, 1fr);
+                grid-template-rows: repeat(3, 1fr);
                 gap: 30px;
                 max-width: 400px;
             }
@@ -719,6 +719,12 @@
                 <div class="tile-icon">🎮</div>
                 <div class="tile-title">Games Hub</div>
                 <div class="tile-subtitle">Interactive family games</div>
+            </div>
+
+            <div class="tile settings card" tabindex="0" data-app="settings" data-focusable="true" data-shortcut="3">
+                <div class="tile-icon">⚙️</div>
+                <div class="tile-title">Settings</div>
+                <div class="tile-subtitle">App settings & updates</div>
             </div>
             </div>
         </div>
