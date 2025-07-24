@@ -1,6 +1,6 @@
 console.log('Preload script starting...');
 
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 // Make config available immediately from global
 const appConfig = global.appConfig || {
@@ -14,7 +14,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getEnvVariable: (name) => {
         return process.env[name];
     },
-    getAppConfig: () => appConfig
+    getAppConfig: () => appConfig,
+    downloadUpdate: (url, version) => ipcRenderer.invoke('download-update', url, version),
+    onUpdateProgress: (callback) => ipcRenderer.on('update-progress', callback),
+    getAppVersion: () => ipcRenderer.invoke('get-app-version')
 });
 
 // Inject config immediately into the DOM when it's ready

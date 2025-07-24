@@ -1,5 +1,7 @@
-const { app, BrowserWindow, session } = require('electron');
+const { app, BrowserWindow, session, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const http = require('http');
 require('dotenv').config();
 
 // Store config in global for preload script access
@@ -176,4 +178,59 @@ app.on('will-quit', () => {
 
 app.on('ready', () => {
   console.log('✅ App ready event fired');
+});
+
+// IPC handlers for update functionality
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
+});
+
+ipcMain.handle('download-update', async (event, url, version) => {
+  return new Promise((resolve, reject) => {
+    console.log('📥 Downloading update from:', url);
+    
+    const fileName = `smart-tv-ui_${version}_amd64.deb`;
+    const downloadPath = path.join(app.getPath('downloads'), fileName);
+    
+    const file = fs.createWriteStream(downloadPath);
+    
+    const request = http.get(url, (response) => {
+      if (response.statusCode !== 200) {
+        reject(new Error(`Download failed with status code: ${response.statusCode}`));
+        return;
+      }
+      
+      const totalSize = parseInt(response.headers['content-length'], 10);
+      let downloadedSize = 0;
+      
+      response.on('data', (chunk) => {
+        downloadedSize += chunk.length;
+        const progress = Math.round((downloadedSize / totalSize) * 100);
+        
+        // Send progress update to renderer
+        event.sender.send('update-progress', {
+          progress,
+          downloadedSize,
+          totalSize
+        });
+      });
+      
+      response.pipe(file);
+      
+      file.on('finish', () => {
+        file.close();
+        console.log('✅ Update downloaded to:', downloadPath);
+        resolve({ success: true, filePath: downloadPath });
+      });
+      
+      file.on('error', (err) => {
+        fs.unlink(downloadPath, () => {}); // Delete incomplete file
+        reject(err);
+      });
+    });
+    
+    request.on('error', (err) => {
+      reject(err);
+    });
+  });
 });
