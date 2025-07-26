@@ -809,11 +809,30 @@
                 document.getElementById('connectionForm').addEventListener('submit', (e) => this.handleConnect(e));
                 document.getElementById('passwordToggleBtn').addEventListener('click', () => this.togglePasswordVisibility());
                 
+                // Password field - show onscreen keyboard
+                document.getElementById('modalPassword').addEventListener('focus', () => {
+                    console.log('⌨️ Password field focused, showing onscreen keyboard');
+                    if (typeof showKeyboard === 'function') {
+                        showKeyboard(document.getElementById('modalPassword'));
+                    }
+                });
+                
+                document.getElementById('modalPassword').addEventListener('click', () => {
+                    console.log('⌨️ Password field clicked, showing onscreen keyboard');
+                    if (typeof showKeyboard === 'function') {
+                        showKeyboard(document.getElementById('modalPassword'));
+                    }
+                });
+                
                 // Security type change handler
                 document.getElementById('modalSecurity').addEventListener('change', (e) => {
                     const passwordGroup = document.getElementById('passwordGroup');
                     if (e.target.value === 'Open') {
                         passwordGroup.style.display = 'none';
+                        // Hide keyboard if password field is hidden
+                        if (typeof hideKeyboard === 'function') {
+                            hideKeyboard();
+                        }
                     } else {
                         passwordGroup.style.display = 'block';
                     }
@@ -1015,6 +1034,8 @@
                     networkElement.setAttribute('data-encrypted', network.encrypted);
                     networkElement.setAttribute('data-signal', network.signal);
                     networkElement.setAttribute('data-saved', isSaved);
+                    networkElement.setAttribute('tabindex', '0'); // Make focusable
+                    networkElement.setAttribute('role', 'button'); // Screen reader support
                     
                     if (isConnected) {
                         networkElement.style.borderColor = 'rgba(0, 255, 136, 0.6)';
@@ -1052,6 +1073,11 @@
                     
                     networkList.appendChild(networkElement);
                 });
+                
+                // Refresh navigation to detect new network items
+                if (typeof refreshNavigation === 'function') {
+                    setTimeout(() => refreshNavigation(), 100);
+                }
             }
 
             getSignalQuality(signal) {
@@ -1144,6 +1170,11 @@
                 
                 // Reset password visibility to hidden when closing modal
                 this.resetPasswordVisibility();
+                
+                // Hide onscreen keyboard
+                if (typeof hideKeyboard === 'function') {
+                    hideKeyboard();
+                }
             }
 
             togglePasswordVisibility() {
@@ -1810,5 +1841,7 @@
             }
         });
     </script>
+    <script src="universal-navigation.js"></script>
+    <script src="onscreen-keyboard.js"></script>
 </body>
 </html>

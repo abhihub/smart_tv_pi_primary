@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Mobile Remote - SmartTV</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .qr-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .qr-container {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            animation: fadeInScale 0.5s ease-out;
+        }
+
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .qr-header {
+            margin-bottom: 30px;
+        }
+
+        .qr-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .qr-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+
+        .qr-code-wrapper {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 30px 0;
+            display: inline-block;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .qr-code {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .connection-info {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 0.9rem;
+        }
+
+        .info-label {
+            opacity: 0.7;
+        }
+
+        .info-value {
+            font-weight: 500;
+            color: #667eea;
+        }
+
+        .instructions {
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+        }
+
+        .instructions h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .instructions ol {
+            text-align: left;
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid rgba(255, 107, 107, 0.6);
+            color: #ff6b6b;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+
+        .close-button:hover {
+            background: rgba(255, 107, 107, 0.3);
+            transform: scale(1.1);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 12px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="qr-overlay">
+        <div class="qr-container">
+            <button class="close-button" onclick="closeQROverlay()">×</button>
+            
+            <div class="qr-header">
+                <h1 class="qr-title">📱 Connect Mobile Remote</h1>
+                <p class="qr-subtitle">Scan this QR code with your SmartTV Remote app to connect</p>
+            </div>
+
+            <div class="qr-code-wrapper">
+                <div class="loading-spinner" id="qrLoading"></div>
+                <img id="qrCodeImage" class="qr-code" style="display: none;" alt="Connection QR Code">
+            </div>
+
+            <div class="connection-info" id="connectionInfo" style="display: none;">
+                <div class="info-row">
+                    <span class="info-label">Device IP:</span>
+                    <span class="info-value" id="deviceIP">Loading...</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Port:</span>
+                    <span class="info-value">8080</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <span class="info-value">Waiting for connection</span>
+                </div>
+            </div>
+
+            <div class="instructions">
+                <h3>🔗 How to Connect:</h3>
+                <ol>
+                    <li>Open the <strong>SmartTV Remote</strong> app on your phone</li>
+                    <li>Tap the <strong>"Scan QR Code"</strong> button</li>
+                    <li>Point your camera at the QR code above</li>
+                    <li>Wait for automatic connection</li>
+                </ol>
+            </div>
+
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>Remote server is running and ready for connections</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Generate and display QR code on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            console.log('🎮 QR Connection page loaded');
+            await generateConnectionQR();
+        });
+
+        async function generateConnectionQR() {
+            try {
+                console.log('📱 Generating connection QR code...');
+                
+                // Get device IP and connection info from main process
+                const connectionData = await window.electronAPI.getConnectionInfo();
+                console.log('📋 Connection data:', connectionData);
+                
+                // Display device IP
+                document.getElementById('deviceIP').textContent = connectionData.ip;
+                
+                // Generate QR code
+                const qrData = JSON.stringify({
+                    type: 'smarttv_connection',
+                    ip: connectionData.ip,
+                    port: connectionData.port,
+                    device_name: connectionData.device_name,
+                    version: connectionData.version,
+                    timestamp: Date.now()
+                });
+                
+                console.log('🔗 QR Data:', qrData);
+                
+                const qrCodeDataURL = await window.electronAPI.generateQRCode(qrData);
+                
+                // Display QR code
+                const qrImage = document.getElementById('qrCodeImage');
+                const qrLoading = document.getElementById('qrLoading');
+                const connectionInfo = document.getElementById('connectionInfo');
+                
+                qrImage.src = qrCodeDataURL;
+                qrImage.style.display = 'block';
+                qrLoading.style.display = 'none';
+                connectionInfo.style.display = 'block';
+                
+                console.log('✅ QR code generated and displayed');
+                
+            } catch (error) {
+                console.error('❌ Error generating QR code:', error);
+                
+                const qrLoading = document.getElementById('qrLoading');
+                qrLoading.innerHTML = '❌ Error generating QR code';
+            }
+        }
+
+        function closeQROverlay() {
+            console.log('🚫 Closing QR overlay');
+            window.electronAPI.closeQROverlay();
+        }
+
+        // Listen for connection events
+        window.electronAPI.onMobileConnected((deviceInfo) => {
+            console.log('📱 Mobile device connected:', deviceInfo);
+            
+            // Update status
+            const statusElement = document.querySelector('.status-indicator span');
+            statusElement.textContent = `✅ Connected to ${deviceInfo.userAgent || 'mobile device'}`;
+            statusElement.style.color = '#00ff88';
+            
+            // Auto-close after 2 seconds
+            setTimeout(() => {
+                closeQROverlay();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

@@ -73,6 +73,31 @@
             text-align: center;
             animation: fadeInDown 1s ease-out;
             flex-shrink: 0;
+            position: relative;
+        }
+
+        .ip-display {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: rgba(102, 126, 234, 0.2);
+            border: 2px solid rgba(102, 126, 234, 0.6);
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .ip-label {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .header h1 {
@@ -674,6 +699,10 @@
         <div class="header">
             <div class="user-id-display">
                 Your ID: <span id="userIdDisplay">Loading...</span>
+            </div>
+            <div class="ip-display">
+                <div class="ip-label">Mobile Remote IP</div>
+                <div id="deviceIPDisplay">Loading...</div>
             </div>
             <h1>Family Time</h1>
             <p class="subtitle">Your Gateway to Family Entertainment</p>
@@ -2167,7 +2196,23 @@
 
         // Add to the existing DOMContentLoaded event
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('📱 Initializing QR WiFi Scanner...');
+            console.log('📱 Initializing homepage...');
+            
+            // Display device IP for mobile remote connection
+            try {
+                const connectionInfo = await window.electronAPI.getConnectionInfo();
+                const deviceIPElement = document.getElementById('deviceIPDisplay');
+                if (deviceIPElement && connectionInfo) {
+                    deviceIPElement.textContent = `${connectionInfo.ip}:${connectionInfo.port}`;
+                    console.log('📱 Device IP displayed:', `${connectionInfo.ip}:${connectionInfo.port}`);
+                }
+            } catch (error) {
+                console.error('❌ Error getting connection info:', error);
+                const deviceIPElement = document.getElementById('deviceIPDisplay');
+                if (deviceIPElement) {
+                    deviceIPElement.textContent = 'IP not available';
+                }
+            }
             
             try {
                 qrWifiScanner = new QRWiFiScanner();
@@ -2197,5 +2242,6 @@
             }
         });
     </script>
+    <script src="universal-navigation.js"></script>
 </body>
 </html>

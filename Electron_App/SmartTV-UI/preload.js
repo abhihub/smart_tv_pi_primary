@@ -26,7 +26,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
         disconnect: () => ipcRenderer.invoke('wifi-disconnect'),
         getStatus: () => ipcRenderer.invoke('wifi-status'),
         getCurrent: () => ipcRenderer.invoke('wifi-current')
-    }
+    },
+    
+    // QR Code functionality
+    getConnectionInfo: () => ipcRenderer.invoke('get-connection-info'),
+    generateQRCode: (data) => ipcRenderer.invoke('generate-qr-code', data),
+    closeQROverlay: () => ipcRenderer.invoke('close-qr-overlay'),
+    onMobileConnected: (callback) => ipcRenderer.on('mobile-connected', (event, data) => callback(data))
 });
 
 // Inject config immediately into the DOM when it's ready
