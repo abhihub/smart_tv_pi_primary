@@ -9,7 +9,7 @@ const appConfig = global.appConfig || {
     isDevelopment: process.env.NODE_ENV === 'development'
 };
 
-// Expose environment variables to renderer process
+// Expose environment variables and WiFi functionality to renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
     getEnvVariable: (name) => {
         return process.env[name];
@@ -17,7 +17,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAppConfig: () => appConfig,
     downloadUpdate: (url, version) => ipcRenderer.invoke('download-update', url, version),
     onUpdateProgress: (callback) => ipcRenderer.on('update-progress', callback),
-    getAppVersion: () => ipcRenderer.invoke('get-app-version')
+    getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+    
+    // WiFi functionality
+    wifi: {
+        scan: () => ipcRenderer.invoke('wifi-scan'),
+        connect: (ssid, password, security) => ipcRenderer.invoke('wifi-connect', { ssid, password, security }),
+        disconnect: () => ipcRenderer.invoke('wifi-disconnect'),
+        getStatus: () => ipcRenderer.invoke('wifi-status'),
+        getCurrent: () => ipcRenderer.invoke('wifi-current')
+    }
 });
 
 // Inject config immediately into the DOM when it's ready

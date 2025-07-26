@@ -2,6 +2,9 @@ const { app, BrowserWindow, session, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const { exec, spawn } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
 require('dotenv').config();
 
 // Store config in global for preload script access
@@ -178,6 +181,289 @@ app.on('will-quit', () => {
 
 app.on('ready', () => {
   console.log('✅ App ready event fired');
+});
+
+// WiFi Management Functions
+class WiFiManager {
+  constructor() {
+    this.isLinux = process.platform === 'linux';
+    this.isConnecting = false;
+  }
+
+  async getAvailableNetworks() {
+    try {
+      console.log('📡 Scanning for available WiFi networks...');
+      
+      if (this.isLinux) {
+        // Use nmcli on Linux for NetworkManager
+        const { stdout } = await execPromise('nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list');
+        const networks = stdout.trim().split('\n')
+          .filter(line => line && line.includes(':'))
+          .map(line => {
+            const [ssid, signal, security] = line.split(':');
+            return {
+              ssid: ssid.trim(),
+              signal: parseInt(signal) || 0,
+              security: security.includes('WPA') ? 'WPA2' : (security.includes('WEP') ? 'WEP' : 'Open'),
+              encrypted: security !== '--'
+            };
+          })
+          .filter(network => network.ssid && network.ssid !== '')
+          .sort((a, b) => b.signal - a.signal); // Sort by signal strength
+
+        console.log(`📡 Found ${networks.length} WiFi networks`);
+        return { success: true, networks };
+      } else {
+        // For non-Linux platforms, return mock data for development
+        console.log('📡 Non-Linux platform, returning mock networks');
+        return {
+          success: true,
+          networks: [
+            { ssid: 'MockNetwork1', signal: 80, security: 'WPA2', encrypted: true },
+            { ssid: 'MockNetwork2', signal: 60, security: 'Open', encrypted: false }
+          ]
+        };
+      }
+    } catch (error) {
+      console.error('❌ Failed to scan WiFi networks:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async getCurrentConnection() {
+    try {
+      console.log('📡 Getting current WiFi connection...');
+      
+      if (this.isLinux) {
+        // Try multiple methods to detect WiFi connection
+        try {
+          // Method 1: Check active connections
+          const { stdout: activeStdout } = await execPromise('nmcli -t -f NAME,DEVICE,STATE connection show --active');
+          console.log('📡 Active connections output:', activeStdout);
+          
+          const activeConnections = activeStdout.trim().split('\n')
+            .filter(line => line && line.includes(':'))
+            .map(line => {
+              const parts = line.split(':');
+              if (parts.length >= 3) {
+                return { 
+                  name: parts[0].trim(), 
+                  device: parts[1].trim(), 
+                  state: parts[2].trim() 
+                };
+              }
+              return null;
+            })
+            .filter(conn => conn !== null);
+
+          // Look for WiFi connections (device starting with 'w' usually indicates wireless)
+          const wifiConnections = activeConnections.filter(conn => 
+            conn.device && (conn.device.startsWith('w') || conn.device.includes('wifi'))
+          );
+
+          if (wifiConnections.length > 0) {
+            const connection = wifiConnections[0];
+            console.log('📡 Found active WiFi connection via method 1:', connection);
+            return { success: true, connected: true, connection };
+          }
+
+          // Method 2: Check WiFi device status directly
+          const { stdout: deviceStdout } = await execPromise('nmcli -t -f DEVICE,STATE,CONNECTION device status');
+          console.log('📡 Device status output:', deviceStdout);
+          
+          const deviceLines = deviceStdout.trim().split('\n')
+            .filter(line => line && line.includes(':'));
+          
+          for (const line of deviceLines) {
+            const [device, state, connection] = line.split(':');
+            if (device && device.startsWith('w') && state === 'connected' && connection && connection !== '--') {
+              console.log('📡 Found active WiFi connection via method 2:', { device, state, connection });
+              return { 
+                success: true, 
+                connected: true, 
+                connection: { name: connection.trim(), device: device.trim(), state: state.trim() }
+              };
+            }
+          }
+
+          console.log('📡 No active WiFi connection found');
+          return { success: true, connected: false };
+          
+        } catch (nmcliError) {
+          console.error('❌ nmcli command failed:', nmcliError);
+          return { success: false, error: nmcliError.message };
+        }
+      } else {
+        // Mock for non-Linux
+        return { success: true, connected: false };
+      }
+    } catch (error) {
+      console.error('❌ Failed to get current connection:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async connectToNetwork(ssid, password = '', security = 'WPA2') {
+    if (this.isConnecting) {
+      console.log('⏳ WiFi connection already in progress');
+      return { success: false, error: 'Connection already in progress' };
+    }
+
+    this.isConnecting = true;
+
+    try {
+      console.log(`📡 Connecting to WiFi network: ${ssid}`);
+      
+      if (!this.isLinux) {
+        // Mock successful connection for non-Linux
+        console.log('📡 Non-Linux platform, simulating connection');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        this.isConnecting = false;
+        return { success: true, message: 'Mock connection successful' };
+      }
+
+      // Check if connection already exists
+      try {
+        await execPromise(`nmcli connection show "${ssid}"`);
+        console.log('📡 Connection profile exists, attempting to activate...');
+        
+        // Try to activate existing connection
+        await execPromise(`nmcli connection up "${ssid}"`);
+        console.log('✅ Successfully activated existing connection');
+        this.isConnecting = false;
+        return { success: true, message: 'Connected to existing network profile' };
+      } catch (profileError) {
+        console.log('📡 No existing profile, creating new connection...');
+      }
+
+      // Create new connection
+      let connectCommand;
+      if (security === 'Open' || !password) {
+        connectCommand = `nmcli device wifi connect "${ssid}"`;
+      } else {
+        connectCommand = `nmcli device wifi connect "${ssid}" password "${password}"`;
+      }
+
+      console.log('📡 Executing connection command...');
+      const { stdout, stderr } = await execPromise(connectCommand);
+      
+      if (stderr && stderr.includes('Error')) {
+        throw new Error(`Connection failed: ${stderr}`);
+      }
+
+      console.log('✅ WiFi connection successful:', stdout);
+      this.isConnecting = false;
+      return { success: true, message: 'Successfully connected to WiFi' };
+
+    } catch (error) {
+      console.error('❌ WiFi connection failed:', error);
+      this.isConnecting = false;
+      
+      let errorMessage = error.message;
+      if (errorMessage.includes('Secrets were required')) {
+        errorMessage = 'Invalid password or security settings';
+      } else if (errorMessage.includes('No network with SSID')) {
+        errorMessage = 'Network not found';
+      } else if (errorMessage.includes('Connection activation failed')) {
+        errorMessage = 'Failed to connect - check password and signal strength';
+      }
+
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  async disconnectFromNetwork() {
+    try {
+      console.log('📡 Disconnecting from WiFi...');
+      
+      if (!this.isLinux) {
+        // Mock for non-Linux
+        return { success: true, message: 'Mock disconnection successful' };
+      }
+
+      // Get current connection
+      const current = await this.getCurrentConnection();
+      if (!current.connected) {
+        return { success: true, message: 'Not connected to any network' };
+      }
+
+      // Disconnect
+      await execPromise(`nmcli connection down "${current.connection.name}"`);
+      console.log('✅ Successfully disconnected from WiFi');
+      return { success: true, message: 'Disconnected from WiFi' };
+
+    } catch (error) {
+      console.error('❌ Failed to disconnect:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async getConnectionStatus() {
+    try {
+      const current = await this.getCurrentConnection();
+      if (current.success && current.connected) {
+        // Get additional details about the connection
+        if (this.isLinux) {
+          try {
+            const { stdout } = await execPromise('nmcli -t -f IP4.ADDRESS,IP4.GATEWAY,IP4.DNS connection show --active | head -1');
+            const details = stdout.trim();
+            return {
+              success: true,
+              connected: true,
+              network: current.connection.name,
+              details: details
+            };
+          } catch (detailError) {
+            return {
+              success: true,
+              connected: true,
+              network: current.connection.name
+            };
+          }
+        } else {
+          return {
+            success: true,
+            connected: true,
+            network: current.connection.name
+          };
+        }
+      } else {
+        return { success: true, connected: false };
+      }
+    } catch (error) {
+      console.error('❌ Failed to get connection status:', error);
+      return { success: false, error: error.message };
+    }
+  }
+}
+
+// Initialize WiFi manager
+const wifiManager = new WiFiManager();
+
+// IPC handlers for WiFi functionality
+ipcMain.handle('wifi-scan', async () => {
+  console.log('📡 IPC: WiFi scan requested');
+  return await wifiManager.getAvailableNetworks();
+});
+
+ipcMain.handle('wifi-connect', async (event, { ssid, password, security }) => {
+  console.log('📡 IPC: WiFi connect requested for:', ssid);
+  return await wifiManager.connectToNetwork(ssid, password, security);
+});
+
+ipcMain.handle('wifi-disconnect', async () => {
+  console.log('📡 IPC: WiFi disconnect requested');
+  return await wifiManager.disconnectFromNetwork();
+});
+
+ipcMain.handle('wifi-status', async () => {
+  console.log('📡 IPC: WiFi status requested');
+  return await wifiManager.getConnectionStatus();
+});
+
+ipcMain.handle('wifi-current', async () => {
+  console.log('📡 IPC: Current WiFi connection requested');
+  return await wifiManager.getCurrentConnection();
 });
 
 // IPC handlers for update functionality
