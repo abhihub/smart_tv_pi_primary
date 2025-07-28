@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>No-Flicker Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f0f23;
+            color: white;
+            padding: 20px;
+        }
+        .test-result {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .console-log {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin: 10px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚫 UI Flicker Test</h1>
+    <p>This page tests the hash-based change detection to prevent unnecessary UI updates.</p>
+    
+    <div class="test-result">
+        <h3>Test 1: Data Hash Generation</h3>
+        <div id="test1-result"></div>
+    </div>
+
+    <div class="test-result">
+        <h3>Test 2: Change Detection</h3>
+        <div id="test2-result"></div>
+    </div>
+
+    <div class="test-result">
+        <h3>Test 3: UI Update Prevention</h3>
+        <div id="test3-result"></div>
+    </div>
+
+    <div class="console-log" id="console"></div>
+
+    <script>
+        // Copy the utility function from user-directory.html
+        function generateDataHash(data) {
+            if (!data) return null;
+            return JSON.stringify(data.map(item => ({
+                username: item.username,
+                is_online: item.is_online,
+                is_favorite: item.is_favorite,
+                presence_status: item.presence_status
+            })));
+        }
+
+        // Mock data for testing
+        const testData1 = [
+            { username: 'ALICE', is_online: true, is_favorite: false, presence_status: 'online', extra_field: 'ignored' },
+            { username: 'BOB01', is_online: false, is_favorite: true, presence_status: 'offline', last_seen: '2025-07-28' }
+        ];
+
+        const testData2 = [
+            { username: 'ALICE', is_online: true, is_favorite: false, presence_status: 'online', different_extra: 'also ignored' },
+            { username: 'BOB01', is_online: false, is_favorite: true, presence_status: 'offline', updated_timestamp: '2025-07-28' }
+        ];
+
+        const testData3 = [
+            { username: 'ALICE', is_online: false, is_favorite: false, presence_status: 'offline' }, // status changed
+            { username: 'BOB01', is_online: false, is_favorite: true, presence_status: 'offline' }
+        ];
+
+        function log(message) {
+            const console = document.getElementById('console');
+            console.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function runTests() {
+            log('🧪 Starting UI flicker prevention tests...');
+            
+            // Test 1: Hash generation
+            const hash1 = generateDataHash(testData1);
+            const hash2 = generateDataHash(testData2);
+            
+            if (hash1 === hash2) {
+                document.getElementById('test1-result').innerHTML = '✅ PASS - Identical hashes for equivalent data (ignores extra fields)';
+                log('✅ Test 1 PASS - Hash generation working correctly');
+            } else {
+                document.getElementById('test1-result').innerHTML = '❌ FAIL - Hashes should be identical for equivalent data';
+                log('❌ Test 1 FAIL - Hash generation not working');
+            }
+
+            // Test 2: Change detection
+            const hash3 = generateDataHash(testData3);
+            
+            if (hash1 !== hash3) {
+                document.getElementById('test2-result').innerHTML = '✅ PASS - Different hashes when data actually changes';
+                log('✅ Test 2 PASS - Change detection working correctly');
+            } else {
+                document.getElementById('test2-result').innerHTML = '❌ FAIL - Hashes should be different when data changes';
+                log('❌ Test 2 FAIL - Change detection not working');
+            }
+
+            // Test 3: UI update simulation
+            let uiUpdateCount = 0;
+            let lastHash = null;
+
+            function simulateUIUpdate(data, testName) {
+                const newHash = generateDataHash(data);
+                if (newHash !== lastHash) {
+                    uiUpdateCount++;
+                    lastHash = newHash;
+                    log(`🔄 ${testName} - UI updated (count: ${uiUpdateCount})`);
+                } else {
+                    log(`📋 ${testName} - No UI update needed (same data)`);
+                }
+            }
+
+            // Simulate multiple refresh cycles
+            simulateUIUpdate(testData1, 'Initial load');
+            simulateUIUpdate(testData2, 'Refresh with same data'); 
+            simulateUIUpdate(testData2, 'Another refresh with same data');
+            simulateUIUpdate(testData3, 'Data actually changed');
+            simulateUIUpdate(testData3, 'Refresh with same changed data');
+
+            if (uiUpdateCount === 2) {
+                document.getElementById('test3-result').innerHTML = '✅ PASS - UI updated only 2 times (initial + real change) out of 5 refresh attempts';
+                log('✅ Test 3 PASS - UI update prevention working correctly');
+            } else {
+                document.getElementById('test3-result').innerHTML = `❌ FAIL - UI updated ${uiUpdateCount} times, should be 2`;
+                log(`❌ Test 3 FAIL - UI updated ${uiUpdateCount} times instead of 2`);
+            }
+
+            log('🎯 Tests completed! Check results above.');
+            log('');
+            log('📊 Expected behavior in user-directory.html:');
+            log('   - Contacts list will only rebuild DOM when data actually changes');
+            log('   - Call popup will only show once per incoming call');
+            log('   - Refresh interval increased from 3s to 5s');
+            log('   - No refresh during active call popups');
+        }
+
+        // Run tests after page loads
+        document.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>

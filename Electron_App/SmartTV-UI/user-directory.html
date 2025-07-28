@@ -688,6 +688,30 @@
         let refreshInterval = null;
         let currentTab = 'contacts';
         let searchTimeout = null;
+        
+        // Cache for preventing unnecessary UI updates
+        let dataCache = {
+            contacts: null,
+            allUsers: null,
+            searchResults: null,
+            lastContactsHash: null,
+            lastUsersHash: null,
+            lastSearchHash: null
+        };
+        
+        let isCallPopupShown = false;
+        let lastIncomingCallId = null;
+
+        // Utility function to generate hash of data for change detection
+        function generateDataHash(data) {
+            if (!data) return null;
+            return JSON.stringify(data.map(item => ({
+                username: item.username,
+                is_online: item.is_online,
+                is_favorite: item.is_favorite,
+                presence_status: item.presence_status
+            })));
+        }
 
         // Get server URL from config - waits for config to be ready
         async function getServerUrl() {
@@ -749,6 +773,13 @@
             
             currentTab = tabName;
             
+            // Clear relevant cache when switching tabs to ensure fresh data
+            if (tabName === 'contacts') {
+                dataCache.lastContactsHash = null;
+            } else if (tabName === 'all') {
+                dataCache.lastUsersHash = null;
+            }
+            
             // Update status message and load appropriate content
             const statusMessage = document.getElementById('statusMessage');
             switch(tabName) {
@@ -758,7 +789,7 @@
                     break;
                 case 'discover':
                     statusMessage.textContent = 'Search for users to add to your contacts';
-                    document.getElementById('searchBox').focus();
+                    setTimeout(() => document.getElementById('searchBox').focus(), 100);
                     break;
                 case 'all':
                     statusMessage.textContent = 'All online users - anyone can call anyone';
@@ -797,11 +828,14 @@
                 updateCurrentUserDisplay();
                 loadMyContacts(); // Start with contacts tab
                 
-                // Set up periodic refresh for current tab AND pending calls
+                // Set up periodic refresh - less frequent to reduce flickering
                 refreshInterval = setInterval(() => {
-                    refreshCurrentTab();
+                    // Only refresh if no call popup is shown to prevent interference
+                    if (!isCallPopupShown) {
+                        refreshCurrentTab();
+                    }
                     checkForIncomingCalls(); // Check for incoming calls automatically
-                }, 3000); // Check every 3 seconds
+                }, 5000); // Check every 5 seconds instead of 3
             } catch (error) {
                 console.error('Failed to initialize user directory:', error);
                 showError('Failed to load user directory');
@@ -830,12 +864,26 @@
                 }
 
                 const data = await response.json();
-                displayContacts(data.contacts || []);
-                updateContactStats(data.contacts || []);
+                const contacts = data.contacts || [];
+                
+                // Only update UI if data has actually changed
+                const newHash = generateDataHash(contacts);
+                if (newHash !== dataCache.lastContactsHash) {
+                    dataCache.contacts = contacts;
+                    dataCache.lastContactsHash = newHash;
+                    displayContacts(contacts);
+                    updateContactStats(contacts);
+                    console.log('🔄 Contacts updated - data changed');
+                } else {
+                    console.log('📋 Contacts unchanged - skipping UI update');
+                }
                 
             } catch (error) {
                 console.debug('Failed to load contacts:', error);
-                displayContacts([]);
+                // Only show empty state if we don't have cached data
+                if (!dataCache.contacts) {
+                    displayContacts([]);
+                }
             }
         }
 
@@ -854,12 +902,26 @@
                 }
 
                 const data = await response.json();
-                displayAllUsers(data.users || []);
-                document.getElementById('onlineCount').textContent = data.count || 0;
+                const users = data.users || [];
+                
+                // Only update UI if data has actually changed
+                const newHash = generateDataHash(users);
+                if (newHash !== dataCache.lastUsersHash) {
+                    dataCache.allUsers = users;
+                    dataCache.lastUsersHash = newHash;
+                    displayAllUsers(users);
+                    document.getElementById('onlineCount').textContent = data.count || 0;
+                    console.log('🔄 Online users updated - data changed');
+                } else {
+                    console.log('🌐 Online users unchanged - skipping UI update');
+                }
                 
             } catch (error) {
                 console.debug('Failed to load online users:', error);
-                displayAllUsers([]);
+                // Only show empty state if we don't have cached data
+                if (!dataCache.allUsers) {
+                    displayAllUsers([]);
+                }
             }
         }
 
@@ -1211,6 +1273,9 @@
 
         // Show incoming call dialog using beautiful shared UI
         function showIncomingCallDialog(call) {
+            // Set flag to prevent UI refresh interference
+            isCallPopupShown = true;
+            
             // Use the beautiful shared incoming call UI from CallMonitor
             CallMonitor.createIncomingCallUI(
                 call,
@@ -1222,8 +1287,10 @@
         // Answer incoming call
         async function answerIncomingCall(callId, callerUsername) {
             try {
-                // Hide the beautiful incoming call UI
+                // Hide the beautiful incoming call UI and reset state
                 CallMonitor.hideIncomingCallUI();
+                isCallPopupShown = false;
+                lastIncomingCallId = null;
                 
                 const serverUrl = await getServerUrl();
                 const response = await fetch(`${serverUrl}/api/calls/answer`, {
@@ -1250,6 +1317,8 @@
             } catch (error) {
                 console.error('Failed to answer call:', error);
                 CallMonitor.hideIncomingCallUI();
+                isCallPopupShown = false;
+                lastIncomingCallId = null;
                 showError(`Failed to answer call: ${error.message}`);
             }
         }
@@ -1257,8 +1326,10 @@
         // Decline incoming call
         async function declineIncomingCall(callId) {
             try {
-                // Hide the beautiful incoming call UI
+                // Hide the beautiful incoming call UI and reset state
                 CallMonitor.hideIncomingCallUI();
+                isCallPopupShown = false;
+                lastIncomingCallId = null;
                 
                 const serverUrl = await getServerUrl();
                 const response = await fetch(`${serverUrl}/api/calls/decline`, {
@@ -1280,6 +1351,8 @@
             } catch (error) {
                 console.error('Failed to decline call:', error);
                 CallMonitor.hideIncomingCallUI();
+                isCallPopupShown = false;
+                lastIncomingCallId = null;
                 showError(`Failed to decline call: ${error.message}`);
             }
         }
@@ -1303,6 +1376,8 @@
 
                 if (data.success) {
                     showSuccess(`Added ${contactUsername} to contacts!`);
+                    // Invalidate contacts cache to force refresh
+                    dataCache.lastContactsHash = null;
                     // Refresh current search to update UI
                     const searchQuery = document.getElementById('searchBox').value;
                     if (searchQuery) {
@@ -1339,6 +1414,8 @@
 
                 if (data.success) {
                     showSuccess(`Removed ${contactUsername} from contacts`);
+                    // Invalidate contacts cache to force refresh
+                    dataCache.lastContactsHash = null;
                     loadMyContacts(); // Refresh contacts list
                 } else {
                     showError(data.error || 'Failed to remove contact');
@@ -1368,6 +1445,8 @@
 
                 if (data.success) {
                     showSuccess(isFavorite ? `${contactUsername} added to favorites` : `${contactUsername} removed from favorites`);
+                    // Invalidate contacts cache to force refresh
+                    dataCache.lastContactsHash = null;
                     loadMyContacts(); // Refresh contacts list
                 } else {
                     showError(data.error || 'Failed to update favorite');
@@ -1463,10 +1542,19 @@
 
                 if (data.success && data.calls && data.calls.length > 0) {
                     const call = data.calls[0];
-                    console.log('🔔 Incoming call detected:', call);
                     
-                    // Show incoming call UI
-                    showIncomingCallDialog(call);
+                    // Only show dialog if it's a new call and no popup is currently shown
+                    if (call.call_id !== lastIncomingCallId && !isCallPopupShown) {
+                        console.log('🔔 New incoming call detected:', call);
+                        lastIncomingCallId = call.call_id;
+                        showIncomingCallDialog(call);
+                    }
+                } else {
+                    // No pending calls - reset state
+                    if (lastIncomingCallId) {
+                        console.log('📞 No more pending calls');
+                        lastIncomingCallId = null;
+                    }
                 }
             } catch (error) {
                 console.debug('Error checking for incoming calls:', error);
