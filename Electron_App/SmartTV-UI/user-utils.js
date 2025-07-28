@@ -132,22 +132,33 @@ class UserUtils {
     // Register user with backend server
     async registerWithServer() {
         try {
+            // First, check if user exists to avoid overwriting display_name
+            const checkResponse = await fetch(`${this.serverUrl}/api/users/profile/${this.username}`);
+            const isExistingUser = checkResponse.ok;
+            
+            // Prepare registration data
+            const registrationData = {
+                username: this.username,
+                device_type: 'smarttv',
+                metadata: {
+                    user_agent: navigator.userAgent,
+                    screen_resolution: `${screen.width}x${screen.height}`,
+                    app_version: '1.0.0',
+                    registration_time: new Date().toISOString()
+                }
+            };
+            
+            // Only set display_name for new users (to avoid overwriting existing custom display names)
+            if (!isExistingUser) {
+                registrationData.display_name = this.username;
+            }
+            
             const response = await fetch(`${this.serverUrl}/api/users/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    username: this.username,
-                    display_name: this.username,
-                    device_type: 'smarttv',
-                    metadata: {
-                        user_agent: navigator.userAgent,
-                        screen_resolution: `${screen.width}x${screen.height}`,
-                        app_version: '1.0.0',
-                        registration_time: new Date().toISOString()
-                    }
-                })
+                body: JSON.stringify(registrationData)
             });
 
             const data = await response.json();
