@@ -1717,38 +1717,70 @@
                 });
             }
 
-            async checkFirstTimeUser() {
+            async checkWiFiConnectionStatus() {
                 try {
-                    // Check if WiFi setup has been completed before
-                    const wifiSetupComplete = localStorage.getItem('wifiSetupComplete');
-                    const hasConnectedBefore = localStorage.getItem('hasConnectedWifi');
-                    const setupSkipped = localStorage.getItem('wifiSetupSkipped');
+                    console.log('🔍 Checking WiFi connection status...');
                     
-                    console.log('🔍 First-time user check:', { 
-                        wifiSetupComplete, 
-                        hasConnectedBefore,
-                        setupSkipped,
-                        userAgent: navigator.userAgent 
+                    // Check actual WiFi connection status
+                    let isConnected = false;
+                    
+                    if (window.electronAPI && window.electronAPI.wifi) {
+                        try {
+                            // Check both status and current connection
+                            const [status, current] = await Promise.all([
+                                window.electronAPI.wifi.getStatus(),
+                                window.electronAPI.wifi.getCurrent()
+                            ]);
+                            
+                            console.log('📡 WiFi status check results:', { status, current });
+                            
+                            // Consider connected if either method reports connection
+                            isConnected = (status.success && status.connected) || 
+                                         (current.success && current.connected);
+                            
+                            if (isConnected) {
+                                const networkName = status.network || 
+                                                   (current.connection && current.connection.name) || 
+                                                   'Unknown';
+                                console.log('✅ WiFi connected to:', networkName);
+                            } else {
+                                console.log('❌ No WiFi connection detected');
+                            }
+                            
+                        } catch (wifiError) {
+                            console.error('❌ Error checking WiFi status:', wifiError);
+                            // Default to not connected if there's an error
+                            isConnected = false;
+                        }
+                    } else {
+                        console.log('📡 Electron WiFi API not available, checking localStorage...');
+                        
+                        // Fallback: check if we have stored WiFi config and assume connection
+                        const storedConfig = localStorage.getItem('wifiConfig');
+                        const wifiSetupComplete = localStorage.getItem('wifiSetupComplete');
+                        isConnected = !!(storedConfig && wifiSetupComplete);
+                        
+                        console.log('📡 Fallback connection check:', { 
+                            hasStoredConfig: !!storedConfig, 
+                            setupComplete: !!wifiSetupComplete,
+                            assumedConnected: isConnected 
+                        });
+                    }
+                    
+                    // Show QR scanner if NOT connected (regardless of previous setup)
+                    const shouldShowQR = !isConnected;
+                    
+                    console.log('📱 WiFi connection decision:', { 
+                        isConnected, 
+                        shouldShowQR,
+                        timestamp: new Date().toISOString()
                     });
 
-                    // Show QR scanner for first-time users OR if explicitly reset
-                    // Force showing QR scanner if no setup flags exist (true first-time user)
-                    if (!wifiSetupComplete && !hasConnectedBefore && !setupSkipped) {
-                        console.log('📱 First-time user detected - showing QR scanner');
-                        return true;
-                    }
-
-                    // Also show if setup was explicitly reset (all flags cleared)
-                    if (wifiSetupComplete === null && hasConnectedBefore === null && setupSkipped === null) {
-                        console.log('📱 All setup flags cleared - showing QR scanner');
-                        return true;
-                    }
-
-                    console.log('📱 Returning user - skipping QR scanner');
-                    return false;
+                    return shouldShowQR;
+                    
                 } catch (error) {
-                    console.error('❌ Error checking first-time user:', error);
-                    // Default to showing QR scanner on error
+                    console.error('❌ Error checking WiFi connection status:', error);
+                    // Default to showing QR scanner on error (safer approach)
                     return true;
                 }
             }
@@ -1756,6 +1788,9 @@
             async showQRScanner() {
                 console.log('📱 Showing QR WiFi scanner');
                 this.container.style.display = 'block';
+                
+                // Start periodic WiFi monitoring
+                this.startPeriodicWiFiCheck();
                 
                 // Start scanning after a short delay to allow UI to render
                 setTimeout(() => {
@@ -1990,6 +2025,42 @@
                 }
             }
 
+            startPeriodicWiFiCheck() {
+                console.log('📡 Starting periodic WiFi connection monitoring...');
+                
+                // Check WiFi status every 5 seconds when QR scanner is active
+                this.wifiCheckInterval = setInterval(async () => {
+                    if (!this.isScanning) {
+                        console.log('📡 QR scanner not active, stopping WiFi monitoring');
+                        this.stopPeriodicWiFiCheck();
+                        return;
+                    }
+                    
+                    try {
+                        const shouldShowQR = await this.checkWiFiConnectionStatus();
+                        
+                        if (!shouldShowQR) {
+                            // WiFi is now connected, hide the QR scanner
+                            console.log('📡 WiFi connection detected during monitoring - hiding QR scanner');
+                            this.showSuccessMessage('WiFi Connected', 'Connection established!');
+                            setTimeout(() => {
+                                this.hideQRScanner();
+                            }, 2000);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error during periodic WiFi check:', error);
+                    }
+                }, 5000); // Check every 5 seconds
+            }
+            
+            stopPeriodicWiFiCheck() {
+                if (this.wifiCheckInterval) {
+                    console.log('📡 Stopping periodic WiFi connection monitoring');
+                    clearInterval(this.wifiCheckInterval);
+                    this.wifiCheckInterval = null;
+                }
+            }
+
             async verifyConnectionWithRetry(expectedSSID, attempt) {
                 const maxAttempts = 4;
                 const delayMs = 2000; // 2 seconds between attempts
@@ -2131,6 +2202,9 @@
             hideQRScanner() {
                 console.log('📱 Hiding QR scanner');
                 
+                // Stop periodic WiFi monitoring
+                this.stopPeriodicWiFiCheck();
+                
                 if (this.qrScanner) {
                     this.qrScanner.stop();
                     this.qrScanner = null;
@@ -2141,6 +2215,9 @@
             }
 
             cleanup() {
+                // Stop periodic WiFi monitoring
+                this.stopPeriodicWiFiCheck();
+                
                 if (this.qrScanner) {
                     this.qrScanner.stop();
                     this.qrScanner = null;
@@ -2150,6 +2227,28 @@
 
         // Initialize QR WiFi Scanner
         let qrWifiScanner = null;
+
+        // Function to check and show QR scanner if needed
+        async function checkAndShowQRScanner() {
+            if (!qrWifiScanner) {
+                console.log('📱 QR WiFi Scanner not initialized yet');
+                return;
+            }
+            
+            try {
+                const shouldShowQR = await qrWifiScanner.checkWiFiConnectionStatus();
+                
+                if (shouldShowQR && !qrWifiScanner.isScanning) {
+                    console.log('📱 No WiFi connection - showing QR scanner');
+                    await qrWifiScanner.showQRScanner();
+                } else if (!shouldShowQR && qrWifiScanner.isScanning) {
+                    console.log('📱 WiFi connected - hiding QR scanner');
+                    qrWifiScanner.hideQRScanner();
+                }
+            } catch (error) {
+                console.error('❌ Error checking WiFi status for QR scanner:', error);
+            }
+        }
 
         // Add keyboard shortcut to manually trigger QR scanner
         document.addEventListener('keydown', (e) => {
@@ -2172,14 +2271,14 @@
             try {
                 qrWifiScanner = new QRWiFiScanner();
                 
-                // Check if this is a first-time user
-                const isFirstTime = await qrWifiScanner.checkFirstTimeUser();
+                // Check WiFi connection status (not just first-time user)
+                const shouldShowQR = await qrWifiScanner.checkWiFiConnectionStatus();
                 
-                if (isFirstTime) {
-                    console.log('📱 First-time user - showing WiFi setup');
+                if (shouldShowQR) {
+                    console.log('📱 No WiFi connection detected - showing WiFi setup');
                     await qrWifiScanner.showQRScanner();
                 } else {
-                    console.log('📱 Returning user - skipping WiFi setup');
+                    console.log('📱 WiFi connected - skipping WiFi setup');
                     // Add a small notice for testing
                     console.log('📱 TIP: Press "Q" key to manually trigger QR scanner for testing');
                 }
@@ -2188,6 +2287,23 @@
                 console.error('❌ Error initializing QR WiFi Scanner:', error);
             }
         });
+
+        // Add periodic WiFi check when page becomes visible
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                console.log('📱 Page became visible - checking WiFi status');
+                setTimeout(checkAndShowQRScanner, 1000);
+            }
+        });
+
+        // Also check when window gains focus
+        window.addEventListener('focus', () => {
+            console.log('📱 Window gained focus - checking WiFi status');
+            setTimeout(checkAndShowQRScanner, 1000);
+        });
+
+        // Check WiFi status periodically (every 30 seconds) to catch disconnections
+        setInterval(checkAndShowQRScanner, 30000);
 
         // Add cleanup for QR scanner
         window.addEventListener('beforeunload', () => {
