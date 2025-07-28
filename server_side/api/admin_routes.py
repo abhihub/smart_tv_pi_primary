@@ -171,6 +171,49 @@ def get_all_presence():
             'error': str(e)
         }), 500
 
+@admin_bp.route('/contacts')
+def get_all_contacts():
+    """Get all user contacts from the database"""
+    try:
+        query = """
+        SELECT uc.id, uc.user_id, uc.contact_user_id, uc.added_at, uc.is_favorite,
+               u1.username as user_username, u1.display_name as user_display_name,
+               u2.username as contact_username, u2.display_name as contact_display_name
+        FROM user_contacts uc
+        LEFT JOIN users u1 ON uc.user_id = u1.id
+        LEFT JOIN users u2 ON uc.contact_user_id = u2.id
+        ORDER BY uc.added_at DESC
+        """
+        contacts = db_manager.execute_query(query, fetch='all')
+        
+        # Convert rows to dictionaries
+        contacts_list = []
+        for contact in contacts or []:
+            contacts_list.append({
+                'id': contact['id'],
+                'user_id': contact['user_id'],
+                'contact_user_id': contact['contact_user_id'],
+                'user_username': contact['user_username'],
+                'user_display_name': contact['user_display_name'],
+                'contact_username': contact['contact_username'],
+                'contact_display_name': contact['contact_display_name'],
+                'added_at': contact['added_at'],
+                'is_favorite': bool(contact['is_favorite'])
+            })
+        
+        return jsonify({
+            'success': True,
+            'contacts': contacts_list,
+            'count': len(contacts_list)
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to get contacts: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @admin_bp.route('/scores')
 def get_all_game_scores():
     """Get all game scores from the database"""
@@ -261,6 +304,27 @@ def get_database_stats():
             fetch='one'
         )
         stats['recent_calls'] = recent_calls['count'] if recent_calls else 0
+        
+        # Total contacts
+        total_contacts = db_manager.execute_query(
+            "SELECT COUNT(*) as count FROM user_contacts", 
+            fetch='one'
+        )
+        stats['total_contacts'] = total_contacts['count'] if total_contacts else 0
+        
+        # Users with contacts
+        users_with_contacts = db_manager.execute_query(
+            "SELECT COUNT(DISTINCT user_id) as count FROM user_contacts", 
+            fetch='one'
+        )
+        stats['users_with_contacts'] = users_with_contacts['count'] if users_with_contacts else 0
+        
+        # Favorite contacts
+        favorite_contacts = db_manager.execute_query(
+            "SELECT COUNT(*) as count FROM user_contacts WHERE is_favorite = 1", 
+            fetch='one'
+        )
+        stats['favorite_contacts'] = favorite_contacts['count'] if favorite_contacts else 0
         
         return jsonify({
             'success': True,

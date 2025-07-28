@@ -11,17 +11,23 @@ user_service = UserService()
 
 @call_bp.route('/online-users', methods=['GET'])
 def get_online_users():
-    """Get list of users currently online"""
+    """Get list of users currently online, optionally filtered by contact list"""
     try:
         # Get current user from query param (optional)
         current_user = request.args.get('exclude_user')
+        # Check if we should filter by contacts only
+        contacts_only = request.args.get('contacts_only', 'false').lower() == 'true'
         
-        users = call_service.get_online_users(exclude_username=current_user)
+        users = call_service.get_online_users(
+            exclude_username=current_user, 
+            contacts_only=contacts_only
+        )
         
         return jsonify({
             'success': True,
             'users': users,
-            'count': len(users)
+            'count': len(users),
+            'contacts_only': contacts_only
         }), 200
         
     except Exception as e:

@@ -13,28 +13,65 @@ class CallService:
     def __init__(self):
         self.db = db_manager
     
-    def get_online_users(self, exclude_username: str = None) -> List[Dict[str, Any]]:
-        """Get list of users who are currently online"""
+    def get_online_users(self, exclude_username: str = None, contacts_only: bool = False) -> List[Dict[str, Any]]:
+        """Get list of users who are currently online, optionally filtered by contact list"""
         try:
             exclude_clause = ""
-            params = ()
+            contact_filter = ""
+            params = []
+            
+            if contacts_only and exclude_username:
+                # Only show users who are in the requesting user's contact list
+                contact_filter = """
+                    AND EXISTS (
+                        SELECT 1 FROM user_contacts uc 
+                        JOIN users requester ON requester.username = ?
+                        WHERE uc.user_id = requester.id AND uc.contact_user_id = u.id
+                    )
+                """
+                params.append(exclude_username)
             
             if exclude_username:
                 exclude_clause = "AND u.username != ?"
-                params = (exclude_username,)
+                params.append(exclude_username)
             
             # Use presence table status as primary source of truth
             query = f"""
                 SELECT u.username, u.display_name, u.last_seen,
-                       COALESCE(up.status, 'offline') as presence_status
+                       COALESCE(up.status, 'offline') as presence_status,
+                       CASE WHEN uc_fav.is_favorite = 1 THEN 1 ELSE 0 END as is_favorite
                 FROM users u
                 LEFT JOIN user_presence up ON u.id = up.user_id
-                WHERE COALESCE(up.status, 'offline') = 'online' {exclude_clause}
-                ORDER BY up.updated_at DESC, u.last_seen DESC
+                LEFT JOIN user_contacts uc_fav ON (
+                    uc_fav.contact_user_id = u.id AND 
+                    uc_fav.user_id = (SELECT id FROM users WHERE username = ?)
+                )
+                WHERE COALESCE(up.status, 'offline') = 'online' {exclude_clause} {contact_filter}
+                ORDER BY 
+                    CASE WHEN uc_fav.is_favorite = 1 THEN 1 ELSE 0 END DESC,  -- Favorites first
+                    up.updated_at DESC, 
+                    u.last_seen DESC
             """
             
-            results = self.db.execute_query(query, params, fetch='all')
-            return [dict(row) for row in results] if results else []
+            # Add the username parameter for the favorite check
+            final_params = []
+            if exclude_username:
+                final_params.append(exclude_username)  # For favorite check
+            final_params.extend(params)  # Add other parameters
+            
+            results = self.db.execute_query(query, tuple(final_params), fetch='all')
+            
+            online_users = []
+            for row in results or []:
+                online_users.append({
+                    'username': row['username'],
+                    'display_name': row['display_name'],
+                    'last_seen': row['last_seen'],
+                    'presence_status': row['presence_status'],
+                    'is_favorite': bool(row['is_favorite']) if row['is_favorite'] is not None else False
+                })
+            
+            return online_users
             
         except Exception as e:
             logger.error(f"Failed to get online users: {e}")

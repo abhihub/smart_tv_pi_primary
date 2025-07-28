@@ -67,6 +67,18 @@ CREATE TABLE IF NOT EXISTS user_presence (
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
+-- User contacts/connections for managing contact lists
+CREATE TABLE IF NOT EXISTS user_contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL, -- The user who owns this contact list
+    contact_user_id INTEGER NOT NULL, -- The user being added to the contact list
+    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_favorite BOOLEAN DEFAULT 0, -- Optional: mark favorite contacts
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    FOREIGN KEY (contact_user_id) REFERENCES users (id) ON DELETE CASCADE,
+    UNIQUE(user_id, contact_user_id) -- Prevent duplicate contacts
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_last_seen ON users(last_seen);
@@ -80,3 +92,6 @@ CREATE INDEX IF NOT EXISTS idx_calls_status ON calls(status);
 CREATE INDEX IF NOT EXISTS idx_calls_created_at ON calls(created_at);
 CREATE INDEX IF NOT EXISTS idx_user_presence_user_id ON user_presence(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_presence_status ON user_presence(status);
+CREATE INDEX IF NOT EXISTS idx_user_contacts_user_id ON user_contacts(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_contacts_contact_user_id ON user_contacts(contact_user_id);
+CREATE INDEX IF NOT EXISTS idx_user_contacts_added_at ON user_contacts(added_at);

@@ -44,6 +44,43 @@
             background-clip: text;
         }
 
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         .back-btn {
             padding: 15px 30px;
             background: rgba(255, 255, 255, 0.1);
@@ -177,6 +214,26 @@
             box-shadow: 0 1px 2px rgba(46, 204, 113, 0.5);
         }
 
+        .offline-indicator {
+            position: absolute;
+            bottom: 0px;
+            right: 0px;
+            width: 8px;
+            height: 8px;
+            background: #95a5a6;
+            border-radius: 50%;
+            border: 1px solid white;
+        }
+
+        .favorite-star {
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            font-size: 12px;
+            color: #f1c40f;
+            text-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
+
         .user-display-name {
             font-size: 1rem;
             font-weight: 600;
@@ -217,6 +274,57 @@
             gap: 3px;
             margin-top: 2px;
             flex-shrink: 0;
+        }
+
+        .add-btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 1.65rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .remove-btn {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 1.4rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .favorite-btn {
+            background: rgba(241, 196, 15, 0.2);
+            border: 1px solid rgba(241, 196, 15, 0.4);
+            color: #f1c40f;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 4px;
+        }
+
+        .favorite-btn.active {
+            background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
+            color: white;
         }
 
         .call-btn:hover {
@@ -307,6 +415,52 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
+        /* Search functionality */
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            color: white;
+            font-size: 1rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .search-box::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: rgba(102, 126, 234, 0.5);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .contact-stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .contact-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
         /* Responsive design */
         @media (max-width: 768px) {
             .container {
@@ -323,6 +477,11 @@
             
             .user-card {
                 min-height: 150px;
+            }
+
+            .tab-nav {
+                flex-direction: column;
+                gap: 5px;
             }
         }
 
@@ -401,20 +560,67 @@
                 <div class="user-avatar" id="currentUserAvatar">?</div>
                 <div>
                     <div>Logged in as: <strong id="currentUsername">Loading...</strong></div>
-                    <div style="opacity: 0.7; font-size: 0.9rem;">Click on any user to start a call</div>
+                    <div style="opacity: 0.7; font-size: 0.9rem;" id="statusMessage">Click on any user to start a call</div>
                 </div>
             </div>
             <div style="display: flex; gap: 15px; align-items: center;">
-                <button class="refresh-btn" onclick="loadOnlineUsers()" data-focusable="true" tabindex="0">🔄 Refresh</button>
+                <button class="refresh-btn" onclick="refreshCurrentTab()" data-focusable="true" tabindex="0">🔄 Refresh</button>
                 <div class="online-count">
                     <span id="onlineCount">0</span> users online
                 </div>
             </div>
         </div>
 
-        <div class="users-grid" id="usersGrid">
-            <div class="loading">
-                <div class="spinner"></div>
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('contacts')" data-focusable="true" tabindex="0">
+                📞 My Contacts
+            </button>
+            <button class="tab-btn" onclick="switchTab('discover')" data-focusable="true" tabindex="0">
+                🔍 Add Contacts
+            </button>
+            <button class="tab-btn" onclick="switchTab('all')" data-focusable="true" tabindex="0">
+                🌐 All Online Users
+            </button>
+        </div>
+
+        <!-- My Contacts Tab -->
+        <div id="contacts-tab" class="tab-content active">
+            <div class="contact-stats" id="contactStats">
+                <div class="stat-item">📋 <span id="totalContacts">0</span> contacts</div>
+                <div class="stat-item">🟢 <span id="onlineContacts">0</span> online</div>
+                <div class="stat-item">⭐ <span id="favoriteContacts">0</span> favorites</div>
+            </div>
+            
+            <div class="users-grid" id="contactsGrid">
+                <div class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Contacts Tab -->
+        <div id="discover-tab" class="tab-content">
+            <div class="search-container">
+                <input type="text" class="search-box" id="searchBox" placeholder="Search for users by ID or name..." 
+                       oninput="searchUsers(this.value)" data-focusable="true" tabindex="0">
+            </div>
+            
+            <div class="users-grid" id="discoverGrid">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🔍</div>
+                    <h3>Search for Users</h3>
+                    <p>Type at least 2 characters to find users to add to your contacts</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Online Users Tab -->
+        <div id="all-tab" class="tab-content">
+            <div class="users-grid" id="allUsersGrid">
+                <div class="loading">
+                    <div class="spinner"></div>
+                </div>
             </div>
         </div>
 
@@ -480,6 +686,8 @@
         let currentUser = null;
         let currentCallId = null;
         let refreshInterval = null;
+        let currentTab = 'contacts';
+        let searchTimeout = null;
 
         // Get server URL from config - waits for config to be ready
         async function getServerUrl() {
@@ -529,6 +737,53 @@
             });
         }
 
+        // Tab Management
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            currentTab = tabName;
+            
+            // Update status message and load appropriate content
+            const statusMessage = document.getElementById('statusMessage');
+            switch(tabName) {
+                case 'contacts':
+                    statusMessage.textContent = 'Your saved contacts - click to call';
+                    loadMyContacts();
+                    break;
+                case 'discover':
+                    statusMessage.textContent = 'Search for users to add to your contacts';
+                    document.getElementById('searchBox').focus();
+                    break;
+                case 'all':
+                    statusMessage.textContent = 'All online users - anyone can call anyone';
+                    loadAllOnlineUsers();
+                    break;
+            }
+        }
+
+        function refreshCurrentTab() {
+            switch(currentTab) {
+                case 'contacts':
+                    loadMyContacts();
+                    break;
+                case 'discover':
+                    const searchQuery = document.getElementById('searchBox').value;
+                    if (searchQuery && searchQuery.length >= 2) {
+                        searchUsers(searchQuery);
+                    }
+                    break;
+                case 'all':
+                    loadAllOnlineUsers();
+                    break;
+            }
+        }
+
         // Initialize the page
         async function initializeUserDirectory() {
             try {
@@ -540,13 +795,13 @@
                 }
                 
                 updateCurrentUserDisplay();
-                loadOnlineUsers();
+                loadMyContacts(); // Start with contacts tab
                 
-                // Set up periodic refresh for users AND pending calls
+                // Set up periodic refresh for current tab AND pending calls
                 refreshInterval = setInterval(() => {
-                    loadOnlineUsers();
+                    refreshCurrentTab();
                     checkForIncomingCalls(); // Check for incoming calls automatically
-                }, 2000); // Check every 2 seconds to reduce server load
+                }, 3000); // Check every 3 seconds
             } catch (error) {
                 console.error('Failed to initialize user directory:', error);
                 showError('Failed to load user directory');
@@ -560,7 +815,31 @@
             }
         }
 
-        async function loadOnlineUsers() {
+        async function loadMyContacts() {
+            try {
+                if (!currentUser) return;
+
+                // Update presence first to mark this user as active
+                await updatePresence();
+
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/contacts/list/${currentUser.username}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch contacts');
+                }
+
+                const data = await response.json();
+                displayContacts(data.contacts || []);
+                updateContactStats(data.contacts || []);
+                
+            } catch (error) {
+                console.debug('Failed to load contacts:', error);
+                displayContacts([]);
+            }
+        }
+
+        async function loadAllOnlineUsers() {
             try {
                 if (!currentUser) return;
 
@@ -575,13 +854,57 @@
                 }
 
                 const data = await response.json();
-                displayUsers(data.users || []);
+                displayAllUsers(data.users || []);
                 document.getElementById('onlineCount').textContent = data.count || 0;
                 
             } catch (error) {
                 console.debug('Failed to load online users:', error);
-                // Silently fail to avoid spamming errors
+                displayAllUsers([]);
             }
+        }
+
+        async function searchUsers(query) {
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+
+            if (!query || query.length < 2) {
+                document.getElementById('discoverGrid').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>Search for Users</h3>
+                        <p>Type at least 2 characters to find users to add to your contacts</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('discoverGrid').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                </div>
+            `;
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    if (!currentUser) return;
+
+                    const serverUrl = await getServerUrl();
+                    const response = await fetch(`${serverUrl}/api/contacts/search?q=${encodeURIComponent(query)}&current_user=${currentUser.username}&limit=20`);
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to search users');
+                    }
+
+                    const data = await response.json();
+                    displaySearchResults(data.users || []);
+                    
+                } catch (error) {
+                    console.debug('Failed to search users:', error);
+                    displaySearchResults([]);
+                }
+            }, 500); // Debounce search
         }
 
         // Update user presence status
@@ -619,11 +942,60 @@
             }
         }
 
-        function displayUsers(users) {
-            const usersGrid = document.getElementById('usersGrid');
+        function displayContacts(contacts) {
+            const contactsGrid = document.getElementById('contactsGrid');
+            
+            if (contacts.length === 0) {
+                contactsGrid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📞</div>
+                        <h3>No contacts yet</h3>
+                        <p>Add users to your contact list to see them here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            contactsGrid.innerHTML = contacts.map(contact => `
+                <div class="user-card" onclick="initiateCall('${contact.username}')" data-focusable="true" tabindex="0">
+                    <div class="user-card-avatar">
+                        ${contact.is_favorite ? '<div class="favorite-star">⭐</div>' : ''}
+                        ${(contact.display_name || contact.username).substring(0, 2).toUpperCase()}
+                        <div class="${contact.is_online ? 'online-indicator' : 'offline-indicator'}"></div>
+                    </div>
+                    <div class="user-display-name">${contact.display_name || 'Smart TV User'}</div>
+                    <div class="user-name">${contact.username}</div>
+                    <div class="contact-actions">
+                        ${contact.is_online ? `
+                            <button class="call-btn" onclick="event.stopPropagation(); initiateCall('${contact.username}')" data-focusable="true" tabindex="0">
+                                📞 Call
+                            </button>
+                        ` : `
+                            <button class="call-btn" style="opacity: 0.5; cursor: not-allowed;" disabled>
+                                📞 Offline
+                            </button>
+                        `}
+                        <button class="favorite-btn ${contact.is_favorite ? 'active' : ''}" 
+                                onclick="event.stopPropagation(); toggleFavorite('${contact.username}', ${!contact.is_favorite})" 
+                                data-focusable="true" tabindex="0">
+                            ${contact.is_favorite ? '⭐' : '☆'}
+                        </button>
+                        <button class="remove-btn" onclick="event.stopPropagation(); removeContact('${contact.username}')" 
+                                data-focusable="true" tabindex="0">
+                            ❌
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            refreshTvRemote();
+        }
+
+        function displayAllUsers(users) {
+            const allUsersGrid = document.getElementById('allUsersGrid');
             
             if (users.length === 0) {
-                usersGrid.innerHTML = `
+                allUsersGrid.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">😴</div>
                         <h3>No other users online</h3>
@@ -633,7 +1005,7 @@
                 return;
             }
 
-            usersGrid.innerHTML = users.map(user => `
+            allUsersGrid.innerHTML = users.map(user => `
                 <div class="user-card" onclick="initiateCall('${user.username}')" data-focusable="true" tabindex="0">
                     <div class="user-card-avatar">
                         ${(user.display_name || user.username).substring(0, 2).toUpperCase()}
@@ -647,11 +1019,57 @@
                 </div>
             `).join('');
             
+            refreshTvRemote();
+        }
+
+        function displaySearchResults(users) {
+            const discoverGrid = document.getElementById('discoverGrid');
+            
+            if (users.length === 0) {
+                discoverGrid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🚫</div>
+                        <h3>No users found</h3>
+                        <p>Try a different search term</p>
+                    </div>
+                `;
+                return;
+            }
+
+            discoverGrid.innerHTML = users.map(user => `
+                <div class="user-card" data-focusable="true" tabindex="0">
+                    <div class="user-card-avatar">
+                        ${(user.display_name || user.username).substring(0, 2).toUpperCase()}
+                        <div class="${user.is_online ? 'online-indicator' : 'offline-indicator'}"></div>
+                    </div>
+                    <div class="user-display-name">${user.display_name || 'Smart TV User'}</div>
+                    <div class="user-name">${user.username}</div>
+                    <button class="add-btn" onclick="addContact('${user.username}')" data-focusable="true" tabindex="0">
+                        ➕ Add
+                    </button>
+                </div>
+            `).join('');
+            
+            refreshTvRemote();
+        }
+
+        function updateContactStats(contacts) {
+            const totalContacts = contacts.length;
+            const onlineContacts = contacts.filter(c => c.is_online).length;
+            const favoriteContacts = contacts.filter(c => c.is_favorite).length;
+
+            document.getElementById('totalContacts').textContent = totalContacts;
+            document.getElementById('onlineContacts').textContent = onlineContacts;
+            document.getElementById('favoriteContacts').textContent = favoriteContacts;
+            document.getElementById('onlineCount').textContent = onlineContacts;
+        }
+
+        function refreshTvRemote() {
             // Refresh TV remote after adding new elements
             if (window.tvRemote) {
                 setTimeout(() => {
                     window.tvRemote.refresh();
-                    console.log('🎮 TV Remote refreshed after user list update');
+                    console.log('🎮 TV Remote refreshed after UI update');
                 }, 100);
             }
         }
@@ -864,6 +1282,123 @@
                 CallMonitor.hideIncomingCallUI();
                 showError(`Failed to decline call: ${error.message}`);
             }
+        }
+
+        // Contact Management Functions
+        async function addContact(contactUsername) {
+            try {
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/contacts/add`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: currentUser.username,
+                        contact_username: contactUsername
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess(`Added ${contactUsername} to contacts!`);
+                    // Refresh current search to update UI
+                    const searchQuery = document.getElementById('searchBox').value;
+                    if (searchQuery) {
+                        searchUsers(searchQuery);
+                    }
+                } else {
+                    showError(data.error || 'Failed to add contact');
+                }
+            } catch (error) {
+                console.error('Failed to add contact:', error);
+                showError('Failed to add contact');
+            }
+        }
+
+        async function removeContact(contactUsername) {
+            if (!confirm(`Remove ${contactUsername} from your contacts?`)) {
+                return;
+            }
+
+            try {
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/contacts/remove`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: currentUser.username,
+                        contact_username: contactUsername
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess(`Removed ${contactUsername} from contacts`);
+                    loadMyContacts(); // Refresh contacts list
+                } else {
+                    showError(data.error || 'Failed to remove contact');
+                }
+            } catch (error) {
+                console.error('Failed to remove contact:', error);
+                showError('Failed to remove contact');
+            }
+        }
+
+        async function toggleFavorite(contactUsername, isFavorite) {
+            try {
+                const serverUrl = await getServerUrl();
+                const response = await fetch(`${serverUrl}/api/contacts/favorite`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: currentUser.username,
+                        contact_username: contactUsername,
+                        is_favorite: isFavorite
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess(isFavorite ? `${contactUsername} added to favorites` : `${contactUsername} removed from favorites`);
+                    loadMyContacts(); // Refresh contacts list
+                } else {
+                    showError(data.error || 'Failed to update favorite');
+                }
+            } catch (error) {
+                console.error('Failed to toggle favorite:', error);
+                showError('Failed to update favorite');
+            }
+        }
+
+        function showSuccess(message) {
+            // Create a temporary success message
+            const successDiv = document.createElement('div');
+            successDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                z-index: 1001;
+                font-size: 1rem;
+                box-shadow: 0 8px 20px rgba(46, 204, 113, 0.4);
+            `;
+            successDiv.textContent = message;
+            document.body.appendChild(successDiv);
+
+            setTimeout(() => {
+                successDiv.remove();
+            }, 3000);
         }
 
         function showError(message) {
