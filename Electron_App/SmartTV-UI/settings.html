@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Smart TV</title>
+    <link rel="stylesheet" href="tv-remote.css">
+    <style>
+        .settings-container {
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            color: white;
+        }
+        
+        .settings-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        
+        .settings-section h2 {
+            margin-top: 0;
+            color: #4CAF50;
+            font-size: 24px;
+        }
+        
+        .update-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+        }
+        
+        .update-status {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        
+        .update-available {
+            color: #ff9800;
+        }
+        
+        .update-current {
+            color: #4CAF50;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .update-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a1a;
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 90%;
+            color: white;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .release-notes {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="goBack()">← Back</button>
+    
+    <div class="settings-container">
+        <h1>Settings</h1>
+        
+        <div class="settings-section">
+            <h2>Software Updates</h2>
+            
+            <div class="update-info">
+                <div>
+                    <div class="update-status" id="currentVersion">Current Version: Loading...</div>
+                    <div class="update-status" id="updateStatus">Checking for updates...</div>
+                </div>
+                <div>
+                    <button class="btn" id="checkUpdatesBtn" onclick="checkForUpdates()">Check for Updates</button>
+                </div>
+            </div>
+            
+            <div id="updateAvailable" style="display: none;">
+                <div class="release-notes" id="releaseNotes"></div>
+                <button class="btn" id="downloadUpdateBtn" onclick="downloadUpdate()">Download Update</button>
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <h2>📡 Network Settings</h2>
+            <div class="update-status">Manage WiFi connections and network settings</div>
+            <button class="btn btn-primary" onclick="window.location.href='wifi-settings.html'" style="
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 12px 25px;
+                border-radius: 8px;
+                font-size: 16px;
+                cursor: pointer;
+                margin-top: 15px;
+                transition: all 0.3s ease;
+            " onmouseover="this.style.background='#5a67d8'" onmouseout="this.style.background='#667eea'">
+                📡 WiFi Settings
+            </button>
+        </div>
+        
+        <div class="settings-section">
+            <h2>Application Info</h2>
+            <div class="update-status">Smart TV Console</div>
+            <div class="update-status" id="appVersion">Version: Loading...</div>
+        </div>
+    </div>
+    
+    <!-- Update Modal -->
+    <div id="updateModal" class="update-modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Downloading Update</h2>
+            <div id="modalMessage">Please wait while the update is being downloaded...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div id="progressText">0%</div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn" id="modalCloseBtn" onclick="closeModal()" style="display: none;">Close</button>
+                <button class="btn" id="installBtn" onclick="installUpdate()" style="display: none;">Install Update</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="universal-navigation.js"></script>
+    <script src="settings.js"></script>
+</body>
+</html>

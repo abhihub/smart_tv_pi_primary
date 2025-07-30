@@ -32,12 +32,14 @@ def create_app():
     from api.call_routes import call_bp
     from api.admin_routes import admin_bp
     from api.contact_routes import contact_bp
+    from api.update_routes import update_bp
     
     app.register_blueprint(twilio_bp, url_prefix='/api')
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(call_bp, url_prefix='/api/calls')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     app.register_blueprint(contact_bp, url_prefix='/api/contacts')
+    app.register_blueprint(update_bp, url_prefix='/api/updates')
     
     # Start background service
     from services.background_service import background_service

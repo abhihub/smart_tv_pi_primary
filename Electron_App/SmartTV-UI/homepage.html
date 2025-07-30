@@ -73,6 +73,31 @@
             text-align: center;
             animation: fadeInDown 1s ease-out;
             flex-shrink: 0;
+            position: relative;
+        }
+
+        .ip-display {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: rgba(102, 126, 234, 0.2);
+            border: 2px solid rgba(102, 126, 234, 0.6);
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .ip-label {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .header h1 {
@@ -94,7 +119,7 @@
         .user-id-display {
             position: absolute;
             top: 20px;
-            right: 20px;
+            left: 30px;
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(10px);
             padding: 10px 20px;
@@ -122,10 +147,10 @@
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             grid-template-rows: 1fr;
             gap: 50px;
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             width: 100%;
             align-items: center;
@@ -282,10 +307,10 @@
         /* Responsive design */
         @media (max-width: 1024px) {
             .grid {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(3, 1fr);
                 grid-template-rows: 1fr;
-                gap: 40px;
-                max-width: 700px;
+                gap: 30px;
+                max-width: 900px;
             }
             
             .tile {
@@ -308,6 +333,13 @@
             
             .user-id-display {
                 top: 10px;
+                left: 10px;
+                padding: 8px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .ip-display {
+                top: 10px;
                 right: 10px;
                 padding: 8px 15px;
                 font-size: 0.9rem;
@@ -324,7 +356,7 @@
             
             .grid {
                 grid-template-columns: 1fr;
-                grid-template-rows: repeat(2, 1fr);
+                grid-template-rows: repeat(3, 1fr);
                 gap: 30px;
                 max-width: 400px;
             }
@@ -675,6 +707,10 @@
             <div class="user-id-display">
                 Your ID: <span id="userIdDisplay">Loading...</span>
             </div>
+            <div class="ip-display">
+                <div class="ip-label">Mobile Remote IP</div>
+                <div id="deviceIPDisplay">Loading...</div>
+            </div>
             <h1>Family Time</h1>
             <p class="subtitle">Your Gateway to Family Entertainment</p>
         </div>
@@ -719,6 +755,12 @@
                 <div class="tile-icon">🎮</div>
                 <div class="tile-title">Games Hub</div>
                 <div class="tile-subtitle">Interactive family games</div>
+            </div>
+
+            <div class="tile settings card" tabindex="0" data-app="settings" data-focusable="true" data-shortcut="3">
+                <div class="tile-icon">⚙️</div>
+                <div class="tile-title">Settings</div>
+                <div class="tile-subtitle">App settings & updates</div>
             </div>
             </div>
         </div>
@@ -1711,28 +1753,70 @@
                 });
             }
 
-            async checkFirstTimeUser() {
+            async checkWiFiConnectionStatus() {
                 try {
-                    // Check if WiFi setup has been completed before
-                    const wifiSetupComplete = localStorage.getItem('wifiSetupComplete');
-                    const hasConnectedBefore = localStorage.getItem('hasConnectedWifi');
+                    console.log('🔍 Checking WiFi connection status...');
                     
-                    console.log('🔍 First-time user check:', { 
-                        wifiSetupComplete, 
-                        hasConnectedBefore,
-                        userAgent: navigator.userAgent 
+                    // Check actual WiFi connection status
+                    let isConnected = false;
+                    
+                    if (window.electronAPI && window.electronAPI.wifi) {
+                        try {
+                            // Check both status and current connection
+                            const [status, current] = await Promise.all([
+                                window.electronAPI.wifi.getStatus(),
+                                window.electronAPI.wifi.getCurrent()
+                            ]);
+                            
+                            console.log('📡 WiFi status check results:', { status, current });
+                            
+                            // Consider connected if either method reports connection
+                            isConnected = (status.success && status.connected) || 
+                                         (current.success && current.connected);
+                            
+                            if (isConnected) {
+                                const networkName = status.network || 
+                                                   (current.connection && current.connection.name) || 
+                                                   'Unknown';
+                                console.log('✅ WiFi connected to:', networkName);
+                            } else {
+                                console.log('❌ No WiFi connection detected');
+                            }
+                            
+                        } catch (wifiError) {
+                            console.error('❌ Error checking WiFi status:', wifiError);
+                            // Default to not connected if there's an error
+                            isConnected = false;
+                        }
+                    } else {
+                        console.log('📡 Electron WiFi API not available, checking localStorage...');
+                        
+                        // Fallback: check if we have stored WiFi config and assume connection
+                        const storedConfig = localStorage.getItem('wifiConfig');
+                        const wifiSetupComplete = localStorage.getItem('wifiSetupComplete');
+                        isConnected = !!(storedConfig && wifiSetupComplete);
+                        
+                        console.log('📡 Fallback connection check:', { 
+                            hasStoredConfig: !!storedConfig, 
+                            setupComplete: !!wifiSetupComplete,
+                            assumedConnected: isConnected 
+                        });
+                    }
+                    
+                    // Show QR scanner if NOT connected (regardless of previous setup)
+                    const shouldShowQR = !isConnected;
+                    
+                    console.log('📱 WiFi connection decision:', { 
+                        isConnected, 
+                        shouldShowQR,
+                        timestamp: new Date().toISOString()
                     });
 
-                    // Show QR scanner for first-time users or if setup was skipped
-                    if (!wifiSetupComplete || !hasConnectedBefore) {
-                        console.log('📱 First-time user detected - showing QR scanner');
-                        return true;
-                    }
-
-                    return false;
+                    return shouldShowQR;
+                    
                 } catch (error) {
-                    console.error('❌ Error checking first-time user:', error);
-                    // Default to showing QR scanner on error
+                    console.error('❌ Error checking WiFi connection status:', error);
+                    // Default to showing QR scanner on error (safer approach)
                     return true;
                 }
             }
@@ -1740,6 +1824,9 @@
             async showQRScanner() {
                 console.log('📱 Showing QR WiFi scanner');
                 this.container.style.display = 'block';
+                
+                // Start periodic WiFi monitoring
+                this.startPeriodicWiFiCheck();
                 
                 // Start scanning after a short delay to allow UI to render
                 setTimeout(() => {
@@ -1885,8 +1972,7 @@
                 try {
                     this.updateStatus('🔄 Connecting to WiFi...');
                     
-                    // Store WiFi credentials (in a real implementation, you'd connect to the network)
-                    // For SmartTV, you might need to use Electron's main process to handle WiFi connection
+                    // Store WiFi credentials
                     const wifiConfig = {
                         ssid: wifiData.ssid,
                         password: wifiData.password,
@@ -1895,35 +1981,174 @@
                     };
                     
                     localStorage.setItem('wifiConfig', JSON.stringify(wifiConfig));
-                    localStorage.setItem('wifiSetupComplete', 'true');
-                    localStorage.setItem('hasConnectedWifi', 'true');
                     
-                    // In a real implementation, you would:
-                    // 1. Send credentials to Electron main process
-                    // 2. Use system WiFi APIs to connect
-                    // 3. Verify connection status
-                    
-                    // Simulate connection process
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    
-                    this.updateStatus('✅ WiFi setup complete!');
-                    
-                    // Show success message
-                    this.showSuccessMessage(wifiData.ssid);
-                    
-                    // Hide QR scanner after success
-                    setTimeout(() => {
-                        this.hideQRScanner();
-                    }, 3000);
+                    // Attempt real WiFi connection via Electron main process
+                    if (window.electronAPI && window.electronAPI.wifi) {
+                        console.log('📡 Attempting real WiFi connection via Electron...');
+                        
+                        // Add a small delay to prevent race conditions
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        const result = await window.electronAPI.wifi.connect(
+                            wifiData.ssid, 
+                            wifiData.password, 
+                            wifiData.security
+                        );
+                        
+                        if (result.success) {
+                            console.log('✅ WiFi connection successful:', result.message);
+                            this.updateStatus('✅ Successfully connected to WiFi!');
+                            
+                            // Mark setup as complete
+                            localStorage.setItem('wifiSetupComplete', 'true');
+                            localStorage.setItem('hasConnectedWifi', 'true');
+                            
+                            // Show success message
+                            this.showSuccessMessage(wifiData.ssid, 'Connected successfully!');
+                            
+                            // Hide QR scanner after success
+                            setTimeout(() => {
+                                this.hideQRScanner();
+                            }, 3000);
+                            
+                        } else {
+                            // Don't show "already in progress" errors - they're usually temporary
+                            if (result.error && result.error.includes('already in progress')) {
+                                console.log('📡 Connection in progress, waiting for completion...');
+                                this.updateStatus('🔄 Connection in progress...');
+                                
+                                // Use a more robust verification with multiple attempts
+                                this.verifyConnectionWithRetry(wifiData.ssid, 0);
+                                return; // Don't throw error for "in progress" state
+                            } else {
+                                throw new Error(result.error || 'Unknown connection error');
+                            }
+                        }
+                    } else {
+                        console.log('📡 Electron API not available, using fallback...');
+                        
+                        // Fallback simulation for development/testing
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        localStorage.setItem('wifiSetupComplete', 'true');
+                        localStorage.setItem('hasConnectedWifi', 'true');
+                        
+                        this.updateStatus('✅ WiFi setup complete! (Simulated)');
+                        this.showSuccessMessage(wifiData.ssid, 'Setup complete (simulated)');
+                        
+                        setTimeout(() => {
+                            this.hideQRScanner();
+                        }, 3000);
+                    }
                     
                 } catch (error) {
                     console.error('❌ Error processing WiFi credentials:', error);
-                    this.updateStatus('❌ Failed to connect to WiFi');
+                    
+                    let errorMessage = 'Failed to connect to WiFi';
+                    if (error.message.includes('Invalid password')) {
+                        errorMessage = 'Invalid password or security settings';
+                    } else if (error.message.includes('Network not found')) {
+                        errorMessage = 'WiFi network not found';
+                    } else if (error.message.includes('already in progress')) {
+                        errorMessage = 'Connection already in progress';
+                    } else if (error.message) {
+                        errorMessage = error.message;
+                    }
+                    
+                    this.updateStatus(`❌ ${errorMessage}`);
+                    this.showErrorMessage(errorMessage);
                     this.retryBtn.style.display = 'inline-block';
                 }
             }
 
-            showSuccessMessage(ssid) {
+            startPeriodicWiFiCheck() {
+                console.log('📡 Starting periodic WiFi connection monitoring...');
+                
+                // Check WiFi status every 5 seconds when QR scanner is active
+                this.wifiCheckInterval = setInterval(async () => {
+                    if (!this.isScanning) {
+                        console.log('📡 QR scanner not active, stopping WiFi monitoring');
+                        this.stopPeriodicWiFiCheck();
+                        return;
+                    }
+                    
+                    try {
+                        const shouldShowQR = await this.checkWiFiConnectionStatus();
+                        
+                        if (!shouldShowQR) {
+                            // WiFi is now connected, hide the QR scanner
+                            console.log('📡 WiFi connection detected during monitoring - hiding QR scanner');
+                            this.showSuccessMessage('WiFi Connected', 'Connection established!');
+                            setTimeout(() => {
+                                this.hideQRScanner();
+                            }, 2000);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error during periodic WiFi check:', error);
+                    }
+                }, 5000); // Check every 5 seconds
+            }
+            
+            stopPeriodicWiFiCheck() {
+                if (this.wifiCheckInterval) {
+                    console.log('📡 Stopping periodic WiFi connection monitoring');
+                    clearInterval(this.wifiCheckInterval);
+                    this.wifiCheckInterval = null;
+                }
+            }
+
+            async verifyConnectionWithRetry(expectedSSID, attempt) {
+                const maxAttempts = 4;
+                const delayMs = 2000; // 2 seconds between attempts
+                
+                console.log(`📡 Verifying connection attempt ${attempt + 1}/${maxAttempts} for: ${expectedSSID}`);
+                
+                try {
+                    // Wait before checking to allow system to update
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                    
+                    const status = await window.electronAPI.wifi.getStatus();
+                    console.log('📡 Connection status check:', status);
+                    
+                    if (status.success && status.connected && status.network === expectedSSID) {
+                        console.log('✅ Connection verification successful!');
+                        this.updateStatus('✅ Successfully connected to WiFi!');
+                        localStorage.setItem('wifiSetupComplete', 'true');
+                        localStorage.setItem('hasConnectedWifi', 'true');
+                        this.showSuccessMessage(expectedSSID, 'Connected successfully!');
+                        setTimeout(() => this.hideQRScanner(), 3000);
+                        return;
+                    }
+                    
+                    // If not connected yet and we have more attempts, try again
+                    if (attempt < maxAttempts - 1) {
+                        console.log(`📡 Not connected yet, retrying... (attempt ${attempt + 2}/${maxAttempts})`);
+                        this.updateStatus(`🔄 Verifying connection... (${attempt + 2}/${maxAttempts})`);
+                        this.verifyConnectionWithRetry(expectedSSID, attempt + 1);
+                    } else {
+                        // All attempts exhausted
+                        console.log('❌ Connection verification failed after all attempts');
+                        this.updateStatus('❌ Connection verification failed');
+                        this.showErrorMessage('Unable to verify WiFi connection. Connection may still be in progress.');
+                        this.retryBtn.style.display = 'inline-block';
+                    }
+                    
+                } catch (error) {
+                    console.error(`❌ Connection verification error (attempt ${attempt + 1}):`, error);
+                    
+                    if (attempt < maxAttempts - 1) {
+                        console.log('📡 Verification error, retrying...');
+                        this.updateStatus(`🔄 Checking connection... (${attempt + 2}/${maxAttempts})`);
+                        this.verifyConnectionWithRetry(expectedSSID, attempt + 1);
+                    } else {
+                        this.updateStatus('❌ Connection verification failed');
+                        this.showErrorMessage('Failed to verify connection status');
+                        this.retryBtn.style.display = 'inline-block';
+                    }
+                }
+            }
+
+            showSuccessMessage(ssid, customMessage = null) {
                 const message = document.createElement('div');
                 message.style.cssText = `
                     position: fixed;
@@ -1943,7 +2168,7 @@
                 `;
                 message.innerHTML = `
                     <div style="font-size: 3rem; margin-bottom: 15px;">✅</div>
-                    <div>Successfully connected to</div>
+                    <div>${customMessage || 'Successfully connected to'}</div>
                     <div style="font-weight: bold; margin-top: 10px;">${ssid}</div>
                 `;
                 document.body.appendChild(message);
@@ -1951,6 +2176,36 @@
                 setTimeout(() => {
                     message.remove();
                 }, 3000);
+            }
+
+            showErrorMessage(errorText) {
+                const message = document.createElement('div');
+                message.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(255, 107, 107, 0.2);
+                    border: 2px solid rgba(255, 107, 107, 0.6);
+                    color: #ff6b6b;
+                    padding: 30px 50px;
+                    border-radius: 15px;
+                    font-size: 1.5rem;
+                    z-index: 10000;
+                    backdrop-filter: blur(20px);
+                    text-align: center;
+                    font-weight: 500;
+                `;
+                message.innerHTML = `
+                    <div style="font-size: 3rem; margin-bottom: 15px;">❌</div>
+                    <div>WiFi Connection Failed</div>
+                    <div style="font-size: 1.2rem; margin-top: 10px; opacity: 0.8;">${errorText}</div>
+                `;
+                document.body.appendChild(message);
+
+                setTimeout(() => {
+                    message.remove();
+                }, 4000);
             }
 
             handleScanError(error) {
@@ -1983,6 +2238,9 @@
             hideQRScanner() {
                 console.log('📱 Hiding QR scanner');
                 
+                // Stop periodic WiFi monitoring
+                this.stopPeriodicWiFiCheck();
+                
                 if (this.qrScanner) {
                     this.qrScanner.stop();
                     this.qrScanner = null;
@@ -1993,6 +2251,9 @@
             }
 
             cleanup() {
+                // Stop periodic WiFi monitoring
+                this.stopPeriodicWiFiCheck();
+                
                 if (this.qrScanner) {
                     this.qrScanner.stop();
                     this.qrScanner = null;
@@ -2003,27 +2264,98 @@
         // Initialize QR WiFi Scanner
         let qrWifiScanner = null;
 
+        // Function to check and show QR scanner if needed
+        async function checkAndShowQRScanner() {
+            if (!qrWifiScanner) {
+                console.log('📱 QR WiFi Scanner not initialized yet');
+                return;
+            }
+            
+            try {
+                const shouldShowQR = await qrWifiScanner.checkWiFiConnectionStatus();
+                
+                if (shouldShowQR && !qrWifiScanner.isScanning) {
+                    console.log('📱 No WiFi connection - showing QR scanner');
+                    await qrWifiScanner.showQRScanner();
+                } else if (!shouldShowQR && qrWifiScanner.isScanning) {
+                    console.log('📱 WiFi connected - hiding QR scanner');
+                    qrWifiScanner.hideQRScanner();
+                }
+            } catch (error) {
+                console.error('❌ Error checking WiFi status for QR scanner:', error);
+            }
+        }
+
+        // Add keyboard shortcut to manually trigger QR scanner
+        document.addEventListener('keydown', (e) => {
+            // Press 'Q' to force show QR scanner for reconnection
+            if (e.key.toLowerCase() === 'q' && qrWifiScanner) {
+                console.log('🔑 Manual QR scanner trigger (Q key pressed)');
+                qrWifiScanner.showQRScanner();
+            }
+            // Press 'W' to go directly to WiFi settings
+            if (e.key.toLowerCase() === 'w') {
+                console.log('🔑 WiFi settings shortcut (W key pressed)');
+                window.location.href = 'wifi-settings.html';
+            }
+        });
+
         // Add to the existing DOMContentLoaded event
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('📱 Initializing QR WiFi Scanner...');
+            console.log('📱 Initializing homepage...');
+            
+            // Display device IP for mobile remote connection
+            try {
+                const connectionInfo = await window.electronAPI.getConnectionInfo();
+                const deviceIPElement = document.getElementById('deviceIPDisplay');
+                if (deviceIPElement && connectionInfo) {
+                    deviceIPElement.textContent = `${connectionInfo.ip}:${connectionInfo.port}`;
+                    console.log('📱 Device IP displayed:', `${connectionInfo.ip}:${connectionInfo.port}`);
+                }
+            } catch (error) {
+                console.error('❌ Error getting connection info:', error);
+                const deviceIPElement = document.getElementById('deviceIPDisplay');
+                if (deviceIPElement) {
+                    deviceIPElement.textContent = 'IP not available';
+                }
+            }
             
             try {
                 qrWifiScanner = new QRWiFiScanner();
                 
-                // Check if this is a first-time user
-                const isFirstTime = await qrWifiScanner.checkFirstTimeUser();
+                // Check WiFi connection status (not just first-time user)
+                const shouldShowQR = await qrWifiScanner.checkWiFiConnectionStatus();
                 
-                if (isFirstTime) {
-                    console.log('📱 First-time user - showing WiFi setup');
+                if (shouldShowQR) {
+                    console.log('📱 No WiFi connection detected - showing WiFi setup');
                     await qrWifiScanner.showQRScanner();
                 } else {
-                    console.log('📱 Returning user - skipping WiFi setup');
+                    console.log('📱 WiFi connected - skipping WiFi setup');
+                    // Add a small notice for testing
+                    console.log('📱 TIP: Press "Q" key to manually trigger QR scanner for testing');
                 }
                 
             } catch (error) {
                 console.error('❌ Error initializing QR WiFi Scanner:', error);
             }
         });
+
+        // Add periodic WiFi check when page becomes visible
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                console.log('📱 Page became visible - checking WiFi status');
+                setTimeout(checkAndShowQRScanner, 1000);
+            }
+        });
+
+        // Also check when window gains focus
+        window.addEventListener('focus', () => {
+            console.log('📱 Window gained focus - checking WiFi status');
+            setTimeout(checkAndShowQRScanner, 1000);
+        });
+
+        // Check WiFi status periodically (every 30 seconds) to catch disconnections
+        setInterval(checkAndShowQRScanner, 30000);
 
         // Add cleanup for QR scanner
         window.addEventListener('beforeunload', () => {
@@ -2033,5 +2365,6 @@
             }
         });
     </script>
+    <script src="universal-navigation.js"></script>
 </body>
 </html>

@@ -3,7 +3,8 @@
 set -e
 AUTHKEY="tskey-auth-kfR7cQJRAe11CNTRL-9HoznDzEvMbNhyqwcNMvMbTGftUFhV9WT"
 echo "🛠 Installing minimal X stack and dependencies..."
-
+curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
+curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
 sudo apt update
 sudo apt install -y --no-install-recommends \
   xserver-xorg xinit x11-xserver-utils \

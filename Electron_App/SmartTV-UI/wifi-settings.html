@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Settings - SmartTV</title>
+    <link rel="stylesheet" href="tv-remote.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 300;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.7;
+            font-weight: 300;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            color: white;
+            padding: 12px 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .wifi-section {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .wifi-section h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #00ff88;
+        }
+
+        .current-connection {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .current-connection.disconnected {
+            background: rgba(255, 107, 107, 0.1);
+            border-color: rgba(255, 107, 107, 0.3);
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.6);
+            color: #667eea;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn:hover {
+            background: rgba(102, 126, 234, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.danger {
+            background: rgba(255, 107, 107, 0.2);
+            border-color: rgba(255, 107, 107, 0.6);
+            color: #ff6b6b;
+        }
+
+        .btn.danger:hover {
+            background: rgba(255, 107, 107, 0.3);
+        }
+
+        .btn.success {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: rgba(0, 255, 136, 0.6);
+            color: #00ff88;
+        }
+
+        .btn.success:hover {
+            background: rgba(0, 255, 136, 0.3);
+        }
+
+        .network-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .network-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .network-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .network-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .network-ssid {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        .network-details {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .network-details .signal-quality {
+            font-weight: 500;
+            opacity: 1;
+        }
+
+        .network-details .signal-quality.excellent {
+            color: #00ff88;
+        }
+
+        .network-details .signal-quality.good {
+            color: #4ade80;
+        }
+
+        .network-details .signal-quality.fair {
+            color: #fbbf24;
+        }
+
+        .network-details .signal-quality.poor {
+            color: #f87171;
+        }
+
+        .signal-bars {
+            display: flex;
+            gap: 2px;
+            align-items: end;
+        }
+
+        .signal-bar {
+            width: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            transition: background 0.3s ease;
+        }
+
+        .signal-bar.active {
+            background: #00ff88;
+        }
+
+        /* Signal quality specific colors */
+        .signal-bar.signal-excellent.active {
+            background: #00ff88;
+            box-shadow: 0 0 4px rgba(0, 255, 136, 0.4);
+        }
+
+        .signal-bar.signal-good.active {
+            background: #4ade80;
+            box-shadow: 0 0 4px rgba(74, 222, 128, 0.4);
+        }
+
+        .signal-bar.signal-fair.active {
+            background: #fbbf24;
+            box-shadow: 0 0 4px rgba(251, 191, 36, 0.4);
+        }
+
+        .signal-bar.signal-poor.active {
+            background: #f87171;
+            box-shadow: 0 0 4px rgba(248, 113, 113, 0.4);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(20, 20, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            color: #667eea;
+            font-size: 1rem;
+        }
+
+        .loading.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: scale(0.9) translateY(-20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .qr-section {
+            text-align: center;
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 20px;
+        }
+
+        .qr-section h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .qr-section p {
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        .qr-btn {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid rgba(0, 255, 136, 0.6);
+            color: #00ff88;
+        }
+
+        .qr-btn:hover {
+            background: rgba(0, 255, 136, 0.3);
+        }
+
+        /* QR Scanner animations */
+        .qr-scanner-frame::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff88, transparent);
+            animation: qr-scan-line 2s linear infinite;
+        }
+
+        @keyframes qr-scan-line {
+            0% { transform: translateY(0); opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(216px); opacity: 1; }
+        }
+
+        /* Modal styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(20, 20, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: white;
+        }
+
+        .modal-header p {
+            color: rgba(255, 255, 255, 0.8);
+            margin: 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-input-wrapper input {
+            padding-right: 50px;
+        }
+
+        .password-toggle-btn {
+            position: absolute;
+            right: 8px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            z-index: 1;
+        }
+
+        .password-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .password-toggle-btn:active {
+            transform: scale(0.95);
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            color: #667eea;
+            font-size: 1rem;
+            margin: 15px 0;
+        }
+
+        .loading.show {
+            display: flex;
+        }
+
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: scale(0.9) translateY(-20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <a href="settings.html" class="back-btn">
+        ← Back to Settings
+    </a>
+
+    <div class="container">
+        <div class="header">
+            <h1>📡 WiFi Settings</h1>
+            <p class="subtitle">Manage your WiFi connections</p>
+        </div>
+
+        <!-- Current Connection Status -->
+        <div class="wifi-section">
+            <h2>
+                <div class="status-indicator" id="statusIndicator"></div>
+                Connection Status
+            </h2>
+            
+            <div class="current-connection" id="currentConnection">
+                <div id="connectionInfo">
+                    <div class="loading show">
+                        <div class="spinner"></div>
+                        Checking connection status...
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-buttons">
+                <button class="btn success" id="scanBtn">🔍 Scan Networks</button>
+                <button class="btn qr-btn" id="qrScannerBtn">📱 Connect via QR Code</button>
+                <button class="btn danger" id="disconnectBtn" style="display: none;">🔌 Disconnect</button>
+                <button class="btn" id="refreshBtn">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <!-- Available Networks -->
+        <div class="wifi-section">
+            <h2>📶 Available Networks</h2>
+            
+            <div class="loading" id="scanLoading">
+                <div class="spinner"></div>
+                Scanning for networks...
+            </div>
+
+            <div class="network-list" id="networkList">
+                <p style="text-align: center; opacity: 0.6; padding: 20px;">
+                    Click "Scan Networks" to find available WiFi networks
+                </p>
+            </div>
+        </div>
+
+        <!-- QR Scanner Section -->
+        <div class="wifi-section" id="qrScannerSection" style="display: none;">
+            <h2>📱 QR Code WiFi Setup</h2>
+            
+            <div class="qr-scanner-card" style="
+                background: rgba(255, 255, 255, 0.08);
+                backdrop-filter: blur(20px);
+                border-radius: 25px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 30px;
+                text-align: center;
+            ">
+                <div class="qr-scanner-header">
+                    <h3 style="margin-bottom: 10px; color: #667eea;">📱 Scan WiFi QR Code</h3>
+                    <p style="opacity: 0.8; margin-bottom: 25px;">Point your camera at a WiFi QR code to connect</p>
+                </div>
+                
+                <div class="qr-scanner-video-wrapper" style="
+                    position: relative;
+                    width: 100%;
+                    max-width: 400px;
+                    margin: 0 auto 25px;
+                    border-radius: 15px;
+                    overflow: hidden;
+                    background: rgba(0, 0, 0, 0.3);
+                ">
+                    <video id="qrScannerVideoSettings" autoplay playsinline muted style="
+                        width: 100%;
+                        height: 300px;
+                        object-fit: cover;
+                        display: block;
+                    "></video>
+                    
+                    <div class="qr-scanner-overlay" style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    ">
+                        <div class="qr-scanner-frame" style="
+                            position: relative;
+                            width: 220px;
+                            height: 220px;
+                            border: 2px solid transparent;
+                        ">
+                            <div class="qr-corner top-left" style="
+                                position: absolute;
+                                top: -3px;
+                                left: -3px;
+                                width: 40px;
+                                height: 40px;
+                                border: 3px solid #00ff88;
+                                border-right: none;
+                                border-bottom: none;
+                            "></div>
+                            <div class="qr-corner top-right" style="
+                                position: absolute;
+                                top: -3px;
+                                right: -3px;
+                                width: 40px;
+                                height: 40px;
+                                border: 3px solid #00ff88;
+                                border-left: none;
+                                border-bottom: none;
+                            "></div>
+                            <div class="qr-corner bottom-left" style="
+                                position: absolute;
+                                bottom: -3px;
+                                left: -3px;
+                                width: 40px;
+                                height: 40px;
+                                border: 3px solid #00ff88;
+                                border-right: none;
+                                border-top: none;
+                            "></div>
+                            <div class="qr-corner bottom-right" style="
+                                position: absolute;
+                                bottom: -3px;
+                                right: -3px;
+                                width: 40px;
+                                height: 40px;
+                                border: 3px solid #00ff88;
+                                border-left: none;
+                                border-top: none;
+                            "></div>
+                        </div>
+                    </div>
+                    
+                    <div class="qr-scanner-status" id="qrScannerStatusSettings" style="
+                        position: absolute;
+                        bottom: 15px;
+                        left: 0;
+                        right: 0;
+                        color: #00ff88;
+                        font-size: 1rem;
+                        font-weight: 500;
+                        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+                        padding: 8px 15px;
+                        background: rgba(0, 0, 0, 0.6);
+                        border-radius: 20px;
+                        margin: 0 20px;
+                    ">
+                        Position QR code within the frame
+                    </div>
+                </div>
+                
+                <div class="qr-scanner-actions" style="display: flex; gap: 15px; justify-content: center;">
+                    <button class="btn danger" id="qrCancelBtn">❌ Cancel</button>
+                    <button class="btn" onclick="window.location.href='qr-test.html'">🧪 QR Generator</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- QR Code Setup -->
+        <div class="wifi-section">
+            <div class="qr-section">
+                <h3>📱 QR Code Setup</h3>
+                <p>Use QR codes to quickly connect to WiFi networks</p>
+                <button class="btn qr-btn" onclick="window.location.href='qr-test.html'">
+                    Open QR Generator & Tester
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Modal -->
+    <div class="modal" id="connectionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Connect to Network</h3>
+                <p id="modalSubtitle">Enter the password for this network</p>
+            </div>
+
+            <form id="connectionForm">
+                <div class="form-group">
+                    <label for="modalSSID">Network Name:</label>
+                    <input type="text" id="modalSSID" readonly>
+                </div>
+
+                <div class="form-group" id="passwordGroup">
+                    <label for="modalPassword">Password:</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="modalPassword" placeholder="Enter WiFi password">
+                        <button type="button" class="password-toggle-btn" id="passwordToggleBtn" title="Show/Hide Password">
+                            👁️
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="modalSecurity">Security:</label>
+                    <select id="modalSecurity">
+                        <option value="WPA2">WPA2</option>
+                        <option value="WPA">WPA</option>
+                        <option value="WEP">WEP</option>
+                        <option value="Open">Open (No Password)</option>
+                    </select>
+                </div>
+
+                <div class="loading" id="connectLoading">
+                    <div class="spinner"></div>
+                    Connecting to network...
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn success" id="connectBtn">Connect</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+    <script>
+        class WiFiSettingsManager {
+            constructor() {
+                this.isScanning = false;
+                this.isConnecting = false;
+                this.currentNetwork = null;
+                this.availableNetworks = [];
+                this.savedNetworks = this.loadSavedNetworks();
+                this.isAutoConnecting = false;
+                
+                this.setupEventListeners();
+                this.checkConnectionStatus();
+            }
+
+            setupEventListeners() {
+                document.getElementById('scanBtn').addEventListener('click', () => this.scanNetworks());
+                document.getElementById('qrScannerBtn').addEventListener('click', () => this.showQRScanner());
+                document.getElementById('disconnectBtn').addEventListener('click', () => this.disconnect());
+                document.getElementById('refreshBtn').addEventListener('click', () => this.refresh());
+                document.getElementById('cancelBtn').addEventListener('click', () => this.closeModal());
+                document.getElementById('qrCancelBtn').addEventListener('click', () => this.hideQRScanner());
+                document.getElementById('connectionForm').addEventListener('submit', (e) => this.handleConnect(e));
+                document.getElementById('passwordToggleBtn').addEventListener('click', () => this.togglePasswordVisibility());
+                
+                // Password field - show onscreen keyboard
+                document.getElementById('modalPassword').addEventListener('focus', () => {
+                    console.log('⌨️ Password field focused, showing onscreen keyboard');
+                    if (typeof showKeyboard === 'function') {
+                        showKeyboard(document.getElementById('modalPassword'));
+                    }
+                });
+                
+                document.getElementById('modalPassword').addEventListener('click', () => {
+                    console.log('⌨️ Password field clicked, showing onscreen keyboard');
+                    if (typeof showKeyboard === 'function') {
+                        showKeyboard(document.getElementById('modalPassword'));
+                    }
+                });
+                
+                // Security type change handler
+                document.getElementById('modalSecurity').addEventListener('change', (e) => {
+                    const passwordGroup = document.getElementById('passwordGroup');
+                    if (e.target.value === 'Open') {
+                        passwordGroup.style.display = 'none';
+                        // Hide keyboard if password field is hidden
+                        if (typeof hideKeyboard === 'function') {
+                            hideKeyboard();
+                        }
+                    } else {
+                        passwordGroup.style.display = 'block';
+                    }
+                });
+            }
+
+            async checkConnectionStatus() {
+                console.log('📡 Checking WiFi connection status...');
+                
+                try {
+                    const statusIndicator = document.getElementById('statusIndicator');
+                    const connectionInfo = document.getElementById('connectionInfo');
+                    const currentConnection = document.getElementById('currentConnection');
+                    const disconnectBtn = document.getElementById('disconnectBtn');
+                    
+                    if (window.electronAPI && window.electronAPI.wifi) {
+                        // Try both getStatus and getCurrent to ensure we catch the connection
+                        const [status, current] = await Promise.all([
+                            window.electronAPI.wifi.getStatus(),
+                            window.electronAPI.wifi.getCurrent()
+                        ]);
+                        
+                        console.log('📡 Status check results:', { status, current });
+                        
+                        // Check if either method shows a connection
+                        const isConnected = (status.success && status.connected) || (current.success && current.connected);
+                        const networkName = status.network || (current.connection && current.connection.name) || 'Unknown';
+                        
+                        if (isConnected) {
+                            console.log('✅ WiFi connected:', networkName);
+                            
+                            statusIndicator.classList.add('connected');
+                            currentConnection.classList.remove('disconnected');
+                            disconnectBtn.style.display = 'inline-block';
+                            
+                            connectionInfo.innerHTML = `
+                                <div style="font-size: 1.2rem; font-weight: 500; margin-bottom: 5px;">
+                                    ✅ Connected to: <strong>${networkName}</strong>
+                                </div>
+                                ${status.details ? `<div style="opacity: 0.7; font-size: 0.9rem;">${status.details}</div>` : ''}
+                                <div style="opacity: 0.6; font-size: 0.8rem; margin-top: 5px;">
+                                    Status: ${status.connected ? 'Active' : 'Connected'} • Device: ${current.connection?.device || 'WiFi'}
+                                </div>
+                            `;
+                            
+                            this.currentNetwork = networkName;
+                        } else {
+                            console.log('❌ WiFi not connected');
+                            
+                            statusIndicator.classList.remove('connected');
+                            currentConnection.classList.add('disconnected');
+                            disconnectBtn.style.display = 'none';
+                            
+                            connectionInfo.innerHTML = `
+                                <div style="font-size: 1.2rem; font-weight: 500;">
+                                    ❌ Not connected to any network
+                                </div>
+                                <div style="opacity: 0.7; margin-top: 5px;">
+                                    Scan for networks to connect
+                                </div>
+                                <div style="opacity: 0.5; font-size: 0.8rem; margin-top: 5px;">
+                                    Debug: Status=${status.connected}, Current=${current.connected}
+                                </div>
+                            `;
+                            
+                            this.currentNetwork = null;
+                        }
+                    } else {
+                        console.log('📡 Electron API not available');
+                        
+                        connectionInfo.innerHTML = `
+                            <div style="font-size: 1.2rem; font-weight: 500; color: #ff6b6b;">
+                                ⚠️ WiFi functionality not available
+                            </div>
+                            <div style="opacity: 0.7; margin-top: 5px;">
+                                Electron API not detected
+                            </div>
+                        `;
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error checking WiFi status:', error);
+                    
+                    document.getElementById('connectionInfo').innerHTML = `
+                        <div style="font-size: 1.2rem; font-weight: 500; color: #ff6b6b;">
+                            ❌ Error checking connection
+                        </div>
+                        <div style="opacity: 0.7; margin-top: 5px;">
+                            ${error.message}
+                        </div>
+                    `;
+                }
+            }
+
+            async scanNetworks() {
+                if (this.isScanning) return;
+                
+                this.isScanning = true;
+                const scanBtn = document.getElementById('scanBtn');
+                const scanLoading = document.getElementById('scanLoading');
+                const networkList = document.getElementById('networkList');
+                
+                scanBtn.disabled = true;
+                scanBtn.textContent = '🔍 Scanning...';
+                scanLoading.classList.add('show');
+                networkList.innerHTML = '';
+                
+                try {
+                    console.log('📡 Scanning for WiFi networks...');
+                    
+                    if (window.electronAPI && window.electronAPI.wifi) {
+                        const result = await window.electronAPI.wifi.scan();
+                        
+                        if (result.success && result.networks) {
+                            console.log(`📡 Found ${result.networks.length} networks`);
+                            this.availableNetworks = result.networks;
+                            this.displayNetworks(result.networks);
+                            
+                            // Try auto-connect after displaying networks
+                            this.attemptAutoConnect(result.networks);
+                        } else {
+                            throw new Error(result.error || 'Failed to scan networks');
+                        }
+                    } else {
+                        // Mock networks for testing
+                        const mockNetworks = [
+                            { ssid: 'MockNetwork1', signal: 80, security: 'WPA2', encrypted: true },
+                            { ssid: 'MockNetwork2', signal: 60, security: 'Open', encrypted: false },
+                            { ssid: 'TestWiFi', signal: 40, security: 'WPA2', encrypted: true }
+                        ];
+                        
+                        console.log('📡 Using mock networks');
+                        this.availableNetworks = mockNetworks;
+                        this.displayNetworks(mockNetworks);
+                        
+                        // Try auto-connect with mock networks too
+                        this.attemptAutoConnect(mockNetworks);
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Network scan failed:', error);
+                    networkList.innerHTML = `
+                        <div style="text-align: center; color: #ff6b6b; padding: 20px;">
+                            ❌ Failed to scan networks<br>
+                            <span style="opacity: 0.7;">${error.message}</span>
+                        </div>
+                    `;
+                } finally {
+                    this.isScanning = false;
+                    scanBtn.disabled = false;
+                    scanBtn.textContent = '🔍 Scan Networks';
+                    scanLoading.classList.remove('show');
+                }
+            }
+
+            displayNetworks(networks) {
+                const networkList = document.getElementById('networkList');
+                
+                if (networks.length === 0) {
+                    networkList.innerHTML = `
+                        <div style="text-align: center; opacity: 0.6; padding: 20px;">
+                            No networks found
+                        </div>
+                    `;
+                    return;
+                }
+                
+                networkList.innerHTML = '';
+                
+                // Smart sorting: Connected > Saved (by signal) > Others (by signal)
+                const sortedNetworks = [...networks].sort((a, b) => {
+                    const aConnected = this.currentNetwork === a.ssid;
+                    const bConnected = this.currentNetwork === b.ssid;
+                    const aSaved = this.getSavedNetwork(a.ssid) !== null;
+                    const bSaved = this.getSavedNetwork(b.ssid) !== null;
+                    
+                    // Connected networks always first
+                    if (aConnected && !bConnected) return -1;
+                    if (!aConnected && bConnected) return 1;
+                    
+                    // Then saved networks
+                    if (aSaved && !bSaved) return -1;
+                    if (!aSaved && bSaved) return 1;
+                    
+                    // Within same category, sort by signal strength
+                    return b.signal - a.signal;
+                });
+                
+                sortedNetworks.forEach((network, index) => {
+                    const isConnected = this.currentNetwork === network.ssid;
+                    const isSaved = this.getSavedNetwork(network.ssid) !== null;
+                    const signalBars = this.getSignalBars(network.signal);
+                    const signalQuality = this.getSignalQuality(network.signal);
+                    
+                    const networkElement = document.createElement('div');
+                    networkElement.className = 'network-item';
+                    networkElement.setAttribute('data-ssid', network.ssid);
+                    networkElement.setAttribute('data-security', network.security);
+                    networkElement.setAttribute('data-encrypted', network.encrypted);
+                    networkElement.setAttribute('data-signal', network.signal);
+                    networkElement.setAttribute('data-saved', isSaved);
+                    networkElement.setAttribute('tabindex', '0'); // Make focusable
+                    networkElement.setAttribute('role', 'button'); // Screen reader support
+                    
+                    if (isConnected) {
+                        networkElement.style.borderColor = 'rgba(0, 255, 136, 0.6)';
+                        networkElement.style.background = 'rgba(0, 255, 136, 0.1)';
+                    } else if (isSaved) {
+                        networkElement.style.borderColor = 'rgba(102, 126, 234, 0.6)';
+                        networkElement.style.background = 'rgba(102, 126, 234, 0.1)';
+                    } else if (signalQuality.class === 'poor') {
+                        networkElement.style.borderColor = 'rgba(248, 113, 113, 0.4)';
+                        networkElement.style.background = 'rgba(248, 113, 113, 0.05)';
+                    }
+                    
+                    networkElement.innerHTML = `
+                        <div class="network-info">
+                            <div class="network-ssid">
+                                ${network.ssid} ${isConnected ? '✅' : ''} ${isSaved ? '💾' : ''}
+                            </div>
+                            <div class="network-details">
+                                <span>🔒 ${network.security}</span>
+                                <span class="signal-quality ${signalQuality.class}">📶 ${signalQuality.text}</span>
+                                <span style="opacity: 0.7;">${network.signal}%</span>
+                                ${isSaved ? '<span style="color: #667eea;">💾 Saved</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="signal-bars">
+                            ${signalBars}
+                        </div>
+                    `;
+                    
+                    // Add proper event listener instead of inline onclick
+                    networkElement.addEventListener('click', () => {
+                        console.log('📱 Network clicked:', network.ssid, network.security, network.encrypted);
+                        this.showConnectionModal(network.ssid, network.security, network.encrypted);
+                    });
+                    
+                    networkList.appendChild(networkElement);
+                });
+                
+                // Refresh navigation to detect new network items
+                if (typeof refreshNavigation === 'function') {
+                    setTimeout(() => refreshNavigation(), 100);
+                }
+            }
+
+            getSignalQuality(signal) {
+                if (signal >= 75) {
+                    return { text: 'Excellent', color: '#00ff88', class: 'excellent' };
+                } else if (signal >= 50) {
+                    return { text: 'Good', color: '#4ade80', class: 'good' };
+                } else if (signal >= 25) {
+                    return { text: 'Fair', color: '#fbbf24', class: 'fair' };
+                } else {
+                    return { text: 'Poor', color: '#f87171', class: 'poor' };
+                }
+            }
+
+            getSignalBars(signal) {
+                const bars = [];
+                const numBars = 4;
+                const threshold = signal / 100;
+                const quality = this.getSignalQuality(signal);
+                
+                for (let i = 0; i < numBars; i++) {
+                    const height = (i + 1) * 4 + 8;
+                    const isActive = (i + 1) / numBars <= threshold;
+                    bars.push(`<div class="signal-bar ${isActive ? 'active' : ''} signal-${quality.class}" style="height: ${height}px; ${isActive ? `background: ${quality.color};` : ''}"></div>`);
+                }
+                
+                return bars.join('');
+            }
+
+            showConnectionModal(ssid, security, encrypted) {
+                console.log('📱 Showing connection modal for:', ssid, security, encrypted);
+                
+                const modal = document.getElementById('connectionModal');
+                const modalSSID = document.getElementById('modalSSID');
+                const modalSecurity = document.getElementById('modalSecurity');
+                const modalPassword = document.getElementById('modalPassword');
+                const passwordGroup = document.getElementById('passwordGroup');
+                const modalTitle = document.getElementById('modalTitle');
+                const modalSubtitle = document.getElementById('modalSubtitle');
+                
+                if (!modal) {
+                    console.error('❌ Connection modal not found!');
+                    this.showMessage('Error: Connection modal not found', 'error');
+                    return;
+                }
+                
+                // Check if already connected
+                if (this.currentNetwork === ssid) {
+                    console.log('⚠️ Already connected to this network');
+                    this.showMessage('Already connected to this network', 'info');
+                    return;
+                }
+                
+                console.log('📱 Setting modal values...');
+                modalSSID.value = ssid;
+                modalSecurity.value = security;
+                modalPassword.value = '';
+                
+                modalTitle.textContent = `Connect to ${ssid}`;
+                
+                if (security === 'Open' || !encrypted) {
+                    console.log('📱 Open network - hiding password field');
+                    passwordGroup.style.display = 'none';
+                    modalSubtitle.textContent = 'This is an open network';
+                } else {
+                    console.log('📱 Secured network - showing password field');
+                    passwordGroup.style.display = 'block';
+                    modalSubtitle.textContent = 'Enter the password for this network';
+                }
+                
+                console.log('📱 Showing modal...');
+                modal.classList.add('show');
+                
+                // Add a small delay before focusing to ensure modal is visible
+                setTimeout(() => {
+                    if (passwordGroup.style.display !== 'none') {
+                        console.log('📱 Focusing password field');
+                        modalPassword.focus();
+                    }
+                }, 100);
+                
+                console.log('📱 Modal should now be visible');
+            }
+
+            closeModal() {
+                const modal = document.getElementById('connectionModal');
+                modal.classList.remove('show');
+                document.getElementById('connectionForm').reset();
+                document.getElementById('connectLoading').classList.remove('show');
+                
+                // Reset password visibility to hidden when closing modal
+                this.resetPasswordVisibility();
+                
+                // Hide onscreen keyboard
+                if (typeof hideKeyboard === 'function') {
+                    hideKeyboard();
+                }
+            }
+
+            togglePasswordVisibility() {
+                const passwordInput = document.getElementById('modalPassword');
+                const toggleBtn = document.getElementById('passwordToggleBtn');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    toggleBtn.textContent = '🙈';
+                    toggleBtn.title = 'Hide Password';
+                    console.log('🔓 Password visibility: shown');
+                } else {
+                    passwordInput.type = 'password';
+                    toggleBtn.textContent = '👁️';
+                    toggleBtn.title = 'Show Password';
+                    console.log('🔒 Password visibility: hidden');
+                }
+            }
+
+            resetPasswordVisibility() {
+                const passwordInput = document.getElementById('modalPassword');
+                const toggleBtn = document.getElementById('passwordToggleBtn');
+                
+                passwordInput.type = 'password';
+                toggleBtn.textContent = '👁️';
+                toggleBtn.title = 'Show Password';
+            }
+
+            // Saved Networks Management
+            loadSavedNetworks() {
+                try {
+                    const saved = localStorage.getItem('wifiSavedNetworks');
+                    const networks = saved ? JSON.parse(saved) : {};
+                    console.log('📱 Loaded saved networks:', Object.keys(networks));
+                    return networks;
+                } catch (error) {
+                    console.error('❌ Error loading saved networks:', error);
+                    return {};
+                }
+            }
+
+            saveNetworkCredentials(ssid, password, security) {
+                try {
+                    this.savedNetworks[ssid] = {
+                        password: password,
+                        security: security,
+                        lastConnected: Date.now()
+                    };
+                    localStorage.setItem('wifiSavedNetworks', JSON.stringify(this.savedNetworks));
+                    console.log('💾 Saved credentials for:', ssid);
+                } catch (error) {
+                    console.error('❌ Error saving network credentials:', error);
+                }
+            }
+
+            getSavedNetwork(ssid) {
+                return this.savedNetworks[ssid] || null;
+            }
+
+            removeSavedNetwork(ssid) {
+                try {
+                    delete this.savedNetworks[ssid];
+                    localStorage.setItem('wifiSavedNetworks', JSON.stringify(this.savedNetworks));
+                    console.log('🗑️ Removed saved network:', ssid);
+                } catch (error) {
+                    console.error('❌ Error removing saved network:', error);
+                }
+            }
+
+            async attemptAutoConnect(availableNetworks) {
+                // Don't auto-connect if already connected or currently connecting
+                if (this.currentNetwork || this.isConnecting || this.isAutoConnecting) {
+                    console.log('📡 Auto-connect skipped: already connected or connecting');
+                    return;
+                }
+
+                // Find saved networks that are available
+                const savedNetworksList = Object.keys(this.savedNetworks);
+                const availableSSIDs = availableNetworks.map(net => net.ssid);
+                
+                // Find matching networks, prioritize by signal strength and last connected time
+                const matchingNetworks = availableNetworks
+                    .filter(network => savedNetworksList.includes(network.ssid))
+                    .sort((a, b) => {
+                        const aLastConnected = this.savedNetworks[a.ssid].lastConnected || 0;
+                        const bLastConnected = this.savedNetworks[b.ssid].lastConnected || 0;
+                        
+                        // Prioritize recently connected networks
+                        if (Math.abs(aLastConnected - bLastConnected) > 86400000) { // 24 hours
+                            return bLastConnected - aLastConnected;
+                        }
+                        
+                        // If similar connection times, prioritize signal strength
+                        return b.signal - a.signal;
+                    });
+
+                if (matchingNetworks.length === 0) {
+                    console.log('📡 No saved networks found in available networks');
+                    return;
+                }
+
+                const bestNetwork = matchingNetworks[0];
+                const savedCreds = this.savedNetworks[bestNetwork.ssid];
+                
+                console.log(`🔄 Auto-connecting to: ${bestNetwork.ssid} (Signal: ${bestNetwork.signal}%)`);
+                
+                this.isAutoConnecting = true;
+                this.showAutoConnectMessage(bestNetwork.ssid);
+                
+                try {
+                    await this.connectToSavedNetwork(bestNetwork.ssid, savedCreds.password, savedCreds.security);
+                } catch (error) {
+                    console.error('❌ Auto-connect failed:', error);
+                    this.showMessage(`Auto-connect to ${bestNetwork.ssid} failed`, 'error');
+                } finally {
+                    this.isAutoConnecting = false;
+                    this.hideAutoConnectMessage();
+                }
+            }
+
+            async connectToSavedNetwork(ssid, password, security) {
+                console.log(`📡 Connecting to saved network: ${ssid}`);
+                
+                if (window.electronAPI && window.electronAPI.wifi) {
+                    const result = await window.electronAPI.wifi.connect(ssid, password, security);
+                    
+                    if (result.success) {
+                        console.log(`✅ Auto-connected to ${ssid}`);
+                        this.showMessage(`Auto-connected to ${ssid}`, 'success');
+                        
+                        // Update last connected time
+                        this.savedNetworks[ssid].lastConnected = Date.now();
+                        localStorage.setItem('wifiSavedNetworks', JSON.stringify(this.savedNetworks));
+                        
+                        // Refresh status
+                        setTimeout(() => {
+                            this.checkConnectionStatus();
+                        }, 1000);
+                    } else {
+                        // Handle connection failures
+                        if (result.error && result.error.includes('already in progress')) {
+                            console.log('📡 Auto-connect in progress, waiting...');
+                            setTimeout(async () => {
+                                const status = await window.electronAPI.wifi.getStatus();
+                                if (status.success && status.connected && status.network === ssid) {
+                                    this.showMessage(`Auto-connected to ${ssid}`, 'success');
+                                    this.checkConnectionStatus();
+                                }
+                            }, 3000);
+                        } else {
+                            throw new Error(result.error || 'Auto-connection failed');
+                        }
+                    }
+                } else {
+                    // Mock auto-connect
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    console.log(`📡 Mock auto-connected to ${ssid}`);
+                    this.showMessage(`Mock auto-connected to ${ssid}`, 'success');
+                    this.currentNetwork = ssid;
+                    this.checkConnectionStatus();
+                }
+            }
+
+            showAutoConnectMessage(ssid) {
+                const networkList = document.getElementById('networkList');
+                const autoConnectMessage = document.createElement('div');
+                autoConnectMessage.id = 'autoConnectMessage';
+                autoConnectMessage.style.cssText = `
+                    background: rgba(102, 126, 234, 0.2);
+                    border: 1px solid rgba(102, 126, 234, 0.6);
+                    border-radius: 15px;
+                    padding: 20px;
+                    margin-bottom: 15px;
+                    color: #667eea;
+                    text-align: center;
+                    animation: fadeInUp 0.3s ease-out;
+                `;
+                
+                autoConnectMessage.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                        <div class="spinner" style="width: 20px; height: 20px; border: 2px solid rgba(102, 126, 234, 0.3); border-top: 2px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                        <div>
+                            <div style="font-size: 1.1rem; font-weight: 500;">🔄 Auto-connecting...</div>
+                            <div style="opacity: 0.8; margin-top: 5px;">Connecting to ${ssid}</div>
+                        </div>
+                    </div>
+                `;
+                
+                networkList.insertBefore(autoConnectMessage, networkList.firstChild);
+            }
+
+            hideAutoConnectMessage() {
+                const autoConnectMessage = document.getElementById('autoConnectMessage');
+                if (autoConnectMessage) {
+                    autoConnectMessage.style.animation = 'fadeInUp 0.3s ease-out reverse';
+                    setTimeout(() => {
+                        if (autoConnectMessage.parentNode) {
+                            autoConnectMessage.remove();
+                        }
+                    }, 300);
+                }
+            }
+
+            async handleConnect(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('📡 Handle connect called');
+                
+                if (this.isConnecting) {
+                    console.log('⏳ Already connecting, ignoring...');
+                    return;
+                }
+                
+                this.isConnecting = true;
+                const connectBtn = document.getElementById('connectBtn');
+                const cancelBtn = document.getElementById('cancelBtn');
+                const connectLoading = document.getElementById('connectLoading');
+                
+                const ssid = document.getElementById('modalSSID').value;
+                const password = document.getElementById('modalPassword').value;
+                const security = document.getElementById('modalSecurity').value;
+                
+                console.log('📡 Connection details:', { ssid, hasPassword: !!password, security });
+                
+                connectBtn.disabled = true;
+                cancelBtn.disabled = true;
+                connectLoading.classList.add('show');
+                
+                try {
+                    console.log('📡 Attempting to connect to:', ssid);
+                    
+                    if (window.electronAPI && window.electronAPI.wifi) {
+                        const result = await window.electronAPI.wifi.connect(ssid, password, security);
+                        
+                        if (result.success) {
+                            console.log('✅ Connected successfully');
+                            this.showMessage(`Successfully connected to ${ssid}`, 'success');
+                            
+                            // Save network credentials for future auto-connect
+                            if (password || security === 'Open') {
+                                this.saveNetworkCredentials(ssid, password, security);
+                                console.log('💾 Network credentials saved for auto-connect');
+                            }
+                            
+                            this.closeModal();
+                            
+                            // Refresh status after connection
+                            setTimeout(() => {
+                                this.checkConnectionStatus();
+                            }, 1000);
+                        } else {
+                            // Handle "already in progress" gracefully
+                            if (result.error && result.error.includes('already in progress')) {
+                                console.log('📡 Connection in progress, waiting...');
+                                this.showMessage('Connection in progress...', 'info');
+                                
+                                // Wait and verify connection
+                                setTimeout(async () => {
+                                    try {
+                                        const status = await window.electronAPI.wifi.getStatus();
+                                        if (status.success && status.connected && status.network === ssid) {
+                                            console.log('✅ Connection verified');
+                                            this.showMessage(`Successfully connected to ${ssid}`, 'success');
+                                            
+                                            // Save network credentials for future auto-connect
+                                            if (password || security === 'Open') {
+                                                this.saveNetworkCredentials(ssid, password, security);
+                                                console.log('💾 Network credentials saved for auto-connect');
+                                            }
+                                            
+                                            this.closeModal();
+                                            this.checkConnectionStatus();
+                                        } else {
+                                            throw new Error('Connection verification failed');
+                                        }
+                                    } catch (verifyError) {
+                                        console.error('❌ Verification failed:', verifyError);
+                                        this.showMessage('Connection verification failed', 'error');
+                                    }
+                                }, 3000);
+                            } else {
+                                throw new Error(result.error || 'Connection failed');
+                            }
+                        }
+                    } else {
+                        // Mock connection for testing
+                        console.log('📡 Using mock connection...');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        console.log('📡 Mock connection successful');
+                        this.showMessage(`Mock connection to ${ssid} successful`, 'success');
+                        
+                        // Save network credentials for future auto-connect
+                        if (password || security === 'Open') {
+                            this.saveNetworkCredentials(ssid, password, security);
+                            console.log('💾 Network credentials saved for auto-connect');
+                        }
+                        
+                        this.closeModal();
+                        this.currentNetwork = ssid;
+                        this.checkConnectionStatus();
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Connection failed:', error);
+                    this.showMessage(`Failed to connect: ${error.message}`, 'error');
+                } finally {
+                    this.isConnecting = false;
+                    connectBtn.disabled = false;
+                    cancelBtn.disabled = false;
+                    connectLoading.classList.remove('show');
+                }
+            }
+
+            async disconnect() {
+                if (!this.currentNetwork) return;
+                
+                try {
+                    console.log('📡 Disconnecting from WiFi...');
+                    
+                    const disconnectBtn = document.getElementById('disconnectBtn');
+                    disconnectBtn.disabled = true;
+                    disconnectBtn.textContent = '🔌 Disconnecting...';
+                    
+                    if (window.electronAPI && window.electronAPI.wifi) {
+                        const result = await window.electronAPI.wifi.disconnect();
+                        
+                        if (result.success) {
+                            console.log('✅ Disconnected successfully');
+                            this.showMessage('Disconnected from WiFi', 'info');
+                            this.checkConnectionStatus();
+                        } else {
+                            throw new Error(result.error || 'Disconnection failed');
+                        }
+                    } else {
+                        // Mock disconnection
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        console.log('📡 Mock disconnection successful');
+                        this.showMessage('Mock disconnection successful', 'info');
+                        this.currentNetwork = null;
+                        this.checkConnectionStatus();
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Disconnection failed:', error);
+                    this.showMessage(`Failed to disconnect: ${error.message}`, 'error');
+                } finally {
+                    const disconnectBtn = document.getElementById('disconnectBtn');
+                    disconnectBtn.disabled = false;
+                    disconnectBtn.textContent = '🔌 Disconnect';
+                }
+            }
+
+            async refresh() {
+                console.log('🔄 Refreshing WiFi status...');
+                await this.checkConnectionStatus();
+                this.showMessage('Status refreshed', 'info');
+            }
+
+            async showQRScanner() {
+                console.log('📱 Showing QR WiFi scanner in settings...');
+                
+                try {
+                    const qrSection = document.getElementById('qrScannerSection');
+                    const qrVideo = document.getElementById('qrScannerVideoSettings');
+                    const qrStatus = document.getElementById('qrScannerStatusSettings');
+                    
+                    // Show the QR scanner section
+                    qrSection.style.display = 'block';
+                    qrSection.scrollIntoView({ behavior: 'smooth' });
+                    
+                    // Initialize QR scanner after a short delay
+                    setTimeout(async () => {
+                        try {
+                            this.qrScanner = new QrScanner(
+                                qrVideo,
+                                (result) => this.onQRCodeDetected(result),
+                                {
+                                    onDecodeError: (error) => {
+                                        console.debug('QR decode attempt:', error.message);
+                                    },
+                                    highlightScanRegion: false,
+                                    highlightCodeOutline: false,
+                                    preferredCamera: 'environment'
+                                }
+                            );
+
+                            await this.qrScanner.start();
+                            qrStatus.textContent = 'Position QR code within the frame';
+                            console.log('✅ QR scanner started successfully');
+                            
+                        } catch (error) {
+                            console.error('❌ Failed to start QR scanner:', error);
+                            qrStatus.textContent = '❌ Camera access failed';
+                            this.showMessage('Failed to access camera', 'error');
+                        }
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('❌ Error showing QR scanner:', error);
+                    this.showMessage('Failed to initialize QR scanner', 'error');
+                }
+            }
+
+            hideQRScanner() {
+                console.log('📱 Hiding QR scanner...');
+                
+                const qrSection = document.getElementById('qrScannerSection');
+                qrSection.style.display = 'none';
+                
+                if (this.qrScanner) {
+                    this.qrScanner.stop();
+                    this.qrScanner = null;
+                }
+            }
+
+            onQRCodeDetected(result) {
+                console.log('📱 QR code detected in settings:', result.data);
+                
+                try {
+                    const wifiData = this.parseWiFiQR(result.data);
+                    
+                    if (wifiData) {
+                        console.log('📱 Valid WiFi QR detected:', wifiData);
+                        document.getElementById('qrScannerStatusSettings').textContent = '✅ WiFi QR detected!';
+                        
+                        // Hide QR scanner
+                        this.hideQRScanner();
+                        
+                        // Connect to the network
+                        this.connectToQRNetwork(wifiData);
+                    } else {
+                        document.getElementById('qrScannerStatusSettings').textContent = '❌ Invalid WiFi QR format';
+                        setTimeout(() => {
+                            document.getElementById('qrScannerStatusSettings').textContent = 'Position QR code within the frame';
+                        }, 2000);
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error processing QR code:', error);
+                    document.getElementById('qrScannerStatusSettings').textContent = '❌ Error processing QR code';
+                    setTimeout(() => {
+                        document.getElementById('qrScannerStatusSettings').textContent = 'Position QR code within the frame';
+                    }, 2000);
+                }
+            }
+
+            parseWiFiQR(qrData) {
+                console.log('📱 Parsing WiFi QR data:', qrData);
+                
+                try {
+                    // Try JSON format first
+                    if (qrData.startsWith('{')) {
+                        const data = JSON.parse(qrData);
+                        if (data.ssid || data.networkName) {
+                            return {
+                                ssid: data.ssid || data.networkName,
+                                password: data.password || data.key || '',
+                                security: data.security || data.encryption || 'WPA2'
+                            };
+                        }
+                    }
+                    
+                    // Try standard WiFi QR format: WIFI:T:WPA2;S:NetworkName;P:Password;H:false;;
+                    if (qrData.startsWith('WIFI:')) {
+                        const params = {};
+                        const parts = qrData.replace('WIFI:', '').split(';');
+                        
+                        parts.forEach(part => {
+                            if (part.includes(':')) {
+                                const [key, value] = part.split(':', 2);
+                                params[key] = value;
+                            }
+                        });
+                        
+                        if (params.S) {
+                            return {
+                                ssid: params.S,
+                                password: params.P || '',
+                                security: params.T || 'WPA2'
+                            };
+                        }
+                    }
+                    
+                    // Try simple line-separated format
+                    if (qrData.includes('ssid') || qrData.includes('SSID')) {
+                        const lines = qrData.split('\n');
+                        const data = {};
+                        
+                        lines.forEach(line => {
+                            const [key, ...valueParts] = line.split(':');
+                            if (key && valueParts.length > 0) {
+                                const value = valueParts.join(':').trim();
+                                data[key.toLowerCase().trim()] = value;
+                            }
+                        });
+                        
+                        if (data.ssid) {
+                            return {
+                                ssid: data.ssid,
+                                password: data.password || data.key || '',
+                                security: data.security || 'WPA2'
+                            };
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error parsing WiFi QR data:', error);
+                }
+                
+                return null;
+            }
+
+            async connectToQRNetwork(wifiData) {
+                console.log('📱 Connecting to WiFi from QR code:', wifiData.ssid);
+                
+                try {
+                    this.showMessage(`Connecting to ${wifiData.ssid}...`, 'info');
+                    
+                    if (window.electronAPI && window.electronAPI.wifi) {
+                        const result = await window.electronAPI.wifi.connect(
+                            wifiData.ssid, 
+                            wifiData.password, 
+                            wifiData.security
+                        );
+                        
+                        if (result.success) {
+                            this.showMessage(`Successfully connected to ${wifiData.ssid}!`, 'success');
+                            
+                            // Save network credentials for future auto-connect
+                            this.saveNetworkCredentials(wifiData.ssid, wifiData.password, wifiData.security);
+                            console.log('💾 QR network credentials saved for auto-connect');
+                            
+                            // Refresh status after connection
+                            setTimeout(() => {
+                                this.checkConnectionStatus();
+                            }, 1000);
+                        } else {
+                            // Handle "already in progress" gracefully
+                            if (result.error && result.error.includes('already in progress')) {
+                                this.showMessage('Connection in progress...', 'info');
+                                // Wait and verify connection
+                                setTimeout(async () => {
+                                    const status = await window.electronAPI.wifi.getStatus();
+                                    if (status.success && status.connected && status.network === wifiData.ssid) {
+                                        this.showMessage(`Successfully connected to ${wifiData.ssid}!`, 'success');
+                                        
+                                        // Save network credentials for future auto-connect
+                                        this.saveNetworkCredentials(wifiData.ssid, wifiData.password, wifiData.security);
+                                        console.log('💾 QR network credentials saved for auto-connect');
+                                        
+                                        this.checkConnectionStatus();
+                                    } else {
+                                        this.showMessage('Connection verification failed', 'error');
+                                    }
+                                }, 3000);
+                            } else {
+                                throw new Error(result.error || 'Connection failed');
+                            }
+                        }
+                    } else {
+                        // Mock connection
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        this.showMessage(`Mock connection to ${wifiData.ssid} successful!`, 'success');
+                        
+                        // Save network credentials for future auto-connect
+                        this.saveNetworkCredentials(wifiData.ssid, wifiData.password, wifiData.security);
+                        console.log('💾 QR network credentials saved for auto-connect');
+                        
+                        this.checkConnectionStatus();
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ QR WiFi connection failed:', error);
+                    this.showMessage(`Failed to connect: ${error.message}`, 'error');
+                }
+            }
+
+            showMessage(text, type = 'info') {
+                const message = document.createElement('div');
+                
+                let bgColor, borderColor, textColor, icon;
+                switch (type) {
+                    case 'success':
+                        bgColor = 'rgba(0, 255, 136, 0.2)';
+                        borderColor = 'rgba(0, 255, 136, 0.6)';
+                        textColor = '#00ff88';
+                        icon = '✅';
+                        break;
+                    case 'error':
+                        bgColor = 'rgba(255, 107, 107, 0.2)';
+                        borderColor = 'rgba(255, 107, 107, 0.6)';
+                        textColor = '#ff6b6b';
+                        icon = '❌';
+                        break;
+                    default:
+                        bgColor = 'rgba(102, 126, 234, 0.2)';
+                        borderColor = 'rgba(102, 126, 234, 0.6)';
+                        textColor = '#667eea';
+                        icon = 'ℹ️';
+                }
+                
+                message.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: ${bgColor};
+                    border: 2px solid ${borderColor};
+                    color: ${textColor};
+                    padding: 15px 25px;
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    z-index: 10001;
+                    backdrop-filter: blur(10px);
+                    animation: slideInRight 0.3s ease-out;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                `;
+                
+                message.innerHTML = `${icon} ${text}`;
+                document.body.appendChild(message);
+                
+                setTimeout(() => {
+                    message.style.animation = 'slideInRight 0.3s ease-out reverse';
+                    setTimeout(() => message.remove(), 300);
+                }, 3000);
+            }
+        }
+
+        // Add required animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Initialize WiFi settings manager
+        let wifiSettings = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            wifiSettings = new WiFiSettingsManager();
+        });
+
+        // Refresh connection status when page becomes visible (e.g., navigating back from QR scanner)
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && wifiSettings) {
+                console.log('📡 Page became visible, refreshing WiFi status...');
+                setTimeout(() => {
+                    wifiSettings.checkConnectionStatus();
+                }, 500);
+            }
+        });
+
+        // Also refresh when window gains focus
+        window.addEventListener('focus', () => {
+            if (wifiSettings) {
+                console.log('📡 Window gained focus, refreshing WiFi status...');
+                setTimeout(() => {
+                    wifiSettings.checkConnectionStatus();
+                }, 500);
+            }
+        });
+    </script>
+    <script src="universal-navigation.js"></script>
+    <script src="onscreen-keyboard.js"></script>
+</body>
+</html>
