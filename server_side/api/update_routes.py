@@ -59,7 +59,9 @@ def check_for_updates():
         'releaseNotes': latest_version.get('releaseNotes', '') if has_update else '',
         'releaseDate': latest_version.get('releaseDate', '') if has_update else '',
         'downloadUrl': f'/api/updates/download/{latest_version["version"]}' if has_update else '',
-        'fileSize': latest_version.get('fileSize', 0) if has_update else 0
+        'fileSize': latest_version.get('fileSize', 0) if has_update else 0,
+        'important': latest_version.get('important', False) if has_update else False,
+        'forceUpdate': latest_version.get('forceUpdate', False) if has_update else False
     })
 
 @update_bp.route('/download/<version>', methods=['GET'])
@@ -113,6 +115,8 @@ def upload_update():
     
     version = request.form.get('version')
     release_notes = request.form.get('releaseNotes', '')
+    important = request.form.get('important', 'false').lower() == 'true'
+    force_update = request.form.get('forceUpdate', 'false').lower() == 'true'
     
     if not version:
         return jsonify({'error': 'Version is required'}), 400
@@ -137,7 +141,9 @@ def upload_update():
         'filename': filename,
         'releaseNotes': release_notes,
         'releaseDate': datetime.datetime.now().isoformat(),
-        'fileSize': file_size
+        'fileSize': file_size,
+        'important': important,
+        'forceUpdate': force_update
     }
     
     if existing_version is not None:

@@ -33,10 +33,16 @@ def register_user():
         if not username:
             return jsonify({'error': 'Username is required'}), 400
         
-        # Validate username format (5 alphanumeric characters)
-        if not username.isalnum() or len(username) != 5:
+        # Validate username format (allow device IDs which can be UUIDs or legacy 5-char usernames)
+        if len(username) < 5 or len(username) > 50:
             return jsonify({
-                'error': 'Username must be exactly 5 alphanumeric characters'
+                'error': 'Username must be between 5 and 50 characters'
+            }), 400
+        
+        # Allow alphanumeric characters and hyphens (for UUIDs)
+        if not all(c.isalnum() or c == '-' for c in username):
+            return jsonify({
+                'error': 'Username must contain only alphanumeric characters and hyphens'
             }), 400
         
         display_name = data.get('display_name')

@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     downloadUpdate: (url, version) => ipcRenderer.invoke('download-update', url, version),
     onUpdateProgress: (callback) => ipcRenderer.on('update-progress', callback),
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+    getDeviceInfo: () => ipcRenderer.invoke('get-device-info'),
     
     // WiFi functionality
     wifi: {

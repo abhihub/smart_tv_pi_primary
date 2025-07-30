@@ -1,10 +1,11 @@
 // User identification utility for SmartTV
-// Generates and manages persistent usernames using localStorage
+// Uses device ID as persistent username for cross-reinstall consistency
 
 class UserUtils {
     constructor() {
         this.storageKey = 'smarttv_user_id';
-        this.username = this.getOrCreateUsername();
+        this.username = null;
+        this.deviceId = null;
         this.serverUrl = null;
         this.isRegistered = false;
         this.configReady = false;
@@ -42,50 +43,82 @@ class UserUtils {
         });
     }
 
-    // Generate a random 5-character alphanumeric string
-    generateUsername() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let result = '';
-        for (let i = 0; i < 5; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
-    }
-
-    // Get existing username from localStorage or create new one
-    getOrCreateUsername() {
+    // Get device ID from system or fallback to localStorage
+    async getDeviceId() {
         try {
-            let username = localStorage.getItem(this.storageKey);
+            // First try to get device ID from system manager API
+            if (this.serverUrl) {
+                try {
+                    const response = await fetch(`${this.serverUrl}/api/system/device-id`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.device_id) {
+                            console.log('Retrieved device ID from system:', data.device_id);
+                            return data.device_id;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Failed to get device ID from system API:', error);
+                }
+            }
             
-            if (!username) {
-                username = this.generateUsername();
-                localStorage.setItem(this.storageKey, username);
-                console.log('Generated new username:', username);
+            // Fallback to localStorage (for compatibility)
+            let deviceId = localStorage.getItem(this.storageKey);
+            
+            if (!deviceId) {
+                // Generate a UUID-like device ID as final fallback
+                deviceId = this.generateUUID();
+                localStorage.setItem(this.storageKey, deviceId);
+                console.log('Generated new device ID as fallback:', deviceId);
             } else {
-                console.log('Loaded existing username:', username);
+                console.log('Loaded existing device ID from localStorage:', deviceId);
             }
             
-            return username;
+            return deviceId;
         } catch (error) {
-            console.warn('localStorage not available, using session username:', error);
-            // Fallback for environments where localStorage might not be available
-            if (!this.sessionUsername) {
-                this.sessionUsername = this.generateUsername();
+            console.warn('Error getting device ID, using session fallback:', error);
+            // Final fallback for environments where localStorage might not be available
+            if (!this.sessionDeviceId) {
+                this.sessionDeviceId = this.generateUUID();
             }
-            return this.sessionUsername;
+            return this.sessionDeviceId;
         }
     }
 
-    // Get the current username
-    getUsername() {
+    // Generate a UUID-like string for device identification
+    generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    // Initialize username based on device ID
+    async initializeUsername() {
+        if (!this.username) {
+            this.deviceId = await this.getDeviceId();
+            this.username = this.deviceId;
+            console.log('Username set to device ID:', this.username);
+        }
+        return this.username;
+    }
+
+    // Get the current username (async to ensure it's initialized)
+    async getUsername() {
+        if (!this.username) {
+            await this.initializeUsername();
+        }
         return this.username;
     }
 
     // Reset username (for testing/debugging)
-    resetUsername() {
+    async resetUsername() {
         try {
             localStorage.removeItem(this.storageKey);
-            this.username = this.getOrCreateUsername();
+            this.username = null;
+            this.deviceId = null;
+            await this.initializeUsername();
             return this.username;
         } catch (error) {
             console.warn('Could not reset username:', error);
@@ -94,17 +127,21 @@ class UserUtils {
     }
 
     // Create and display the username element
-    displayUsername() {
+    async displayUsername() {
+        // Ensure username is initialized
+        await this.initializeUsername();
+        
         // Remove existing username display if any
         const existingDisplay = document.getElementById('user-id-display');
         if (existingDisplay) {
             existingDisplay.remove();
         }
 
-        // Create username display element
+        // Create username display element with shorter device ID for display
+        const displayId = this.username.length > 8 ? this.username.substring(0, 8) + '...' : this.username;
         const userDisplay = document.createElement('div');
         userDisplay.id = 'user-id-display';
-        userDisplay.innerHTML = `Your Call ID is: ${this.username} | <a href="super.html" style="color: rgba(255,255,255,0.8); text-decoration: none;">🔧 Admin</a>`;
+        userDisplay.innerHTML = `Your Device ID: ${displayId} | <a href="super.html" style="color: rgba(255,255,255,0.8); text-decoration: none;">🔧 Admin</a>`;
         
         // Style the display element
         userDisplay.style.cssText = `
@@ -121,7 +158,22 @@ class UserUtils {
             z-index: 1000;
             pointer-events: auto;
             user-select: none;
+            max-width: 400px;
+            cursor: pointer;
         `;
+
+        // Add click to copy full device ID
+        userDisplay.addEventListener('click', () => {
+            navigator.clipboard?.writeText(this.username).then(() => {
+                const originalText = userDisplay.innerHTML;
+                userDisplay.innerHTML = `Device ID copied! | <a href="super.html" style="color: rgba(255,255,255,0.8); text-decoration: none;">🔧 Admin</a>`;
+                setTimeout(() => {
+                    userDisplay.innerHTML = originalText;
+                }, 2000);
+            }).catch(() => {
+                console.log('Full Device ID:', this.username);
+            });
+        });
 
         // Add to document body
         document.body.appendChild(userDisplay);
@@ -132,6 +184,9 @@ class UserUtils {
     // Register user with backend server
     async registerWithServer() {
         try {
+            // Ensure username is initialized first
+            await this.initializeUsername();
+            
             // First, check if user exists to avoid overwriting display_name
             const checkResponse = await fetch(`${this.serverUrl}/api/users/profile/${this.username}`);
             const isExistingUser = checkResponse.ok;
@@ -141,6 +196,7 @@ class UserUtils {
                 username: this.username,
                 device_type: 'smarttv',
                 metadata: {
+                    device_id: this.deviceId,
                     user_agent: navigator.userAgent,
                     screen_resolution: `${screen.width}x${screen.height}`,
                     app_version: '1.0.0',
@@ -150,7 +206,9 @@ class UserUtils {
             
             // Only set display_name for new users (to avoid overwriting existing custom display names)
             if (!isExistingUser) {
-                registrationData.display_name = this.username;
+                // Use a shorter, user-friendly display name
+                const shortId = this.username.length > 8 ? this.username.substring(0, 8) : this.username;
+                registrationData.display_name = `Device-${shortId}`;
             }
             
             const response = await fetch(`${this.serverUrl}/api/users/register`, {
@@ -187,6 +245,7 @@ class UserUtils {
     // Get user profile from server
     async getUserProfile() {
         try {
+            await this.initializeUsername();
             const response = await fetch(`${this.serverUrl}/api/users/profile/${this.username}`);
             const data = await response.json();
             
@@ -205,6 +264,7 @@ class UserUtils {
     // Save game score to server
     async saveGameScore(gameType, score, questionsAnswered, correctAnswers, gameDuration, roomName = null) {
         try {
+            await this.initializeUsername();
             const response = await fetch(`${this.serverUrl}/api/users/game/score`, {
                 method: 'POST',
                 headers: {
@@ -267,12 +327,14 @@ class UserUtils {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', async () => {
                 await this.waitForConfig();
-                this.displayUsername();
+                await this.initializeUsername();
+                await this.displayUsername();
                 await this.registerWithServer();
             });
         } else {
             await this.waitForConfig();
-            this.displayUsername();
+            await this.initializeUsername();
+            await this.displayUsername();
             await this.registerWithServer();
         }
     }
@@ -287,12 +349,14 @@ window.userUtils.init();
 // Helper functions for compatibility with existing code
 async function getCurrentUser() {
     await window.userUtils.waitForConfig();
+    await window.userUtils.initializeUsername();
     if (!window.userUtils.isRegistered) {
         await window.userUtils.registerWithServer();
     }
+    const username = await window.userUtils.getUsername();
     return {
-        username: window.userUtils.getUsername(),
-        display_name: window.userUtils.getUsername()
+        username: username,
+        display_name: username
     };
 }
 

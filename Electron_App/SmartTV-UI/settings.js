@@ -3,9 +3,9 @@ let downloadedFilePath = null;
 
 // Configuration
 const CONFIG = {
-    SERVER_URL: 'http://localhost:3001',
+    SERVER_URL: 'http://100.124.6.99:3001',
     SYSTEM_SERVER_URL: 'http://127.0.0.1:5000',
-    APP_VERSION: '1.0.0' // Default version, will be updated from Electron
+    APP_VERSION: '1.0.2' // Default version, will be updated from Electron
 };
 
 // DOM Elements
@@ -21,6 +21,8 @@ const elements = {
     modalMessage: document.getElementById('modalMessage'),
     progressFill: document.getElementById('progressFill'),
     progressText: document.getElementById('progressText'),
+    progressBar: document.getElementById('progressBar'),
+    loadingSpinner: document.getElementById('loadingSpinner'),
     modalCloseBtn: document.getElementById('modalCloseBtn'),
     installBtn: document.getElementById('installBtn'),
     appVersion: document.getElementById('appVersion')
@@ -45,11 +47,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     elements.currentVersion.textContent = `Current Version: ${appVersion}`;
     elements.appVersion.textContent = `Version: ${appVersion}`;
     
+    // Load and display device information
+    await loadDeviceInfo();
+    
     // Set up progress listener
     if (window.electronAPI) {
         window.electronAPI.onUpdateProgress((event, progress) => {
-            elements.progressFill.style.width = `${progress}%`;
-            elements.progressText.textContent = `${progress}%`;
+            // Show progress bar and hide spinner when we have actual progress
+            if (progress > 0) {
+                elements.loadingSpinner.style.display = 'none';
+                elements.progressBar.style.display = 'block';
+                elements.progressText.style.display = 'block';
+                elements.progressFill.style.width = `${progress}%`;
+                elements.progressText.textContent = `${progress}%`;
+            }
         });
     }
     
@@ -59,6 +70,64 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 function goBack() {
     window.history.back();
+}
+
+async function loadDeviceInfo() {
+    if (!window.electronAPI) {
+        console.log('Device info not available (not running in Electron)');
+        return;
+    }
+    
+    try {
+        console.log('🆔 Loading device information...');
+        const deviceInfo = await window.electronAPI.getDeviceInfo();
+        
+        if (deviceInfo && deviceInfo.device_id) {
+            // Find or create device info display element
+            let deviceInfoElement = document.getElementById('deviceInfo');
+            if (!deviceInfoElement) {
+                // Create device info section if it doesn't exist
+                const settingsContainer = document.querySelector('.settings-container');
+                if (settingsContainer) {
+                    const deviceSection = document.createElement('div');
+                    deviceSection.className = 'setting-item';
+                    deviceSection.innerHTML = `
+                        <h3>Device Information</h3>
+                        <div id="deviceInfo" class="device-info">
+                            <p><strong>Device ID:</strong> <span id="deviceId">Loading...</span></p>
+                            <p><strong>Hostname:</strong> <span id="deviceHostname">Loading...</span></p>
+                            <p><strong>Registered:</strong> <span id="deviceRegistered">Loading...</span></p>
+                        </div>
+                    `;
+                    settingsContainer.appendChild(deviceSection);
+                    deviceInfoElement = document.getElementById('deviceInfo');
+                }
+            }
+            
+            // Update device info display
+            const deviceIdElement = document.getElementById('deviceId');
+            const hostnameElement = document.getElementById('deviceHostname');  
+            const registeredElement = document.getElementById('deviceRegistered');
+            
+            if (deviceIdElement) {
+                deviceIdElement.textContent = deviceInfo.device_id;
+            }
+            
+            if (hostnameElement && deviceInfo.hostname) {
+                hostnameElement.textContent = deviceInfo.hostname;
+            }
+            
+            if (registeredElement && deviceInfo.generated_at) {
+                const registeredDate = new Date(deviceInfo.generated_at);
+                registeredElement.textContent = registeredDate.toLocaleDateString();
+            }
+            
+            console.log('✅ Device info loaded:', deviceInfo.device_id);
+        }
+    } catch (error) {
+        console.log('⚠️ Could not load device info:', error);
+        // Don't show error to user, just log it
+    }
 }
 
 async function checkForUpdates() {
@@ -80,8 +149,17 @@ async function checkForUpdates() {
             elements.updateStatus.textContent = `Update available: v${data.latestVersion}`;
             elements.updateStatus.className = 'update-status update-available';
             
+            let updateBadges = '';
+            if (data.important) {
+                updateBadges += '<span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 4px; margin-right: 8px; font-size: 12px;">IMPORTANT - REQUIRES REBOOT</span>';
+            }
+            if (data.forceUpdate) {
+                updateBadges += '<span style="background: #f39c12; color: white; padding: 2px 8px; border-radius: 4px; margin-right: 8px; font-size: 12px;">FORCE UPDATE</span>';
+            }
+            
             elements.releaseNotes.innerHTML = `
                 <h3>What's New in v${data.latestVersion}</h3>
+                ${updateBadges ? `<div style="margin: 8px 0;">${updateBadges}</div>` : ''}
                 <p><strong>Release Date:</strong> ${new Date(data.releaseDate).toLocaleDateString()}</p>
                 <p><strong>File Size:</strong> ${formatFileSize(data.fileSize)}</p>
                 <div><strong>Release Notes:</strong></div>
@@ -124,8 +202,12 @@ async function downloadUpdate() {
                 downloadedFilePath = result.filePath;
                 elements.modalTitle.textContent = 'Download Complete';
                 elements.modalMessage.textContent = 'Update downloaded successfully. Ready to install.';
+                // Hide spinner and show completed progress
+                elements.loadingSpinner.style.display = 'none';
+                elements.progressBar.style.display = 'block';
                 elements.progressFill.style.width = '100%';
-                elements.progressText.textContent = '100%';
+                elements.progressText.style.display = 'block';
+                elements.progressText.textContent = 'Download Complete';
                 elements.installBtn.style.display = 'inline-block';
             } else {
                 throw new Error(result.error || 'Download failed');
@@ -134,14 +216,21 @@ async function downloadUpdate() {
             // Fallback for browser testing
             elements.modalTitle.textContent = 'Download Complete';
             elements.modalMessage.textContent = 'Update would be downloaded in the Electron app.';
+            elements.loadingSpinner.style.display = 'none';
+            elements.progressBar.style.display = 'block';
             elements.progressFill.style.width = '100%';
-            elements.progressText.textContent = '100%';
+            elements.progressText.style.display = 'block';
+            elements.progressText.textContent = 'Download Complete';
             elements.modalCloseBtn.style.display = 'inline-block';
         }
     } catch (error) {
         console.error('Download error:', error);
         elements.modalTitle.textContent = 'Download Failed';
         elements.modalMessage.textContent = `Failed to download update: ${error.message}`;
+        // Hide spinner and show error state
+        elements.loadingSpinner.style.display = 'none';
+        elements.progressBar.style.display = 'none';
+        elements.progressText.style.display = 'none';
         elements.modalCloseBtn.style.display = 'inline-block';
     }
 }
@@ -153,8 +242,12 @@ async function installUpdate() {
     }
     
     elements.modalTitle.textContent = 'Installing Update';
-    elements.modalMessage.textContent = 'Installing the update via system manager. The application will restart automatically.';
+    elements.modalMessage.textContent = 'Installing the update via system manager...';
     elements.installBtn.style.display = 'none';
+    // Show spinner during installation
+    elements.loadingSpinner.style.display = 'block';
+    elements.progressBar.style.display = 'none';
+    elements.progressText.style.display = 'none';
     
     try {
         // First verify the package with the system manager
@@ -204,26 +297,60 @@ async function installUpdate() {
         }
         
         console.log('Installation initiated:', installData);
-        elements.modalTitle.textContent = 'Installation Started';
-        elements.modalMessage.textContent = 'Update installation initiated successfully. The application will restart automatically when complete.';
+        elements.modalTitle.textContent = 'Installation Complete';
+        elements.modalMessage.textContent = 'Update installed successfully. The device will reboot automatically to complete the update.';
         
-        // Close modal after a delay since the app will restart
+        // Trigger device reboot after successful installation
+        setTimeout(async () => {
+            try {
+                const rebootResponse = await fetch(`${CONFIG.SYSTEM_SERVER_URL}/api/system/reboot`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        confirm: true,
+                        delay: 5  // 5 second delay to allow UI to show message
+                    })
+                });
+                
+                if (rebootResponse.ok) {
+                    elements.modalMessage.textContent = 'Update complete. Device will reboot in 5 seconds...';
+                } else {
+                    console.error('Failed to initiate reboot');
+                    elements.modalMessage.textContent = 'Update complete. Please reboot the device manually.';
+                }
+            } catch (error) {
+                console.error('Reboot request failed:', error);
+                elements.modalMessage.textContent = 'Update complete. Please reboot the device manually.';
+            }
+        }, 2000);
+        
+        // Close modal after showing reboot message
         setTimeout(() => {
             closeModal();
-        }, 3000);
+        }, 8000);
         
     } catch (error) {
         console.error('Installation error:', error);
         elements.modalTitle.textContent = 'Installation Failed';
         elements.modalMessage.textContent = `Failed to install update: ${error.message}`;
+        // Hide spinner and show error state
+        elements.loadingSpinner.style.display = 'none';
+        elements.progressBar.style.display = 'none';
+        elements.progressText.style.display = 'none';
         elements.modalCloseBtn.style.display = 'inline-block';
     }
 }
 
 function showModal() {
     elements.updateModal.style.display = 'block';
+    // Show spinner initially, hide progress bar
+    elements.loadingSpinner.style.display = 'block';
+    elements.progressBar.style.display = 'none';
+    elements.progressText.style.display = 'none';
     elements.progressFill.style.width = '0%';
-    elements.progressText.textContent = '0%';
+    elements.progressText.textContent = 'Preparing download...';
     elements.modalCloseBtn.style.display = 'none';
     elements.installBtn.style.display = 'none';
 }

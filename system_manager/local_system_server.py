@@ -18,6 +18,7 @@ import threading
 import shutil
 import tempfile
 from datetime import datetime
+from device_id import ensure_device_id, get_device_info
 
 # Configure logging
 logging.basicConfig(
@@ -241,12 +242,56 @@ def install_update():
         logger.info(f"📁 Package: {package_path}")
         logger.info(f"🔄 Restart app after install: {restart_app}")
         
-        # Install the package using dpkg
+        # Install the package using dpkg with uninstall-first approach
         def execute_installation():
             try:
-                # First, try to install the package
+                # First, get package name from the .deb file to identify what to uninstall
+                info_cmd = ['dpkg', '--info', package_path]
+                info_result = subprocess.run(info_cmd, 
+                                           capture_output=True, 
+                                           text=True, 
+                                           check=False)
+                
+                package_name = None
+                if info_result.returncode == 0:
+                    # Parse package name from dpkg --info output
+                    for line in info_result.stdout.split('\n'):
+                        if line.strip().startswith('Package:'):
+                            package_name = line.split(':', 1)[1].strip()
+                            break
+                
+                if package_name:
+                    logger.info(f"📦 Identified package name: {package_name}")
+                    
+                    # Check if package is currently installed
+                    check_cmd = ['dpkg', '-l', package_name]
+                    check_result = subprocess.run(check_cmd, 
+                                                capture_output=True, 
+                                                text=True, 
+                                                check=False)
+                    
+                    if check_result.returncode == 0 and package_name in check_result.stdout:
+                        logger.info(f"🗑️ Uninstalling existing package: {package_name}")
+                        uninstall_cmd = ['dpkg', '--remove', package_name]
+                        logger.info(f"🔧 Executing: {' '.join(uninstall_cmd)}")
+                        
+                        uninstall_result = subprocess.run(uninstall_cmd, 
+                                                        capture_output=True, 
+                                                        text=True, 
+                                                        check=False)
+                        
+                        if uninstall_result.returncode == 0:
+                            logger.info("✅ Existing package uninstalled successfully")
+                        else:
+                            logger.warning(f"⚠️ Uninstall failed, proceeding anyway: {uninstall_result.stderr}")
+                    else:
+                        logger.info(f"ℹ️ Package {package_name} not currently installed")
+                else:
+                    logger.warning("⚠️ Could not determine package name, proceeding with direct installation")
+                
+                # Now install the new package
                 install_cmd = ['dpkg', '-i', package_path]
-                logger.info(f"🔧 Executing: {' '.join(install_cmd)}")
+                logger.info(f"🔧 Installing new package: {' '.join(install_cmd)}")
                 
                 result = subprocess.run(install_cmd, 
                                       capture_output=True, 
@@ -277,6 +322,13 @@ def install_update():
                 
                 logger.info("✅ Package installation completed successfully")
                 logger.info(f"📄 Installation output: {result.stdout}")
+                
+                # Ensure device ID exists after successful installation
+                try:
+                    device_id = ensure_device_id()
+                    logger.info(f"🆔 Device ID ensured: {device_id}")
+                except Exception as device_error:
+                    logger.error(f"❌ Failed to ensure device ID: {device_error}")
                 
                 # Clean up the package file
                 try:
@@ -401,6 +453,32 @@ def verify_package():
             'success': False
         }), 500
 
+@app.route('/api/system/device-info', methods=['GET'])
+def get_device_information():
+    """
+    Get device ID and system information
+    """
+    try:
+        device_info = get_device_info()
+        if device_info:
+            return jsonify({
+                'success': True,
+                'deviceInfo': device_info,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No device information available',
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }), 404
+    except Exception as e:
+        logger.error(f"Device info request failed: {e}")
+        return jsonify({
+            'error': f'Device info request failed: {str(e)}',
+            'success': False
+        }), 500
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """
@@ -420,6 +498,7 @@ if __name__ == '__main__':
     logger.info("  POST /api/system/install-update - Install .deb package update")
     logger.info("  POST /api/system/verify-package - Verify .deb package")
     logger.info("  GET  /api/system/status - Get system status")
+    logger.info("  GET  /api/system/device-info - Get device ID and information")
     logger.info("  GET  /health - Health check")
     
     try:

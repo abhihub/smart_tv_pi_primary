@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.0.2",
+      "filename": "smart-tv-ui_1.0.0_amd64.deb",
+      "releaseNotes": "testing",
+      "releaseDate": "2025-07-30T20:51:20.994968",
+      "fileSize": 80330798,
+      "important": false,
+      "forceUpdate": true
+    },
+    {
+      "version": "1.0.3",
+      "filename": "smart-tv-ui_1.0.0_amd64.deb",
+      "releaseNotes": "testing",
+      "releaseDate": "2025-07-30T20:51:30.046295",
+      "fileSize": 80330798,
+      "important": false,
+      "forceUpdate": true
+    }
+  ]
+}

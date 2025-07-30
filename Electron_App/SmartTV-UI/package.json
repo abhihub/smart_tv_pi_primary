@@ -1,6 +1,6 @@
 {
   "name": "smart-tv-ui",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "main": "./main.js",
   "description": "A smart TV console for video calling and games",
   "author": "Your Name <your.email@example.com>",

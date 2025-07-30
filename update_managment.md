@@ -26,7 +26,9 @@ Check for available updates by comparing the current version with the latest ava
   "releaseNotes": "Bug fixes and new features",
   "releaseDate": "2024-01-15T10:30:00",
   "downloadUrl": "/api/updates/download/1.1.0",
-  "fileSize": 125829120
+  "fileSize": 125829120,
+  "important": false,
+  "forceUpdate": true
 }
 ```
 
@@ -43,6 +45,8 @@ Upload a new .deb package (for administrators).
 - `file`: .deb package file
 - `version`: Version string (e.g., "1.1.0")
 - `releaseNotes`: Optional release notes
+- `important`: Optional boolean - marks update as important (forces reboot)
+- `forceUpdate`: Optional boolean - enables force update on app startup
 
 #### `DELETE /api/updates/delete/<version>`
 Delete a specific version from the update system (for administrators).
@@ -79,7 +83,9 @@ server_side/
       "filename": "smart-tv-ui_1.1.0_amd64.deb",
       "releaseNotes": "Added auto-update functionality",
       "releaseDate": "2024-01-15T10:30:00",
-      "fileSize": 125829120
+      "fileSize": 125829120,
+      "important": false,
+      "forceUpdate": true
     }
   ]
 }
@@ -117,6 +123,53 @@ Handles IPC communication for:
 - Downloading .deb packages to user's Downloads folder
 - Progress reporting during download
 - Version management
+- **Force Update System**: Automatically checks for updates on app startup and installs important/forced updates
+
+## Force Update System
+
+The force update system provides automatic update checking and installation for critical updates.
+
+### Features
+
+#### Force Update Flag
+- When `forceUpdate: true` is set on an update, the app will automatically check, download, and install the update on startup
+- No user interaction required
+- Suitable for regular maintenance updates
+
+#### Important Update Flag  
+- When `important: true` is set on an update, the system will automatically reboot after installation
+- Used for critical security updates or system-breaking changes
+- Combines with force update for fully automated critical updates
+
+#### Startup Update Check
+- Every app startup triggers an automatic update check (with 3-second delay)
+- Compares current version with server's latest version
+- Automatically processes force updates and important updates
+- Logs all actions for debugging
+
+### Update Flow for Force Updates
+
+1. **App Startup**: After window creation, automatic update check is triggered
+2. **Version Check**: HTTP request to `/api/updates/check?version=<current>`
+3. **Force Update Detection**: If `forceUpdate` or `important` flags are true
+4. **Auto Download**: Update package is downloaded to Downloads folder
+5. **Auto Install**: Package is verified and installed via system manager
+6. **Auto Reboot** (if important): System reboots automatically after installation
+
+### Configuration
+
+Updates can be marked as force/important during upload:
+
+```bash
+# Regular force update (auto-installs on startup)
+python upload_update.py app.deb 1.2.0 "Regular update" --force-update
+
+# Important update (auto-installs + reboots)
+python upload_update.py app.deb 1.2.0 "Critical security fix" --important
+
+# Both flags (force update that reboots)
+python upload_update.py app.deb 1.2.0 "Critical update" --important --force-update
+```
 
 ## System Manager Integration
 
