@@ -5,6 +5,11 @@ const http = require('http');
 const { exec, spawn } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const express = require('express');
+const WebSocket = require('ws');
+const cors = require('cors');
+const QRCode = require('qrcode');
+const os = require('os');
 require('dotenv').config();
 
 // Store config in global for preload script access
@@ -38,8 +43,16 @@ process.on('unhandledRejection', (reason, promise) => {
 function createWindow() {
   console.log('🪟 CREATING WINDOW');
   
+  // Check if running in server-only mode (for testing)
+  const serverOnlyMode = process.argv.includes('--server-only');
+  if (serverOnlyMode) {
+    console.log('🔧 Server-only mode: skipping window creation');
+    setupRemoteControlServer();
+    return;
+  }
+  
   // Check if explicitly running in kiosk mode via command line flag
-  const isKioskMode = process.argv.includes('--kiosk') || process.platform === 'linux';
+  const isKioskMode = process.argv.includes('--kiosk') || (process.platform === 'linux' && process.env.DISPLAY);
   console.log('🎯 Kiosk mode:', isKioskMode);
   
   const windowConfig = {
@@ -66,6 +79,9 @@ function createWindow() {
   console.log('🔧 Window config:', windowConfig);
   
   const win = new BrowserWindow(windowConfig);
+  
+  // Store window reference for remote control
+  mainWindow = win;
   
   console.log('✅ Window created successfully');
 
@@ -105,6 +121,11 @@ function createWindow() {
     console.log('😊 Web contents became responsive again');
   });
 
+  // Forward renderer console messages to main process
+  win.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[RENDERER] ${message}`);
+  });
+
   // Send config to renderer as soon as DOM starts loading
   win.webContents.once('dom-ready', () => {
     console.log('🌐 DOM ready, injecting config');
@@ -140,6 +161,9 @@ function createWindow() {
   console.log('📄 Loading homepage.html');
   win.loadFile('homepage.html').then(() => {
     console.log('✅ Homepage loaded successfully');
+    
+    // Start remote control server after window is ready
+    setupRemoteControlServer();
   }).catch(error => {
     console.error('❌ Failed to load homepage:', error);
   });
@@ -157,9 +181,11 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   console.log('🪟 All windows closed');
-  if (process.platform !== 'darwin') {
+  if (process.platform !== 'darwin' && !process.argv.includes('--server-only')) {
     console.log('🛑 Quitting app (not macOS)');
     app.quit();
+  } else if (process.argv.includes('--server-only')) {
+    console.log('🔧 Server-only mode: keeping app alive');
   }
 });
 
@@ -465,6 +491,408 @@ ipcMain.handle('wifi-current', async () => {
   console.log('📡 IPC: Current WiFi connection requested');
   return await wifiManager.getCurrentConnection();
 });
+
+// Remote Control Server Setup
+let mainWindow = null;
+let qrOverlayWindow = null;
+let remoteServer = null;
+let wsServer = null;
+let deviceIP = null;
+
+// Get device IP address
+function getDeviceIP() {
+  const networks = os.networkInterfaces();
+  for (const name of Object.keys(networks)) {
+    for (const net of networks[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
+function setupRemoteControlServer() {
+  console.log('🎮 Setting up remote control server...');
+  
+  // Get device IP
+  deviceIP = getDeviceIP();
+  console.log(`📱 Device IP: ${deviceIP}`);
+  
+  // Create Express app
+  const app = express();
+  app.use(cors());
+  app.use(express.json());
+  
+  // Status endpoint
+  app.get('/api/status', (req, res) => {
+    res.json({
+      device_type: 'smarttv',
+      app_name: 'SmartTV',
+      device_name: 'SmartTV Device',
+      version: '1.0.0',
+      status: 'online',
+      current_app: 'homepage',
+      capabilities: ['navigation', 'volume', 'apps', 'wifi'],
+      timestamp: Date.now()
+    });
+  });
+  
+  // WiFi endpoints
+  app.get('/api/wifi/status', async (req, res) => {
+    try {
+      const status = await wifiManager.getConnectionStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+  
+  app.get('/api/wifi/scan', async (req, res) => {
+    try {
+      const networks = await wifiManager.scanNetworks();
+      res.json(networks);
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+  
+  app.post('/api/wifi/connect', async (req, res) => {
+    try {
+      const { ssid, password, security } = req.body;
+      const result = await wifiManager.connectToNetwork(ssid, password, security);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+  
+  // Create HTTP server
+  const server = http.createServer(app);
+  
+  // Setup WebSocket server
+  wsServer = new WebSocket.Server({ server });
+  
+  wsServer.on('connection', (ws, req) => {
+    const clientIP = req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+    console.log(`📱 Mobile app connected from ${clientIP}`);
+    
+    // Notify QR overlay of connection
+    notifyMobileConnected({
+      ip: clientIP,
+      userAgent: userAgent,
+      timestamp: Date.now()
+    });
+    
+    // Send welcome message
+    ws.send(JSON.stringify({
+      type: 'connection_established',
+      message: 'Connected to SmartTV',
+      timestamp: Date.now()
+    }));
+    
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data);
+        console.log('📨 Received from mobile:', message);
+        handleRemoteCommand(message, ws);
+      } catch (error) {
+        console.error('❌ Error parsing WebSocket message:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      console.log(`📱 Mobile app disconnected from ${clientIP}`);
+    });
+    
+    ws.on('error', (error) => {
+      console.error('❌ WebSocket error:', error);
+    });
+  });
+  
+  // Start server
+  const PORT = 8080;
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🎮 Remote control server running on port ${PORT}`);
+    console.log(`📡 WebSocket server ready for mobile connections`);
+    console.log(`🔗 Connection URL: http://${deviceIP}:${PORT}`);
+    
+    console.log('📱 Remote control server ready - IP address displayed on homepage');
+  });
+  
+  remoteServer = server;
+}
+
+function handleRemoteCommand(message, ws) {
+  if (!mainWindow) {
+    console.error('❌ No main window available for remote command');
+    return;
+  }
+  
+  const { type, command, data } = message;
+  
+  if (type === 'remote_command') {
+    switch (command) {
+      case 'navigate':
+        handleNavigation(data.direction);
+        break;
+      case 'select':
+        handleSelect();
+        break;
+      case 'back':
+        handleBack();
+        break;
+      case 'home':
+        handleHome();
+        break;
+      case 'volume':
+        handleVolumeControl(data.action);
+        break;
+      case 'launch_app':
+        handleAppLaunch(data.app);
+        break;
+      default:
+        console.log('❓ Unknown remote command:', command);
+    }
+    
+    // Send acknowledgment
+    ws.send(JSON.stringify({
+      type: 'command_ack',
+      command: command,
+      status: 'executed',
+      timestamp: Date.now()
+    }));
+  }
+}
+
+function handleNavigation(direction) {
+  console.log(`🎮 Navigation: ${direction}`);
+  
+  // Map direction to proper Arrow key names
+  const keyMap = {
+    'up': 'ArrowUp',
+    'down': 'ArrowDown',
+    'left': 'ArrowLeft',
+    'right': 'ArrowRight'
+  };
+  
+  const arrowKey = keyMap[direction];
+  if (arrowKey) {
+    // Execute JavaScript to simulate arrow key press
+    const jsCode = `
+      try {
+        const event = new KeyboardEvent('keydown', {
+          key: '${arrowKey}',
+          code: '${arrowKey}',
+          keyCode: ${getKeyCode(direction)},
+          which: ${getKeyCode(direction)},
+          bubbles: true,
+          cancelable: true
+        });
+        document.dispatchEvent(event);
+        console.log('🎮 Simulated ${arrowKey} key press');
+        'success';
+      } catch (error) {
+        console.error('🎮 Error in navigation:', error);
+        'error: ' + error.message;
+      }
+    `;
+    
+    mainWindow.webContents.executeJavaScript(jsCode)
+      .then((result) => {
+        console.log(`✅ Navigation ${direction} result: ${result}`);
+      })
+      .catch(error => {
+        console.error(`❌ Error sending navigation event:`, error);
+      });
+  }
+}
+
+function getKeyCode(direction) {
+  const codes = {
+    'up': 38,
+    'down': 40,
+    'left': 37,
+    'right': 39
+  };
+  return codes[direction] || 0;
+}
+
+function handleSelect() {
+  console.log('🎮 Select/Enter');
+  
+  const jsCode = `
+    try {
+      const event = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        keyCode: 13,
+        which: 13,
+        bubbles: true,
+        cancelable: true
+      });
+      document.dispatchEvent(event);
+      console.log('🎮 Simulated Enter key press');
+      'success';
+    } catch (error) {
+      console.error('🎮 Error in select:', error);
+      'error: ' + error.message;
+    }
+  `;
+  
+  mainWindow.webContents.executeJavaScript(jsCode)
+    .then((result) => {
+      console.log(`✅ Select result: ${result}`);
+    })
+    .catch(error => {
+      console.error(`❌ Error sending select event:`, error);
+    });
+}
+
+function handleBack() {
+  console.log('🎮 Back/Escape');
+  
+  const jsCode = `
+    try {
+      const event = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        code: 'Escape',
+        keyCode: 27,
+        which: 27,
+        bubbles: true,
+        cancelable: true
+      });
+      document.dispatchEvent(event);
+      console.log('🎮 Simulated Escape key press');
+      'success';
+    } catch (error) {
+      console.error('🎮 Error in back:', error);
+      'error: ' + error.message;
+    }
+  `;
+  
+  mainWindow.webContents.executeJavaScript(jsCode)
+    .then((result) => {
+      console.log(`✅ Back result: ${result}`);
+    })
+    .catch(error => {
+      console.error(`❌ Error sending back event:`, error);
+    });
+}
+
+function handleHome() {
+  console.log('🎮 Home');
+  mainWindow.loadFile('homepage.html');
+}
+
+function handleVolumeControl(action) {
+  console.log(`🎮 Volume: ${action}`);
+  // In a real implementation, you'd control system volume
+  // For now, just log the action
+}
+
+function handleAppLaunch(appName) {
+  console.log(`🎮 Launch app: ${appName}`);
+  
+  const appPages = {
+    'home': 'homepage.html',
+    'video-call': 'video-call.html',
+    'trivia-game': 'trivia-game.html',
+    'settings': 'settings.html',
+    'wifi-settings': 'wifi-settings.html',
+    'qr-test': 'qr-test.html'
+  };
+  
+  const page = appPages[appName];
+  if (page) {
+    mainWindow.loadFile(page);
+  }
+}
+
+// QR Overlay Functions
+function showQROverlay() {
+  if (qrOverlayWindow) {
+    qrOverlayWindow.focus();
+    return;
+  }
+
+  console.log('📱 Creating QR overlay window');
+  
+  qrOverlayWindow = new BrowserWindow({
+    width: 600,
+    height: 700,
+    frame: false,
+    alwaysOnTop: true,
+    transparent: true,
+    resizable: false,
+    maximizable: false,
+    parent: mainWindow,
+    modal: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+    }
+  });
+
+  qrOverlayWindow.loadFile('qr-connection.html');
+
+  qrOverlayWindow.on('closed', () => {
+    qrOverlayWindow = null;
+    console.log('📱 QR overlay window closed');
+  });
+
+  console.log('✅ QR overlay window created');
+}
+
+function closeQROverlay() {
+  if (qrOverlayWindow) {
+    qrOverlayWindow.close();
+    qrOverlayWindow = null;
+    console.log('🚫 QR overlay closed');
+  }
+}
+
+// IPC handlers for QR functionality
+ipcMain.handle('get-connection-info', () => {
+  return {
+    ip: deviceIP || getDeviceIP(),
+    port: 8080,
+    device_name: 'SmartTV Device',
+    version: '1.0.0'
+  };
+});
+
+ipcMain.handle('generate-qr-code', async (event, data) => {
+  try {
+    console.log('📱 Generating QR code with data:', data);
+    const qrDataURL = await QRCode.toDataURL(data, {
+      width: 250,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+    console.log('✅ QR code generated successfully');
+    return qrDataURL;
+  } catch (error) {
+    console.error('❌ Error generating QR code:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('close-qr-overlay', () => {
+  closeQROverlay();
+});
+
+// Notify QR overlay when mobile connects
+function notifyMobileConnected(deviceInfo) {
+  if (qrOverlayWindow) {
+    qrOverlayWindow.webContents.send('mobile-connected', deviceInfo);
+  }
+}
 
 // IPC handlers for update functionality
 ipcMain.handle('get-app-version', () => {
