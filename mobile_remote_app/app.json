@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "BananassRemote",
-    "slug": "final-app",
+    "slug": "final-apk",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,7 +29,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "79fa275a-4608-400b-b1c9-20626b95ae20"
+        "projectId": "8721fdb0-9e41-40bb-8bdd-019a1eda9ee6"
       }
     }
   }
