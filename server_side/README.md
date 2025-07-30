@@ -105,6 +105,89 @@ pip install gunicorn
 gunicorn -w 4 -b 0.0.0.0:3001 app:app
 ```
 
+## 🛡️ Crash-Resistant Call Management
+
+### Twilio-Authoritative Call Cleanup System
+
+The SmartTV backend includes a sophisticated call cleanup system that ensures accurate call tracking even when users experience crashes, network issues, or force-close the application. This system uses Twilio's APIs as the authoritative source of truth.
+
+#### **Key Features**
+
+- **🏆 Authoritative**: Twilio is the source of truth, not frontend events
+- **🛡️ Crash-Proof**: Works regardless of client-side failures  
+- **⚡ Real-Time**: Syncs every 3 minutes automatically
+- **🎛️ Conservative**: Won't end legitimate active calls
+- **📊 Accurate**: Proper duration calculation for all scenarios
+- **🔍 Testable**: Manual trigger via admin API
+- **📝 Auditable**: Detailed logging of all sync actions
+
+#### **How It Works**
+
+The system runs a background job every 3 minutes that:
+
+1. **Queries Database**: Finds all calls with status 'accepted'
+2. **Checks Twilio**: Gets real-time room status and participant info
+3. **Smart Detection**: Applies multiple detection layers:
+   - Room doesn't exist → End call immediately
+   - Room status = 'completed'/'failed' → End call immediately  
+   - Room empty for >5 minutes → End call (abandoned)
+   - Only 1 participant for >10 minutes → End call (other person crashed)
+4. **Updates Database**: Sets proper `ended_at` timestamps and calculates duration
+
+#### **Crash Scenarios Handled**
+
+| **Crash Scenario** | **Detection Method** | **Action** |
+|---|---|---|
+| **Both users crash** | Room empty for >5 minutes | Auto-end with duration |
+| **One user crashes** | 1 participant for >10 minutes | Auto-end with duration |
+| **Network disconnection** | Twilio shows no connection | Auto-end immediately |
+| **App force-closed** | Room abandoned/completed | Auto-end with calculated time |
+| **Browser crash** | Participant disappears from Twilio | Auto-end after grace period |
+| **System shutdown** | Room becomes inactive | Auto-end on next sync cycle |
+
+#### **Background Service Configuration**
+
+The background service automatically starts with the Flask application and includes:
+
+```python
+# Runs every 3 minutes
+sync_calls_with_twilio()
+
+# Conservative detection logic
+- Empty room timeout: 5 minutes
+- Single participant timeout: 10 minutes  
+- Minimum call duration before cleanup: 5 minutes
+```
+
+#### **Testing the System**
+
+Use the test script to verify functionality:
+
+```bash
+# Run comprehensive tests
+python test_twilio_sync.py
+
+# Manual trigger via admin API
+curl -X POST http://localhost:3001/api/admin/sync-twilio
+```
+
+#### **Monitoring and Logging**
+
+The system provides detailed logging:
+
+```
+🔄 Synced 3 calls with Twilio, ended 1 calls
+🔧 Ended call abc123 - room_abandoned (Duration: 847s)  
+📞 Call def456 ended via Twilio sync - single_participant_timeout
+```
+
+#### **Admin Dashboard Integration**
+
+- **Background Service Status**: Shows if Twilio sync is running
+- **Manual Sync Trigger**: Admin can manually trigger sync for testing
+- **Call Statistics**: Accurate call durations and end times
+- **System Health**: Monitors Twilio service availability
+
 ## 🔌 API Endpoints
 
 ### Health Check
@@ -147,6 +230,74 @@ Content-Type: application/json
 ```json
 {
   "error": "Missing required field: identity"
+}
+```
+
+### Admin Endpoints
+
+#### Manual Twilio Sync
+
+```http
+POST /api/admin/sync-twilio
+```
+
+Manually triggers the Twilio call sync process for testing and maintenance.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Twilio sync completed",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+#### Background Service Status
+
+```http
+GET /api/admin/background-service
+```
+
+Returns the status of background services including the Twilio sync job.
+
+**Response:**
+```json
+{
+  "success": true,
+  "background_service": {
+    "running": true,
+    "jobs": [
+      {
+        "id": "sync_calls_twilio",
+        "name": "Sync Calls with Twilio",
+        "next_run": "2024-01-15T10:33:00Z",
+        "trigger": "interval[0:03:00]"
+      }
+    ]
+  }
+}
+```
+
+#### System Statistics
+
+```http
+GET /api/admin/stats
+```
+
+Returns comprehensive system statistics including call analytics.
+
+**Response:**
+```json
+{
+  "success": true,
+  "stats": {
+    "total_users": 42,
+    "active_users": 12,
+    "total_calls": 156,
+    "active_sessions": 3,
+    "recent_calls": 8,
+    "total_contacts": 89
+  }
 }
 ```
 
@@ -244,6 +395,49 @@ CORS(app, origins=[
 - Implement rate limiting for production
 
 ## 🧪 Testing
+
+### Twilio Call Cleanup System Testing
+
+Test the crash-resistant call cleanup system:
+
+```bash
+# Run comprehensive Twilio service tests
+python test_twilio_sync.py
+
+# Manual trigger Twilio sync
+curl -X POST http://localhost:3001/api/admin/sync-twilio
+
+# Check background service status  
+curl http://localhost:3001/api/admin/background-service
+
+# Monitor system statistics
+curl http://localhost:3001/api/admin/stats
+```
+
+**Test Script Output:**
+```
+🚀 Starting Twilio Call Sync Tests
+============================================================
+✅ All required environment variables are set
+
+==================== Twilio Service ====================
+✅ Twilio service initialized successfully
+✅ Twilio credentials are valid
+📋 Testing active rooms listing...
+   Found 2 active Twilio rooms
+   - Room: call_a1b2c3d4 (Status: in-progress)
+     Participants: 2
+       - ALICE (connected)
+       - BOB01 (connected)
+==================================================
+
+📊 Test Results Summary
+==============================
+Twilio Service: ✅ PASSED
+Background Service: ✅ PASSED
+
+Overall: ✅ ALL TESTS PASSED
+```
 
 ### Manual Testing
 

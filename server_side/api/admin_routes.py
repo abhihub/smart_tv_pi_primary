@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 from database.database import db_manager
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -381,5 +382,40 @@ def admin_health():
         return jsonify({
             'success': False,
             'admin_status': 'unhealthy',
+            'error': str(e)
+        }), 500
+
+@admin_bp.route('/sync-twilio', methods=['POST'])
+def manual_sync_twilio():
+    """Manually trigger Twilio call sync for testing"""
+    try:
+        from services.background_service import background_service
+        
+        if not background_service.is_running:
+            return jsonify({
+                'success': False,
+                'error': 'Background service is not running'
+            }), 400
+        
+        if not background_service.twilio_service:
+            return jsonify({
+                'success': False,
+                'error': 'Twilio service is not available'
+            }), 400
+        
+        # Manually trigger the sync
+        logger.info("🔧 Manual Twilio sync triggered via admin API")
+        background_service.sync_calls_with_twilio()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Twilio sync completed',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Manual Twilio sync failed: {e}")
+        return jsonify({
+            'success': False,
             'error': str(e)
         }), 500

@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from database.database import db_manager
+from services.twilio_service import TwilioService
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,14 @@ class BackgroundService:
         self.scheduler = BackgroundScheduler()
         self.db = db_manager
         self.is_running = False
+        
+        # Initialize Twilio service for room monitoring
+        try:
+            self.twilio_service = TwilioService()
+            logger.info("✅ Twilio service initialized for call monitoring")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Twilio service: {e}")
+            self.twilio_service = None
     
     def start(self):
         """Start all background tasks"""
@@ -43,6 +52,18 @@ class BackgroundService:
                 name='Cleanup Old Calls',
                 replace_existing=True
             )
+            
+            # Sync calls with Twilio reality every 3 minutes (if Twilio available)
+            if self.twilio_service:
+                self.scheduler.add_job(
+                    func=self.sync_calls_with_twilio,
+                    trigger="interval",
+                    minutes=3,
+                    id='sync_calls_twilio',
+                    name='Sync Calls with Twilio',
+                    replace_existing=True
+                )
+            
             
             self.scheduler.start()
             self.is_running = True
@@ -125,6 +146,143 @@ class BackgroundService:
                 
         except Exception as e:
             logger.error(f"Failed to cleanup old calls: {e}")
+    
+    def sync_calls_with_twilio(self):
+        """Sync database call status with Twilio room reality (crash-resistant)"""
+        if not self.twilio_service:
+            logger.warning("Twilio service not available, skipping call sync")
+            return
+            
+        try:
+            # Get all accepted calls from database
+            accepted_calls_query = """
+                SELECT call_id, room_name, answered_at, created_at,
+                       caller_id, callee_id
+                FROM calls 
+                WHERE status = 'accepted' AND room_name IS NOT NULL
+            """
+            accepted_calls = self.db.execute_query(accepted_calls_query, fetch='all')
+            
+            if not accepted_calls:
+                logger.debug("📞 No accepted calls to sync with Twilio")
+                return
+            
+            calls_synced = 0
+            calls_ended = 0
+            
+            for call in accepted_calls:
+                try:
+                    room_name = call['room_name']
+                    call_id = call['call_id']
+                    
+                    # Get Twilio room status
+                    room_status = self.twilio_service.get_room_status(room_name)
+                    
+                    should_end_call = False
+                    end_reason = ""
+                    
+                    if not room_status['exists']:
+                        # Room doesn't exist in Twilio anymore
+                        should_end_call = True
+                        end_reason = "room_not_found"
+                        
+                    elif room_status['status'] == 'completed':
+                        # Twilio marked room as completed
+                        should_end_call = True
+                        end_reason = "room_completed"
+                        
+                    elif room_status['status'] == 'failed':
+                        # Twilio marked room as failed
+                        should_end_call = True
+                        end_reason = "room_failed"
+                        
+                    elif room_status['participant_count'] == 0:
+                        # Room exists but is empty - check if it's been empty long enough
+                        if self._is_call_abandoned(call, room_status):
+                            should_end_call = True
+                            end_reason = "room_abandoned"
+                            
+                    elif room_status['participant_count'] == 1:
+                        # Only one person in room - check if other person has been gone too long
+                        if self._is_call_single_participant_too_long(call, room_status):
+                            should_end_call = True
+                            end_reason = "single_participant_timeout"
+                    
+                    if should_end_call:
+                        # End the call in database
+                        success = self._end_call_with_twilio_sync(call_id, call['answered_at'], end_reason)
+                        if success:
+                            calls_ended += 1
+                            logger.info(f"🔧 Ended call {call_id} - {end_reason}")
+                    
+                    calls_synced += 1
+                    
+                except Exception as e:
+                    logger.error(f"Failed to sync call {call.get('call_id', 'unknown')}: {e}")
+            
+            if calls_ended > 0:
+                logger.info(f"🔄 Synced {calls_synced} calls with Twilio, ended {calls_ended} calls")
+            else:
+                logger.debug(f"🔄 Synced {calls_synced} calls with Twilio, all active")
+                
+        except Exception as e:
+            logger.error(f"Failed to sync calls with Twilio: {e}")
+    
+    def _is_call_abandoned(self, call: dict, room_status: dict) -> bool:
+        """Check if a call should be considered abandoned (empty room too long)"""
+        try:
+            # If room is empty for more than 5 minutes, consider it abandoned
+            answered_at = datetime.fromisoformat(call['answered_at'])
+            time_since_answered = datetime.now() - answered_at
+            
+            # Conservative: don't end calls that just started
+            if time_since_answered.total_seconds() < 300:  # 5 minutes
+                return False
+                
+            # If room has been empty, it's likely abandoned
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error checking if call abandoned: {e}")
+            return False
+    
+    def _is_call_single_participant_too_long(self, call: dict, room_status: dict) -> bool:
+        """Check if a call has had only one participant for too long"""
+        try:
+            # If only one person for more than 10 minutes, likely other person crashed
+            answered_at = datetime.fromisoformat(call['answered_at'])
+            time_since_answered = datetime.now() - answered_at
+            
+            # Conservative: only end if call has been going >10 minutes with 1 person
+            return time_since_answered.total_seconds() > 600  # 10 minutes
+            
+        except Exception as e:
+            logger.error(f"Error checking single participant timeout: {e}")
+            return False
+    
+    def _end_call_with_twilio_sync(self, call_id: str, answered_at: str, reason: str = "twilio_sync") -> bool:
+        """End a call with proper duration calculation"""
+        try:
+            # Calculate duration from answered_at to now
+            answered_time = datetime.fromisoformat(answered_at)
+            duration = int((datetime.now() - answered_time).total_seconds())
+            
+            # Update call status in database
+            result = self.db.execute_query(
+                """UPDATE calls 
+                   SET status = 'ended', ended_at = CURRENT_TIMESTAMP, duration = ?
+                   WHERE call_id = ? AND status = 'accepted'""",
+                (duration, call_id)
+            )
+            
+            if result:
+                logger.info(f"📞 Call {call_id} ended via Twilio sync - {reason} (Duration: {duration}s)")
+                return True
+            return False
+            
+        except Exception as e:
+            logger.error(f"Failed to end call {call_id} via Twilio sync: {e}")
+            return False
     
     def get_status(self):
         """Get background service status"""

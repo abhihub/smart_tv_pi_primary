@@ -113,12 +113,14 @@ function updateParticipantCount(count) {
     participantCount.textContent = count;
 }
 
-document.getElementById('backToConsoleBtn').addEventListener('click', (e) => {
+document.getElementById('backToConsoleBtn').addEventListener('click', async (e) => {
     e.preventDefault();
     if (callActive) {
         const confirmLeave = confirm("Are you sure you want to leave the video call?");
         if (confirmLeave) {
             if (activeRoom) {
+                // End call in backend before disconnecting
+                await endCallInBackend();
                 activeRoom.disconnect(); // This will trigger roomDisconnected which handles redirect
             }
         }
@@ -328,9 +330,50 @@ function detachTrack(track, participant) {
     }
 }
 
+// End call in backend (API call)
+async function endCallInBackend() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        
+        if (!roomParam) {
+            console.log('🔴 No room parameter found for ending call');
+            return;
+        }
+        
+        // Generate call_id from room name (should match how calls are created)
+        const call_id = roomParam.replace('call_', '');
+        
+        console.log('🔴 Ending call in backend:', { call_id, username: currentUserName });
+        
+        const serverUrl = await getServerUrl();
+        const response = await fetch(`${serverUrl}/api/calls/end`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                call_id: call_id,
+                username: currentUserName
+            })
+        });
+        
+        if (response.ok) {
+            console.log('✅ Call ended successfully in backend');
+        } else {
+            console.error('❌ Failed to end call in backend:', response.status);
+        }
+    } catch (error) {
+        console.error('❌ Error ending call in backend:', error);
+    }
+}
+
 // Handle room disconnection
-function roomDisconnected(room) {
+async function roomDisconnected(room) {
     console.log('🔴 Room disconnected, cleaning up and redirecting...');
+    
+    // End call in backend when room disconnects
+    await endCallInBackend();
     
     // Detach all tracks
     room.localParticipant.tracks.forEach(trackPublication => {
@@ -426,8 +469,10 @@ videoBtn.addEventListener('click', () => {
 
 
 // End call
-endCallBtn.addEventListener('click', () => {
+endCallBtn.addEventListener('click', async () => {
     if (activeRoom) {
+        // Call backend API to end the call before disconnecting
+        await endCallInBackend();
         activeRoom.disconnect();
     }
 });

@@ -249,6 +249,80 @@
             opacity: 0.6;
             font-size: 0.8rem;
         }
+
+        /* Collapsible table styles */
+        .collapse-toggle {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .collapse-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .collapse-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .table-content.collapsed {
+            display: none;
+        }
+
+        /* Pagination styles */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pagination-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .page-size-selector {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -307,21 +381,7 @@
             </div>
         </div>
 
-        <!-- User Sessions Table -->
-        <div class="table-container">
-            <div class="table-header">
-                <div class="table-title">
-                    🔄 User Sessions
-                    <span class="table-count" id="sessionsCount">0</span>
-                </div>
-            </div>
-            <div class="table-content" id="sessionsTable">
-                <div class="loading">
-                    <div class="spinner"></div>
-                    Loading sessions...
-                </div>
-            </div>
-        </div>
+
 
         <!-- Calls Table -->
         <div class="table-container">
@@ -370,7 +430,43 @@
                 </div>
             </div>
         </div>
+
+        <!-- User Sessions Table -->
+        <div class="table-container">
+        <div class="table-header">
+            <div class="table-title">
+                <button class="collapse-toggle" id="sessionsCollapseBtn" onclick="toggleSessionsTable()" title="Toggle visibility">▼</button>
+                🔄 User Sessions
+                <span class="table-count" id="sessionsCount">0</span>
+            </div>
+        </div>
+        <div class="table-content" id="sessionsTable">
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading sessions...
+            </div>
+        </div>
+        <div class="pagination-container" id="sessionsPagination" style="display: none;">
+            <div class="pagination-info">
+                Showing <span id="sessionsRangeStart">0</span>-<span id="sessionsRangeEnd">0</span> of <span id="sessionsTotalCount">0</span> sessions
+            </div>
+            <div class="pagination-controls">
+                <label>Show:</label>
+                <select id="sessionsPageSize" class="page-size-selector" onchange="changeSessionsPageSize()">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <button class="pagination-btn" id="sessionsPrevBtn" onclick="previousSessionsPage()" disabled>← Previous</button>
+                <span id="sessionsPageInfo">Page 1 of 1</span>
+                <button class="pagination-btn" id="sessionsNextBtn" onclick="nextSessionsPage()" disabled>Next →</button>
+            </div>
+        </div>
     </div>
+    </div>
+
+ 
 
     <script>
         // Config will be injected by main process - no fallback values
@@ -523,6 +619,12 @@
             }
         }
 
+        // Pagination state for sessions
+        let sessionsData = [];
+        let sessionsCurrentPage = 1;
+        let sessionsPageSize = 25;
+        let sessionsCollapsed = false;
+
         // Load sessions table
         async function loadSessions() {
             try {
@@ -532,48 +634,121 @@
 
                 if (!response.ok) throw new Error(data.error || 'Failed to load sessions');
 
-                const sessions = data.sessions || [];
-                document.getElementById('sessionsCount').textContent = sessions.length;
-
-                const tableHtml = sessions.length === 0 ? 
-                    '<p style="text-align: center; opacity: 0.7; padding: 20px;">No sessions found</p>' :
-                    `<table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>User ID</th>
-                                <th>Username</th>
-                                <th>Session Token</th>
-                                <th>Room Name</th>
-                                <th>Type</th>
-                                <th>Started At</th>
-                                <th>Ended At</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${sessions.map(session => `
-                                <tr>
-                                    <td>${session.id}</td>
-                                    <td>${session.user_id}</td>
-                                    <td><strong>${session.username || 'Unknown'}</strong></td>
-                                    <td><div class="json-data">${session.session_token.substring(0, 16)}...</div></td>
-                                    <td>${session.room_name || '-'}</td>
-                                    <td>${session.session_type}</td>
-                                    <td>${formatTimestamp(session.started_at)}</td>
-                                    <td>${formatTimestamp(session.ended_at)}</td>
-                                    <td>${createStatusBadge(session.is_active ? 'Active' : 'Inactive')}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>`;
-
-                document.getElementById('sessionsTable').innerHTML = tableHtml;
+                sessionsData = data.sessions || [];
+                document.getElementById('sessionsCount').textContent = sessionsData.length;
+                
+                // Reset to first page when data reloads
+                sessionsCurrentPage = 1;
+                renderSessionsPage();
 
             } catch (error) {
                 console.error('Failed to load sessions:', error);
                 document.getElementById('sessionsTable').innerHTML = `<div class="error-message">Failed to load sessions: ${error.message}</div>`;
+                document.getElementById('sessionsPagination').style.display = 'none';
             }
+        }
+
+        // Render current page of sessions
+        function renderSessionsPage() {
+            const totalSessions = sessionsData.length;
+            const totalPages = Math.ceil(totalSessions / sessionsPageSize);
+            const startIndex = (sessionsCurrentPage - 1) * sessionsPageSize;
+            const endIndex = Math.min(startIndex + sessionsPageSize, totalSessions);
+            const currentPageSessions = sessionsData.slice(startIndex, endIndex);
+
+            // Update pagination info
+            document.getElementById('sessionsTotalCount').textContent = totalSessions;
+            document.getElementById('sessionsRangeStart').textContent = totalSessions > 0 ? startIndex + 1 : 0;
+            document.getElementById('sessionsRangeEnd').textContent = endIndex;
+            document.getElementById('sessionsPageInfo').textContent = `Page ${sessionsCurrentPage} of ${totalPages}`;
+            
+            // Update pagination buttons
+            document.getElementById('sessionsPrevBtn').disabled = sessionsCurrentPage <= 1;
+            document.getElementById('sessionsNextBtn').disabled = sessionsCurrentPage >= totalPages;
+            
+            // Show/hide pagination
+            document.getElementById('sessionsPagination').style.display = totalSessions > 0 ? 'flex' : 'none';
+
+            // Render table
+            const tableHtml = totalSessions === 0 ? 
+                '<p style="text-align: center; opacity: 0.7; padding: 20px;">No sessions found</p>' :
+                `<table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>User ID</th>
+                            <th>Username</th>
+                            <th>Session Token</th>
+                            <th>Room Name</th>
+                            <th>Type</th>
+                            <th>Started At</th>
+                            <th>Ended At</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${currentPageSessions.map(session => `
+                            <tr>
+                                <td>${session.id}</td>
+                                <td>${session.user_id}</td>
+                                <td><strong>${session.username || 'Unknown'}</strong></td>
+                                <td><div class="json-data">${session.session_token.substring(0, 16)}...</div></td>
+                                <td>${session.room_name || '-'}</td>
+                                <td>${session.session_type}</td>
+                                <td>${formatTimestamp(session.started_at)}</td>
+                                <td>${formatTimestamp(session.ended_at)}</td>
+                                <td>${createStatusBadge(session.is_active ? 'Active' : 'Inactive')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+
+            document.getElementById('sessionsTable').innerHTML = tableHtml;
+        }
+
+        // Toggle sessions table visibility
+        function toggleSessionsTable() {
+            const tableContent = document.getElementById('sessionsTable');
+            const pagination = document.getElementById('sessionsPagination');
+            const toggleBtn = document.getElementById('sessionsCollapseBtn');
+            
+            sessionsCollapsed = !sessionsCollapsed;
+            
+            if (sessionsCollapsed) {
+                tableContent.classList.add('collapsed');
+                pagination.style.display = 'none';
+                toggleBtn.classList.add('collapsed');
+                toggleBtn.title = 'Show sessions table';
+            } else {
+                tableContent.classList.remove('collapsed');
+                if (sessionsData.length > 0) {
+                    pagination.style.display = 'flex';
+                }
+                toggleBtn.classList.remove('collapsed');
+                toggleBtn.title = 'Hide sessions table';
+            }
+        }
+
+        // Pagination functions for sessions
+        function nextSessionsPage() {
+            const totalPages = Math.ceil(sessionsData.length / sessionsPageSize);
+            if (sessionsCurrentPage < totalPages) {
+                sessionsCurrentPage++;
+                renderSessionsPage();
+            }
+        }
+
+        function previousSessionsPage() {
+            if (sessionsCurrentPage > 1) {
+                sessionsCurrentPage--;
+                renderSessionsPage();
+            }
+        }
+
+        function changeSessionsPageSize() {
+            sessionsPageSize = parseInt(document.getElementById('sessionsPageSize').value);
+            sessionsCurrentPage = 1; // Reset to first page
+            renderSessionsPage();
         }
 
         // Load calls table
