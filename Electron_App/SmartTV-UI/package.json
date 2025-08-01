@@ -8,7 +8,8 @@
   "homepage": "https://your-website.com",
   "scripts": {
     "start": "electron-forge start",
-    "dev": "electron . --dev",
+    "start-nosandbox": "electron-forge start -- --no-sandbox",
+    "dev": "electron . --dev --no-sandbox",
     "dist": "npm run build:linux",
     "package": "electron-forge package",
     "make": "electron-forge make"

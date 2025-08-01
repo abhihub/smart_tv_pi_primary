@@ -99,6 +99,43 @@
             pointer-events: none;
         }
 
+        .persistent-ip-display {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            padding: 12px 16px;
+            color: white;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            z-index: 1000;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .persistent-ip-display:hover {
+            background: rgba(0, 0, 0, 0.85);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .ip-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .ip-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
         .connection-status {
             display: flex;
             align-items: center;
@@ -499,6 +536,7 @@
             50% { opacity: 1; transform: scale(1.3); }
         }
 
+
         .stt-content {
             flex: 1;
             display: flex;
@@ -839,6 +877,12 @@
             2. Enter the IP address above<br>
             3. Start controlling your TV!
         </div>
+    </div>
+
+    <!-- Persistent IP Display -->
+    <div class="persistent-ip-display" id="persistentIPDisplay">
+        <div class="ip-label">TV IP:</div>
+        <div class="ip-value" id="persistentIPValue">Loading...</div>
     </div>
 
     <!-- STT Transcription Container -->
@@ -2393,14 +2437,8 @@
                 }
             }, 2000);
 
-            // Hide instructions after 30 seconds if no connection
-            hideTimeout = setTimeout(() => {
-                const mobileInfo = document.getElementById('mobileConnectionInfo');
-                if (mobileInfo && connectedDevices.size === 0) {
-                    mobileInfo.classList.add('hidden');
-                    console.log('📱 Hiding connection info after timeout');
-                }
-            }, 30000);
+            // Keep connection info visible until first mobile device connects
+            console.log('📱 Connection info will remain visible until mobile connects');
         }
 
         function handleMobileConnected() {
@@ -2414,17 +2452,12 @@
             if (statusDot) statusDot.classList.add('connected');
             if (statusText) statusText.textContent = 'Mobile connected';
             
-            // Hide the info box after 5 seconds when connected
+            // Hide the connection dialog on first connection
             if (mobileInfo) {
                 setTimeout(() => {
                     mobileInfo.classList.add('hidden');
                     console.log('📱 Hiding connection info - mobile connected');
-                }, 5000);
-            }
-            
-            if (hideTimeout) {
-                clearTimeout(hideTimeout);
-                hideTimeout = null;
+                }, 3000);
             }
         }
 
@@ -2435,23 +2468,9 @@
                 
                 const statusDot = document.getElementById('connectionStatusDot');
                 const statusText = document.getElementById('connectionStatusText');
-                const mobileInfo = document.getElementById('mobileConnectionInfo');
                 
                 if (statusDot) statusDot.classList.remove('connected');
                 if (statusText) statusText.textContent = 'Mobile disconnected';
-                
-                // Show the info box again when disconnected
-                if (mobileInfo) {
-                    mobileInfo.classList.remove('hidden');
-                    console.log('📱 Showing connection info - mobile disconnected');
-                    
-                    // Hide again after 15 seconds
-                    setTimeout(() => {
-                        if (connectedDevices.size === 0) {
-                            mobileInfo.classList.add('hidden');
-                        }
-                    }, 15000);
-                }
             }
         }
 
@@ -2463,15 +2482,32 @@
             try {
                 const connectionInfo = await window.electronAPI.getConnectionInfo();
                 const deviceIPElement = document.getElementById('deviceIPDisplay');
-                if (deviceIPElement && connectionInfo) {
-                    deviceIPElement.textContent = `${connectionInfo.ip}:${connectionInfo.port}`;
-                    console.log('📱 Device IP displayed:', `${connectionInfo.ip}:${connectionInfo.port}`);
+                const persistentIPElement = document.getElementById('persistentIPValue');
+                
+                if (connectionInfo) {
+                    const ipDisplayText = `${connectionInfo.ip}:${connectionInfo.port}`;
+                    
+                    if (deviceIPElement) {
+                        deviceIPElement.textContent = ipDisplayText;
+                    }
+                    
+                    if (persistentIPElement) {
+                        persistentIPElement.textContent = ipDisplayText;
+                    }
+                    
+                    console.log('📱 Device IP displayed:', ipDisplayText);
                 }
             } catch (error) {
                 console.error('❌ Error getting connection info:', error);
                 const deviceIPElement = document.getElementById('deviceIPDisplay');
+                const persistentIPElement = document.getElementById('persistentIPValue');
+                
                 if (deviceIPElement) {
                     deviceIPElement.textContent = 'IP not available';
+                }
+                
+                if (persistentIPElement) {
+                    persistentIPElement.textContent = 'N/A';
                 }
             }
 
