@@ -3,6 +3,7 @@ import logging
 import atexit
 from flask import Flask
 from flask_cors import CORS
+from flask_socketio import SocketIO
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -16,6 +17,9 @@ def create_app():
     
     # Enable CORS
     CORS(app)
+    
+    # Initialize SocketIO
+    socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
     
     # Add basic routes
     @app.route('/')
@@ -33,6 +37,7 @@ def create_app():
     from api.admin_routes import admin_bp
     from api.contact_routes import contact_bp
     from api.update_routes import update_bp
+    from api.remote_routes import remote_bp, register_socketio_events
     
     app.register_blueprint(twilio_bp, url_prefix='/api')
     app.register_blueprint(user_bp, url_prefix='/api/users')
@@ -40,6 +45,10 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     app.register_blueprint(contact_bp, url_prefix='/api/contacts')
     app.register_blueprint(update_bp, url_prefix='/api/updates')
+    app.register_blueprint(remote_bp, url_prefix='/api/remote')
+    
+    # Register SocketIO events for mobile remote control
+    register_socketio_events(socketio)
     
     # Start background service
     from services.background_service import background_service
@@ -62,9 +71,9 @@ def create_app():
     
     atexit.register(shutdown_background_service)
     
-    return app
+    return app, socketio
 
 if __name__ == '__main__':
-    app = create_app()
+    app, socketio = create_app()
     port = int(os.getenv('PORT', 3001))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    socketio.run(app, host='0.0.0.0', port=port, debug=True, allow_unsafe_werkzeug=True)
