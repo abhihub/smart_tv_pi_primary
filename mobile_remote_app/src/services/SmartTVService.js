@@ -34,49 +34,95 @@ class SmartTVServiceClass {
     return new Promise((resolve, reject) => {
       const wsUrl = `ws://${this.tvInfo.ip}:${this.tvInfo.port || 8080}`;
       console.log('🔌 Connecting WebSocket to:', wsUrl);
+      console.log('🔍 Environment check:', {
+        platform: global?.Platform?.OS || 'unknown',
+        isExpoGo: global?.__DEV__ || false,
+        webSocketSupport: typeof WebSocket !== 'undefined',
+        networkState: global?.navigator?.connection?.effectiveType || 'unknown'
+      });
       
-      this.ws = new WebSocket(wsUrl);
-      
-      this.ws.onopen = () => {
-        console.log('✅ WebSocket connected successfully');
-        console.log('📋 WebSocket details:', {
-          url: this.ws.url,
-          readyState: this.ws.readyState,
-          protocol: this.ws.protocol
+      try {
+        this.ws = new WebSocket(wsUrl);
+        console.log('📱 WebSocket instance created successfully');
+        
+        this.ws.onopen = () => {
+          console.log('✅ WebSocket connected successfully');
+          console.log('📋 WebSocket details:', {
+            url: this.ws.url,
+            readyState: this.ws.readyState,
+            protocol: this.ws.protocol,
+            extensions: this.ws.extensions
+          });
+          resolve();
+        };
+        
+        this.ws.onerror = (error) => {
+          console.error('❌ WebSocket error details:', {
+            error: error,
+            message: error.message,
+            type: error.type,
+            target: error.target,
+            readyState: this.ws.readyState,
+            url: wsUrl,
+            timestamp: new Date().toISOString()
+          });
+          reject(error);
+        };
+        
+        this.ws.onclose = (event) => {
+          console.log('📡 WebSocket disconnected details:', {
+            code: event.code,
+            reason: event.reason,
+            wasClean: event.wasClean,
+            timestamp: new Date().toISOString()
+          });
+          this.connected = false;
+        };
+        
+        this.ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            console.log('📨 WebSocket message received:', message);
+            this.handleMessage(message);
+          } catch (error) {
+            console.error('❌ Error parsing WebSocket message:', error);
+          }
+        };
+        
+        // Timeout after 15 seconds (increased from 5)
+        setTimeout(() => {
+          if (this.ws.readyState !== WebSocket.OPEN) {
+            console.error('❌ WebSocket connection timeout details:', {
+              readyState: this.ws.readyState,
+              readyStateText: this.getReadyStateText(this.ws.readyState),
+              url: wsUrl,
+              timestamp: new Date().toISOString()
+            });
+            reject(new Error('WebSocket connection timeout after 15 seconds'));
+          }
+        }, 15000);
+        
+      } catch (constructorError) {
+        console.error('❌ WebSocket constructor failed:', {
+          error: constructorError,
+          message: constructorError.message,
+          url: wsUrl,
+          timestamp: new Date().toISOString()
         });
-        resolve();
-      };
-      
-      this.ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        console.error('❌ WebSocket state:', this.ws.readyState);
-        console.error('❌ WebSocket URL:', wsUrl);
-        reject(error);
-      };
-      
-      this.ws.onclose = (event) => {
-        console.log('📡 WebSocket disconnected. Code:', event.code, 'Reason:', event.reason);
-        this.connected = false;
-      };
-      
-      this.ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          console.log('📨 WebSocket message received:', message);
-          this.handleMessage(message);
-        } catch (error) {
-          console.error('❌ Error parsing WebSocket message:', error);
-        }
-      };
-      
-      // Timeout after 15 seconds (increased from 5)
-      setTimeout(() => {
-        if (this.ws.readyState !== WebSocket.OPEN) {
-          console.error('❌ WebSocket connection timeout. ReadyState:', this.ws.readyState);
-          reject(new Error('WebSocket connection timeout'));
-        }
-      }, 15000);
+        reject(constructorError);
+      }
     });
+  }
+
+  // Helper method to get readable WebSocket ready state
+  getReadyStateText(state) {
+    const states = {
+      0: 'CONNECTING',
+      1: 'OPEN',
+      2: 'CLOSING',
+      3: 'CLOSED'
+    };
+    return states[state] || 'UNKNOWN';
   }
 
   // Handle incoming messages from TV

@@ -105,6 +105,13 @@ export class NetworkDiscovery {
     
     try {
       console.log(`🔍 Checking SmartTV service at ${ip}:${port}`);
+      console.log('🔍 Environment details:', {
+        fetchSupport: typeof fetch !== 'undefined',
+        networkState: global?.navigator?.onLine,
+        platform: global?.Platform?.OS || 'unknown',
+        isExpoGo: global?.__DEV__ || false,
+        timestamp: new Date().toISOString()
+      });
       
       const response = await fetch(`http://${ip}:${port}/api/status`, {
         method: 'GET',
@@ -112,12 +119,20 @@ export class NetworkDiscovery {
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'SmartTV-Remote-Mobile-App',
+          'Cache-Control': 'no-cache'
         }
       });
       
       clearTimeout(timeoutId);
       
-      console.log(`📡 Response from ${ip}:${port} - Status: ${response.status}`);
+      console.log(`📡 Response from ${ip}:${port} - Details:`, {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: response.headers,
+        type: response.type,
+        url: response.url
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -140,11 +155,17 @@ export class NetworkDiscovery {
           console.log(`❌ Not a SmartTV device at ${ip}:${port} - Type: ${data.device_type}`);
         }
       } else {
-        console.log(`❌ HTTP error from ${ip}:${port} - Status: ${response.status}`);
+        console.log(`❌ HTTP error from ${ip}:${port} - Status: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
       clearTimeout(timeoutId);
-      console.log(`❌ Connection failed to ${ip}:${port} - ${error.message}`);
+      console.log(`❌ Connection failed to ${ip}:${port} - Details:`, {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        code: error.code,
+        timestamp: new Date().toISOString()
+      });
     }
     
     return null;

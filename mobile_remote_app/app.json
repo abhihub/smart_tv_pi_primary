@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "BananassRemote",
-    "slug": "final-apk",
+    "slug": "app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,12 +25,17 @@
         "ACCESS_NETWORK_STATE",
         "ACCESS_WIFI_STATE",
         "CAMERA"
-      ]
+      ],
+      "usesCleartextTraffic": true,
+      "networkSecurityConfig": "@xml/network_security_config"
     },
     "extra": {
       "eas": {
-        "projectId": "8721fdb0-9e41-40bb-8bdd-019a1eda9ee6"
+        "projectId": "cbbf98a1-94f7-4a03-8193-3f75ec02fa81"
       }
+    },
+    "ios": {
+      "bundleIdentifier": "com.smarttv.remote"
     }
   }
 }
