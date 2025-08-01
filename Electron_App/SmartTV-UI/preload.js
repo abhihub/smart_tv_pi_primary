@@ -32,7 +32,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getConnectionInfo: () => ipcRenderer.invoke('get-connection-info'),
     generateQRCode: (data) => ipcRenderer.invoke('generate-qr-code', data),
     closeQROverlay: () => ipcRenderer.invoke('close-qr-overlay'),
-    onMobileConnected: (callback) => ipcRenderer.on('mobile-connected', (event, data) => callback(data))
+    onMobileConnected: (callback) => ipcRenderer.on('mobile-connected', (event, data) => callback(data)),
+    onMobileDisconnected: (callback) => ipcRenderer.on('mobile-disconnected', (event, data) => callback(data))
 });
 
 // Inject config immediately into the DOM when it's ready

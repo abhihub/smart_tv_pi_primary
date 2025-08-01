@@ -39,11 +39,18 @@ class SmartTVServiceClass {
       
       this.ws.onopen = () => {
         console.log('✅ WebSocket connected successfully');
+        console.log('📋 WebSocket details:', {
+          url: this.ws.url,
+          readyState: this.ws.readyState,
+          protocol: this.ws.protocol
+        });
         resolve();
       };
       
       this.ws.onerror = (error) => {
         console.error('❌ WebSocket error:', error);
+        console.error('❌ WebSocket state:', this.ws.readyState);
+        console.error('❌ WebSocket URL:', wsUrl);
         reject(error);
       };
       
@@ -62,13 +69,13 @@ class SmartTVServiceClass {
         }
       };
       
-      // Timeout after 5 seconds
+      // Timeout after 15 seconds (increased from 5)
       setTimeout(() => {
         if (this.ws.readyState !== WebSocket.OPEN) {
           console.error('❌ WebSocket connection timeout. ReadyState:', this.ws.readyState);
           reject(new Error('WebSocket connection timeout'));
         }
-      }, 5000);
+      }, 15000);
     });
   }
 

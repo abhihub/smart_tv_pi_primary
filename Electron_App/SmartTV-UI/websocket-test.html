@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>SmartTV WebSocket Connection Test</h1>
+    
+    <div>
+        <button onclick="testConnection()">Test WebSocket Connection</button>
+        <button onclick="sendCommand()">Send Test Command</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <div id="log"></div>
+    
+    <script>
+        let ws = null;
+        const logDiv = document.getElementById('log');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(div);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            logDiv.innerHTML = '';
+        }
+        
+        function testConnection() {
+            const wsUrl = 'ws://10.81.97.183:8080';
+            log(`🔌 Attempting to connect to: ${wsUrl}`, 'info');
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function(event) {
+                    log('✅ WebSocket connected successfully!', 'success');
+                    log('Connection details: ' + JSON.stringify({
+                        url: ws.url,
+                        readyState: ws.readyState,
+                        protocol: ws.protocol
+                    }), 'info');
+                };
+                
+                ws.onmessage = function(event) {
+                    log('📨 Received message: ' + event.data, 'success');
+                    try {
+                        const parsed = JSON.parse(event.data);
+                        log('📋 Parsed message: ' + JSON.stringify(parsed, null, 2), 'info');
+                    } catch (e) {
+                        log('Raw message (not JSON): ' + event.data, 'info');
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    log('❌ WebSocket error occurred', 'error');
+                    log('Error details: ' + JSON.stringify(error), 'error');
+                };
+                
+                ws.onclose = function(event) {
+                    log(`📡 WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`, 'error');
+                    log('Clean close: ' + event.wasClean, 'info');
+                };
+                
+                // Set timeout for connection
+                setTimeout(() => {
+                    if (ws.readyState === WebSocket.CONNECTING) {
+                        log('⏰ Connection timeout - closing...', 'error');
+                        ws.close();
+                    }
+                }, 10000);
+                
+            } catch (error) {
+                log('❌ Failed to create WebSocket: ' + error.message, 'error');
+            }
+        }
+        
+        function sendCommand() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('❌ WebSocket is not connected. Connect first!', 'error');
+                return;
+            }
+            
+            const testCommand = {
+                type: 'remote_command',
+                command: 'navigate',
+                data: { direction: 'up' },
+                timestamp: Date.now()
+            };
+            
+            log('📤 Sending test command: ' + JSON.stringify(testCommand), 'info');
+            ws.send(JSON.stringify(testCommand));
+        }
+        
+        log('Ready to test WebSocket connection to SmartTV', 'info');
+    </script>
+</body>
+</html>

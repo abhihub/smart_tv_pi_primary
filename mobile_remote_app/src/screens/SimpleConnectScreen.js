@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function SimpleConnectScreen({ onConnect, isConnecting }) {
-  const [ipAddress, setIpAddress] = useState('10.81.110.20'); // Default IP
+  const [ipAddress, setIpAddress] = useState(''); // Empty IP for user input
   const [port, setPort] = useState('8080'); // Default port
 
   const handleConnect = () => {

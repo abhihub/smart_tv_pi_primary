@@ -537,6 +537,30 @@ function setupRemoteControlServer() {
       timestamp: Date.now()
     });
   });
+
+  // WebSocket test endpoint
+  app.get('/test', (req, res) => {
+    res.send(`<!DOCTYPE html>
+<html>
+<head><title>WebSocket Test</title></head>
+<body>
+  <h1>SmartTV WebSocket Test</h1>
+  <button onclick="testWS()">Test Connection</button>
+  <div id="log"></div>
+  <script>
+    function testWS() {
+      const log = document.getElementById('log');
+      log.innerHTML = 'Testing WebSocket connection...\\n';
+      const ws = new WebSocket('ws://10.81.97.183:8080');
+      ws.onopen = () => log.innerHTML += '✅ Connected!\\n';
+      ws.onerror = (e) => log.innerHTML += '❌ Error: ' + JSON.stringify(e) + '\\n';
+      ws.onmessage = (e) => log.innerHTML += '📨 Message: ' + e.data + '\\n';
+      ws.onclose = (e) => log.innerHTML += '📡 Closed: ' + e.code + ' ' + e.reason + '\\n';
+    }
+  </script>
+</body>
+</html>`);
+  });
   
   // WiFi endpoints
   app.get('/api/wifi/status', async (req, res) => {
@@ -604,6 +628,7 @@ function setupRemoteControlServer() {
     
     ws.on('close', () => {
       console.log(`📱 Mobile app disconnected from ${clientIP}`);
+      notifyMobileDisconnected({ ip: clientIP, timestamp: Date.now() });
     });
     
     ws.on('error', (error) => {
@@ -887,10 +912,19 @@ ipcMain.handle('close-qr-overlay', () => {
   closeQROverlay();
 });
 
-// Notify QR overlay when mobile connects
+// Notify QR overlay and main window when mobile connects
 function notifyMobileConnected(deviceInfo) {
   if (qrOverlayWindow) {
     qrOverlayWindow.webContents.send('mobile-connected', deviceInfo);
+  }
+  if (mainWindow) {
+    mainWindow.webContents.send('mobile-connected', deviceInfo);
+  }
+}
+
+function notifyMobileDisconnected(deviceInfo) {
+  if (mainWindow) {
+    mainWindow.webContents.send('mobile-disconnected', deviceInfo);
   }
 }
 

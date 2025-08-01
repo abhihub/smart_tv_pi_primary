@@ -76,20 +76,76 @@
             position: relative;
         }
 
-        .ip-display {
-            position: absolute;
-            top: 20px;
+        .mobile-connection-info {
+            position: fixed;
+            bottom: 30px;
             right: 30px;
-            background: rgba(102, 126, 234, 0.2);
-            border: 2px solid rgba(102, 126, 234, 0.6);
-            padding: 12px 20px;
-            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            padding: 20px;
+            color: white;
+            font-size: 14px;
+            max-width: 280px;
+            z-index: 1100;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .mobile-connection-info.hidden {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: #ff6b6b;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #00ff88;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .ip-display {
+            background: rgba(102, 126, 234, 0.15);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            padding: 10px;
+            border-radius: 8px;
             font-family: 'Courier New', monospace;
             font-size: 18px;
             font-weight: bold;
             color: #667eea;
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
-            backdrop-filter: blur(10px);
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .instructions {
+            font-size: 13px;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .instructions strong {
+            color: #667eea;
         }
 
         .ip-label {
@@ -118,23 +174,24 @@
 
         .user-id-display {
             position: absolute;
-            top: 20px;
+            top: 30px;
             left: 30px;
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(10px);
-            padding: 10px 20px;
+            padding: 10px 18px;
             border-radius: 25px;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            font-size: 1rem;
+            font-size: 0.9rem;
             font-weight: 500;
             color: rgba(255, 255, 255, 0.9);
             z-index: 10;
+            max-width: 200px;
         }
 
         .user-id-display span {
             color: #667eea;
             font-weight: 600;
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
 
         .grid-wrapper {
@@ -332,21 +389,28 @@
             }
             
             .user-id-display {
-                top: 10px;
-                left: 10px;
-                padding: 8px 15px;
-                font-size: 0.9rem;
+                top: 15px;
+                left: 15px;
+                padding: 8px 12px;
+                font-size: 0.8rem;
+                max-width: 150px;
             }
             
+            .mobile-connection-info {
+                bottom: 15px;
+                right: 15px;
+                padding: 15px;
+                max-width: 250px;
+                font-size: 12px;
+            }
+
             .ip-display {
-                top: 10px;
-                right: 10px;
-                padding: 8px 15px;
-                font-size: 0.9rem;
+                font-size: 16px;
+                padding: 8px;
             }
             
             .user-id-display span {
-                font-size: 1rem;
+                font-size: 0.9rem;
             }
             
             .container {
@@ -707,10 +771,6 @@
             <div class="user-id-display">
                 Your ID: <span id="userIdDisplay">Loading...</span>
             </div>
-            <div class="ip-display">
-                <div class="ip-label">Mobile Remote IP</div>
-                <div id="deviceIPDisplay">Loading...</div>
-            </div>
             <h1>Family Time</h1>
             <p class="subtitle">Your Gateway to Family Entertainment</p>
         </div>
@@ -763,6 +823,21 @@
                 <div class="tile-subtitle">App settings & updates</div>
             </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Mobile Connection Info -->
+    <div class="mobile-connection-info" id="mobileConnectionInfo">
+        <div class="connection-status">
+            <div class="status-dot" id="connectionStatusDot"></div>
+            <span id="connectionStatusText">Waiting for mobile connection</span>
+        </div>
+        <div class="ip-display" id="deviceIPDisplay">Loading...</div>
+        <div class="instructions">
+            <strong>📱 Connect Your Mobile:</strong><br>
+            1. Open the SmartTV Remote app<br>
+            2. Enter the IP address above<br>
+            3. Start controlling your TV!
         </div>
     </div>
 
@@ -2300,6 +2375,86 @@
             }
         });
 
+        // Mobile Connection Tracking
+        let connectedDevices = new Set();
+        let hideTimeout = null;
+
+        function initializeMobileConnectionTracking() {
+            console.log('📱 Initializing mobile connection tracking...');
+            
+            // Set up periodic check for WebSocket connections (since we can't directly listen from the main process)
+            const checkInterval = setInterval(() => {
+                // This is a simple approach - in a real implementation, you'd want IPC communication
+                // For now, we'll check if any WebSocket connections exist by monitoring console logs
+                if (window.wsConnections && window.wsConnections.size > 0) {
+                    handleMobileConnected();
+                } else {
+                    handleMobileDisconnected();
+                }
+            }, 2000);
+
+            // Hide instructions after 30 seconds if no connection
+            hideTimeout = setTimeout(() => {
+                const mobileInfo = document.getElementById('mobileConnectionInfo');
+                if (mobileInfo && connectedDevices.size === 0) {
+                    mobileInfo.classList.add('hidden');
+                    console.log('📱 Hiding connection info after timeout');
+                }
+            }, 30000);
+        }
+
+        function handleMobileConnected() {
+            console.log('📱 Mobile device connected');
+            connectedDevices.add('mobile');
+            
+            const statusDot = document.getElementById('connectionStatusDot');
+            const statusText = document.getElementById('connectionStatusText');
+            const mobileInfo = document.getElementById('mobileConnectionInfo');
+            
+            if (statusDot) statusDot.classList.add('connected');
+            if (statusText) statusText.textContent = 'Mobile connected';
+            
+            // Hide the info box after 5 seconds when connected
+            if (mobileInfo) {
+                setTimeout(() => {
+                    mobileInfo.classList.add('hidden');
+                    console.log('📱 Hiding connection info - mobile connected');
+                }, 5000);
+            }
+            
+            if (hideTimeout) {
+                clearTimeout(hideTimeout);
+                hideTimeout = null;
+            }
+        }
+
+        function handleMobileDisconnected() {
+            if (connectedDevices.has('mobile')) {
+                console.log('📱 Mobile device disconnected');
+                connectedDevices.delete('mobile');
+                
+                const statusDot = document.getElementById('connectionStatusDot');
+                const statusText = document.getElementById('connectionStatusText');
+                const mobileInfo = document.getElementById('mobileConnectionInfo');
+                
+                if (statusDot) statusDot.classList.remove('connected');
+                if (statusText) statusText.textContent = 'Mobile disconnected';
+                
+                // Show the info box again when disconnected
+                if (mobileInfo) {
+                    mobileInfo.classList.remove('hidden');
+                    console.log('📱 Showing connection info - mobile disconnected');
+                    
+                    // Hide again after 15 seconds
+                    setTimeout(() => {
+                        if (connectedDevices.size === 0) {
+                            mobileInfo.classList.add('hidden');
+                        }
+                    }, 15000);
+                }
+            }
+        }
+
         // Add to the existing DOMContentLoaded event
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('📱 Initializing homepage...');
@@ -2318,6 +2473,24 @@
                 if (deviceIPElement) {
                     deviceIPElement.textContent = 'IP not available';
                 }
+            }
+
+            // Initialize mobile connection tracking
+            initializeMobileConnectionTracking();
+            
+            // Set up IPC listeners for mobile connection events
+            if (window.electronAPI && window.electronAPI.onMobileConnected) {
+                window.electronAPI.onMobileConnected((deviceInfo) => {
+                    console.log('📱 IPC: Mobile device connected:', deviceInfo);
+                    handleMobileConnected();
+                });
+            }
+            
+            if (window.electronAPI && window.electronAPI.onMobileDisconnected) {
+                window.electronAPI.onMobileDisconnected((deviceInfo) => {
+                    console.log('📱 IPC: Mobile device disconnected:', deviceInfo);
+                    handleMobileDisconnected();
+                });
             }
             
             try {
