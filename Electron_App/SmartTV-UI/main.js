@@ -822,11 +822,12 @@ function handleAppLaunch(appName) {
   
   const appPages = {
     'home': 'homepage.html',
-    'video-call': 'video-call.html',
+    'video-call': 'user-directory.html',  // Fix: video-call should go to user-directory like navigation keys
     'trivia-game': 'trivia-game.html',
     'settings': 'settings.html',
     'wifi-settings': 'wifi-settings.html',
-    'qr-test': 'qr-test.html'
+    'qr-test': 'qr-test.html',
+    'user-directory': 'user-directory.html'  // Also add explicit mapping for user-directory
   };
   
   const page = appPages[appName];
