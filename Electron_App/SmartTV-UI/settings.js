@@ -153,9 +153,6 @@ async function checkForUpdates() {
             if (data.important) {
                 updateBadges += '<span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 4px; margin-right: 8px; font-size: 12px;">IMPORTANT - REQUIRES REBOOT</span>';
             }
-            if (data.forceUpdate) {
-                updateBadges += '<span style="background: #f39c12; color: white; padding: 2px 8px; border-radius: 4px; margin-right: 8px; font-size: 12px;">FORCE UPDATE</span>';
-            }
             
             elements.releaseNotes.innerHTML = `
                 <h3>What's New in v${data.latestVersion}</h3>

@@ -58,7 +58,7 @@ def create_app():
         """Stop background service on app shutdown"""
         try:
             background_service.stop()
-            logging.info("🛑 Background service stopped gracefully")
+            logging.info("Background service stopped gracefully")
         except Exception as e:
             logging.error(f"Error stopping background service: {e}")
     

@@ -17,6 +17,10 @@ import os
 import threading
 import shutil
 import tempfile
+import urllib.request
+import urllib.parse
+import json
+import time
 from datetime import datetime
 from device_id import ensure_device_id, get_device_info
 
@@ -51,7 +55,7 @@ def shutdown_system():
         
         # Basic confirmation check
         if not data.get('confirm', False):
-            logger.warning("❌ Shutdown rejected: No confirmation")
+            logger.warning("Shutdown rejected: No confirmation")
             return jsonify({
                 'error': 'Shutdown requires confirmation',
                 'required': {'confirm': True}
@@ -66,19 +70,19 @@ def shutdown_system():
         else:
             shutdown_cmd = ['sudo', 'shutdown', '-h', 'now']
         
-        logger.info(f"⚡ Local shutdown requested from {request.remote_addr}")
-        logger.info(f"🚨 Command: {' '.join(shutdown_cmd)}")
+        logger.info(f"Local shutdown requested from {request.remote_addr}")
+        logger.info(f"Executing command: {' '.join(shutdown_cmd)}")
         
         # Execute shutdown in background to allow response to be sent
         def execute_shutdown():
             try:
                 # Execute the actual shutdown command
                 subprocess.run(shutdown_cmd, check=True)
-                logger.info("💀 Local system shutdown command executed")
+                logger.info("Local system shutdown command executed")
             except subprocess.CalledProcessError as e:
-                logger.error(f"❌ Shutdown failed: {e}")
+                logger.error(f"Shutdown failed: {e}")
             except Exception as e:
-                logger.error(f"❌ Shutdown error: {e}")
+                logger.error(f"Shutdown error: {e}")
         
         # Schedule shutdown execution after response is sent
         shutdown_thread = threading.Thread(target=execute_shutdown)
@@ -116,7 +120,7 @@ def reboot_system():
         
         # Basic confirmation check
         if not data.get('confirm', False):
-            logger.warning("❌ Reboot rejected: No confirmation")
+            logger.warning("Reboot rejected: No confirmation")
             return jsonify({
                 'error': 'Reboot requires confirmation',
                 'required': {'confirm': True}
@@ -124,7 +128,7 @@ def reboot_system():
         
         delay = data.get('delay', 0)
         
-        logger.info(f"🔄 Local reboot requested from {request.remote_addr}")
+        logger.info(f"Local reboot requested from {request.remote_addr}")
         logger.info(f"Reboot delay: {delay} seconds")
         
         # Prepare reboot command
@@ -139,11 +143,11 @@ def reboot_system():
         def execute_reboot():
             try:
                 subprocess.run(reboot_cmd, check=True)
-                logger.info("🔄 Local system reboot command executed")
+                logger.info("Local system reboot command executed")
             except subprocess.CalledProcessError as e:
-                logger.error(f"❌ Reboot command failed: {e}")
+                logger.error(f"Reboot command failed: {e}")
             except Exception as e:
-                logger.error(f"❌ Reboot execution error: {e}")
+                logger.error(f"Reboot execution error: {e}")
         
         reboot_thread = threading.Thread(target=execute_reboot)
         reboot_thread.daemon = True
@@ -223,14 +227,14 @@ def install_update():
         
         # Verify package file exists and is a .deb file
         if not os.path.exists(package_path):
-            logger.error(f"❌ Package file not found: {package_path}")
+            logger.error(f"Package file not found: {package_path}")
             return jsonify({
                 'error': f'Package file not found: {package_path}',
                 'success': False
             }), 404
         
         if not package_path.endswith('.deb'):
-            logger.error(f"❌ Invalid package file: {package_path}")
+            logger.error(f"Invalid package file: {package_path}")
             return jsonify({
                 'error': 'Package must be a .deb file',
                 'success': False
@@ -238,9 +242,9 @@ def install_update():
         
         restart_app = data.get('restartApp', True)
         
-        logger.info(f"📦 Update installation requested from {request.remote_addr}")
-        logger.info(f"📁 Package: {package_path}")
-        logger.info(f"🔄 Restart app after install: {restart_app}")
+        logger.info(f"Update installation requested from {request.remote_addr}")
+        logger.info(f"Package: {package_path}")
+        logger.info(f"Restart app after install: {restart_app}")
         
         # Install the package using dpkg with uninstall-first approach
         def execute_installation():
@@ -261,7 +265,7 @@ def install_update():
                             break
                 
                 if package_name:
-                    logger.info(f"📦 Identified package name: {package_name}")
+                    logger.info(f"Identified package name: {package_name}")
                     
                     # Check if package is currently installed
                     check_cmd = ['dpkg', '-l', package_name]
@@ -271,9 +275,9 @@ def install_update():
                                                 check=False)
                     
                     if check_result.returncode == 0 and package_name in check_result.stdout:
-                        logger.info(f"🗑️ Uninstalling existing package: {package_name}")
+                        logger.info(f"Uninstalling existing package: {package_name}")
                         uninstall_cmd = ['dpkg', '--remove', package_name]
-                        logger.info(f"🔧 Executing: {' '.join(uninstall_cmd)}")
+                        logger.info(f"Executing: {' '.join(uninstall_cmd)}")
                         
                         uninstall_result = subprocess.run(uninstall_cmd, 
                                                         capture_output=True, 
@@ -291,7 +295,7 @@ def install_update():
                 
                 # Now install the new package
                 install_cmd = ['dpkg', '-i', package_path]
-                logger.info(f"🔧 Installing new package: {' '.join(install_cmd)}")
+                logger.info(f"Installing new package: {' '.join(install_cmd)}")
                 
                 result = subprocess.run(install_cmd, 
                                       capture_output=True, 
@@ -299,9 +303,9 @@ def install_update():
                                       check=False)
                 
                 if result.returncode != 0:
-                    logger.error(f"❌ Package installation failed: {result.stderr}")
+                    logger.error(f"Package installation failed: {result.stderr}")
                     # Try to fix dependencies if installation failed
-                    logger.info("🔧 Attempting to fix dependencies...")
+                    logger.info("Attempting to fix dependencies...")
                     fix_cmd = ['apt-get', 'install', '-f', '-y']
                     fix_result = subprocess.run(fix_cmd, 
                                               capture_output=True, 
@@ -317,29 +321,29 @@ def install_update():
                                               check=False)
                     
                     if result.returncode != 0:
-                        logger.error(f"❌ Installation still failed after dependency fix: {result.stderr}")
+                        logger.error(f"Installation still failed after dependency fix: {result.stderr}")
                         return
                 
-                logger.info("✅ Package installation completed successfully")
-                logger.info(f"📄 Installation output: {result.stdout}")
+                logger.info("Package installation completed successfully")
+                logger.info(f"Installation output: {result.stdout}")
                 
                 # Ensure device ID exists after successful installation
                 try:
                     device_id = ensure_device_id()
-                    logger.info(f"🆔 Device ID ensured: {device_id}")
+                    logger.info(f"Device ID ensured: {device_id}")
                 except Exception as device_error:
-                    logger.error(f"❌ Failed to ensure device ID: {device_error}")
+                    logger.error(f"Failed to ensure device ID: {device_error}")
                 
                 # Clean up the package file
                 try:
                     os.remove(package_path)
-                    logger.info(f"🗑️ Cleaned up package file: {package_path}")
+                    logger.info(f"Cleaned up package file: {package_path}")
                 except Exception as cleanup_error:
-                    logger.warning(f"⚠️ Failed to clean up package file: {cleanup_error}")
+                    logger.warning(f"Failed to clean up package file: {cleanup_error}")
                 
                 # Restart the SmartTV application if requested
                 if restart_app:
-                    logger.info("🔄 Restarting SmartTV application...")
+                    logger.info("Restarting SmartTV application...")
                     try:
                         # Kill existing SmartTV processes
                         subprocess.run(['pkill', '-f', 'smart-tv-ui'], 
@@ -358,20 +362,20 @@ def install_update():
                                                       check=False)
                         
                         if restart_result.returncode == 0:
-                            logger.info("✅ SmartTV application restarted successfully")
+                            logger.info("SmartTV application restarted successfully")
                         else:
-                            logger.warning(f"⚠️ Failed to restart SmartTV service: {restart_result.stderr}")
+                            logger.warning(f"Failed to restart SmartTV service: {restart_result.stderr}")
                             # Try alternative restart method
-                            logger.info("🔄 Trying alternative restart method...")
+                            logger.info("Trying alternative restart method...")
                             subprocess.Popen(['smart-tv-ui'], 
                                            stdout=subprocess.DEVNULL, 
                                            stderr=subprocess.DEVNULL)
                             
                     except Exception as restart_error:
-                        logger.error(f"❌ Failed to restart application: {restart_error}")
+                        logger.error(f"Failed to restart application: {restart_error}")
                 
             except Exception as e:
-                logger.error(f"❌ Installation execution error: {e}")
+                logger.error(f"Installation execution error: {e}")
         
         # Execute installation in background thread
         installation_thread = threading.Thread(target=execute_installation)
@@ -490,9 +494,211 @@ def health_check():
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }), 200
 
+def check_for_force_updates():
+    """
+    Check for force updates on startup and install them automatically
+    """
+    logger.info("Checking for force updates on startup...")
+    
+    try:
+        # Configuration - could be moved to env vars or config file
+        SERVER_URL = os.environ.get('SERVER_URL', 'http://100.124.6.99:3001')
+
+        
+        # Try to get current version from installed package
+        try:
+            result = subprocess.run(['dpkg', '-l', 'smart-tv-ui'], 
+                                  capture_output=True, text=True, check=False)
+            if result.returncode == 0:
+                for line in result.stdout.split('\n'):
+                    if 'smart-tv-ui' in line:
+                        parts = line.split()
+                        if len(parts) >= 3:
+                            CURRENT_VERSION = parts[2]
+                            break
+        except Exception as e:
+            logger.warning(f"Could not determine current version: {e}")
+        
+        logger.info(f"Current version: {CURRENT_VERSION}")
+        logger.info(f"Checking updates from: {SERVER_URL}")
+        
+        # Make HTTP request to check for updates
+        url = f"{SERVER_URL}/api/updates/check?version={urllib.parse.quote(CURRENT_VERSION)}"
+        
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                if response.status != 200:
+                    logger.error(f"Update check failed with status: {response.status}")
+                    return
+                
+                data = json.loads(response.read().decode('utf-8'))
+                logger.info(f"Update check result: {data}")
+                
+                # Check if force update is enabled or update is marked as important
+                if data.get('hasUpdate') and (data.get('forceUpdate') or data.get('important')):
+                    logger.info("Force update or important update detected!")
+                    logger.info(f"Current: {data.get('currentVersion')}, Latest: {data.get('latestVersion')}")
+                    logger.info(f"Important: {data.get('important')}, Force: {data.get('forceUpdate')}")
+                    
+                    # Download the update
+                    download_url = f"{SERVER_URL}{data.get('downloadUrl')}"
+                    logger.info(f"Auto-downloading update from: {download_url}")
+                    
+                    # Create downloads directory if it doesn't exist
+                    downloads_dir = '/tmp/smarttv-updates'
+                    os.makedirs(downloads_dir, exist_ok=True)
+                    
+                    filename = f"smart-tv-ui_{data.get('latestVersion')}_amd64.deb"
+                    download_path = os.path.join(downloads_dir, filename)
+                    
+                    # Download the file
+                    with urllib.request.urlopen(download_url, timeout=300) as download_response:
+                        if download_response.status != 200:
+                            logger.error(f"Download failed with status: {download_response.status}")
+                            return
+                        
+                        with open(download_path, 'wb') as f:
+                            shutil.copyfileobj(download_response, f)
+                        
+                        logger.info(f"Update downloaded to: {download_path}")
+                    
+                    # Verify the package
+                    logger.info("Verifying downloaded package...")
+                    verify_cmd = ['dpkg', '--info', download_path]
+                    verify_result = subprocess.run(verify_cmd, capture_output=True, text=True, check=False)
+                    
+                    if verify_result.returncode != 0:
+                        logger.error(f"Package verification failed: {verify_result.stderr}")
+                        try:
+                            os.remove(download_path)
+                        except:
+                            pass
+                        return
+                    
+                    logger.info("Package verified successfully")
+                    
+                    # Install the update
+                    logger.info("Installing force update...")
+                    install_success = install_update_package(download_path, data.get('important', False))
+                    
+                    if install_success:
+                        logger.info("Force update installed successfully")
+                        
+                        # If marked as important, trigger reboot after installation
+                        if data.get('important'):
+                            logger.info("Important update - system will reboot in 10 seconds...")
+                            time.sleep(10)  # Give some time for processes to clean up
+                            subprocess.run(['sudo', 'reboot'], check=False)
+                    else:
+                        logger.error("Force update installation failed")
+                
+                elif data.get('hasUpdate'):
+                    logger.info("Regular update available, no force action required")
+                else:
+                    logger.info("No updates available")
+        
+        except urllib.error.URLError as e:
+            logger.error(f"Network error during update check: {e}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON response: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error during update check: {e}")
+            
+    except Exception as e:
+        logger.error(f"Force update check failed: {e}")
+
+def install_update_package(package_path, is_important=False):
+    """
+    Install a .deb package update
+    Returns True if successful, False otherwise
+    """
+    try:
+        logger.info(f"Installing package: {package_path}")
+        
+        # Get package name from the .deb file
+        info_cmd = ['dpkg', '--info', package_path]
+        info_result = subprocess.run(info_cmd, capture_output=True, text=True, check=False)
+        
+        package_name = None
+        if info_result.returncode == 0:
+            for line in info_result.stdout.split('\n'):
+                if line.strip().startswith('Package:'):
+                    package_name = line.split(':', 1)[1].strip()
+                    break
+        
+        if package_name:
+            logger.info(f"Package name: {package_name}")
+            
+            # Check if package is currently installed and uninstall it
+            check_cmd = ['dpkg', '-l', package_name]
+            check_result = subprocess.run(check_cmd, capture_output=True, text=True, check=False)
+            
+            if check_result.returncode == 0 and package_name in check_result.stdout:
+                logger.info(f"Uninstalling existing package: {package_name}")
+                uninstall_cmd = ['dpkg', '--remove', package_name]
+                uninstall_result = subprocess.run(uninstall_cmd, capture_output=True, text=True, check=False)
+                
+                if uninstall_result.returncode == 0:
+                    logger.info("Existing package uninstalled")
+                else:
+                    logger.warning(f"Uninstall warning: {uninstall_result.stderr}")
+        
+        # Install the new package
+        install_cmd = ['dpkg', '-i', package_path]
+        logger.info(f"Installing: {' '.join(install_cmd)}")
+        
+        result = subprocess.run(install_cmd, capture_output=True, text=True, check=False)
+        
+        if result.returncode != 0:
+            logger.warning(f"Initial install failed, trying dependency fix: {result.stderr}")
+            
+            # Try to fix dependencies
+            fix_cmd = ['apt-get', 'install', '-f', '-y']
+            fix_result = subprocess.run(fix_cmd, capture_output=True, text=True, check=False)
+            
+            if fix_result.returncode == 0:
+                logger.info("Dependencies fixed, retrying installation...")
+                result = subprocess.run(install_cmd, capture_output=True, text=True, check=False)
+        
+        if result.returncode == 0:
+            logger.info("Package installation completed successfully")
+            
+            # Ensure device ID exists after installation
+            try:
+                device_id = ensure_device_id()
+                logger.info(f"Device ID ensured: {device_id}")
+            except Exception as e:
+                logger.warning(f"Device ID ensure failed: {e}")
+            
+            # Clean up the package file
+            try:
+                os.remove(package_path)
+                logger.info(f"Cleaned up package file")
+            except Exception as e:
+                logger.warning(f"Cleanup failed: {e}")
+            
+            return True
+        else:
+            logger.error(f"Package installation failed: {result.stderr}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Install package error: {e}")
+        return False
+
 if __name__ == '__main__':
-    logger.info("🚀 Starting SmartTV Local System Management Server on localhost:5000")
-    logger.info("📋 Available endpoints:")
+    logger.info("Starting SmartTV Local System Management Server on localhost:5000")
+    
+    # Check for force updates on startup (run in background thread)
+    def startup_update_check():
+        time.sleep(5)  # Wait a few seconds for system to stabilize
+        check_for_force_updates()
+    
+    update_thread = threading.Thread(target=startup_update_check)
+    update_thread.daemon = True
+    update_thread.start()
+    
+    logger.info("Available endpoints:")
     logger.info("  POST /api/system/shutdown - Shutdown local system")
     logger.info("  POST /api/system/reboot - Reboot local system")
     logger.info("  POST /api/system/install-update - Install .deb package update")

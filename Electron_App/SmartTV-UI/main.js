@@ -10,6 +10,7 @@ const WebSocket = require('ws');
 const cors = require('cors');
 const QRCode = require('qrcode');
 const os = require('os');
+const DeviceIDManager = require('./device-id-manager');
 require('dotenv').config();
 
 // Store config in global for preload script access
@@ -173,13 +174,17 @@ function createWindow() {
 
 console.log('⏳ Waiting for app to be ready...');
 app.whenReady().then(async () => {
-  console.log('🚀 App is ready, creating window');
-  createWindow();
+  console.log('🚀 App is ready, initializing device ID and creating window');
   
-  // Check for force updates after window is created
-  setTimeout(() => {
-    checkForceUpdate();
-  }, 3000); // Delay to let the app fully initialize
+  // Initialize device ID on startup
+  try {
+    const ids = await deviceIdManager.ensureDeviceId();
+    console.log(`✅ Device initialized - Device ID: ${ids.deviceId}, User ID: ${ids.userId}`);
+  } catch (error) {
+    console.error('❌ Failed to initialize device ID:', error);
+  }
+  
+  createWindow();
 }).catch(error => {
   console.error('❌ App failed to become ready:', error);
 });
@@ -468,8 +473,9 @@ class WiFiManager {
   }
 }
 
-// Initialize WiFi manager
+// Initialize WiFi manager and Device ID manager
 const wifiManager = new WiFiManager();
+const deviceIdManager = new DeviceIDManager();
 
 // IPC handlers for WiFi functionality
 ipcMain.handle('wifi-scan', async () => {
@@ -981,145 +987,6 @@ function makeHttpPostRequest(url, postData) {
   });
 }
 
-// Force Update System
-async function checkForceUpdate() {
-  console.log('🔄 Checking for force updates on startup...');
-  
-  try {
-    const currentVersion = app.getVersion();
-    const SERVER_URL = global.appConfig.SERVER_URL;
-    
-    // Make HTTP request to check for updates
-    const url = `${SERVER_URL}/api/updates/check?version=${currentVersion}`;
-    console.log('📡 Checking for updates at:', url);
-    
-    const updateInfo = await makeHttpRequest(url);
-    console.log('📋 Update check result:', updateInfo);
-    
-    // Check if force update is enabled or update is marked as important
-    if (updateInfo.hasUpdate && (updateInfo.forceUpdate || updateInfo.important)) {
-      console.log('🚨 Force update or important update detected!');
-      console.log(`📦 Current: ${updateInfo.currentVersion}, Latest: ${updateInfo.latestVersion}`);
-      console.log(`🏷️ Important: ${updateInfo.important}, Force: ${updateInfo.forceUpdate}`);
-      
-      // Auto-download the update
-      const downloadUrl = `${SERVER_URL}${updateInfo.downloadUrl}`;
-      console.log('📥 Auto-downloading update from:', downloadUrl);
-      
-      const fileName = `smart-tv-ui_${updateInfo.latestVersion}_amd64.deb`;
-      const downloadPath = path.join(app.getPath('downloads'), fileName);
-      
-      await downloadUpdateFile(downloadUrl, downloadPath);
-      
-      // Auto-install the update
-      console.log('🔧 Auto-installing update...');
-      await installForceUpdate(downloadPath, updateInfo.important);
-      
-    } else if (updateInfo.hasUpdate) {
-      console.log('ℹ️ Regular update available, no force action required');
-    } else {
-      console.log('✅ No updates available');
-    }
-    
-  } catch (error) {
-    console.error('❌ Force update check failed:', error);
-  }
-}
-
-async function downloadUpdateFile(url, filePath) {
-  return new Promise((resolve, reject) => {
-    console.log('📥 Downloading update file...');
-    
-    const file = fs.createWriteStream(filePath);
-    const request = http.get(url, (response) => {
-      if (response.statusCode !== 200) {
-        reject(new Error(`Download failed with status code: ${response.statusCode}`));
-        return;
-      }
-      
-      response.pipe(file);
-      
-      file.on('finish', () => {
-        file.close();
-        console.log('✅ Update downloaded to:', filePath);
-        resolve(filePath);
-      });
-      
-      file.on('error', (err) => {
-        fs.unlink(filePath, () => {}); // Delete incomplete file
-        reject(err);
-      });
-    });
-    
-    request.on('error', (err) => {
-      reject(err);
-    });
-  });
-}
-
-async function installForceUpdate(packagePath, isImportant) {
-  try {
-    console.log('🔧 Installing force update...');
-    
-    const SYSTEM_SERVER_URL = 'http://127.0.0.1:5000';
-    
-    // First verify the package
-    const verifyResponse = await makeHttpPostRequest(`${SYSTEM_SERVER_URL}/api/system/verify-package`, { packagePath });
-    
-    if (!verifyResponse.ok) {
-      throw new Error('Package verification failed');
-    }
-    
-    const verifyData = verifyResponse.data;
-    if (!verifyData.success || !verifyData.valid) {
-      throw new Error('Invalid package');
-    }
-    
-    console.log('✅ Package verified, proceeding with installation...');
-    
-    // Install the package
-    const installResponse = await makeHttpPostRequest(`${SYSTEM_SERVER_URL}/api/system/install-update`, {
-      packagePath,
-      confirm: true,
-      restartApp: true
-    });
-    
-    if (!installResponse.ok) {
-      throw new Error('Installation failed');
-    }
-    
-    const installData = installResponse.data;
-    if (!installData.success) {
-      throw new Error('Installation failed');
-    }
-    
-    console.log('✅ Force update installed successfully');
-    
-    // If marked as important, trigger immediate reboot
-    if (isImportant) {
-      console.log('🚨 Important update - triggering system reboot...');
-      setTimeout(async () => {
-        try {
-          const rebootResponse = await makeHttpPostRequest(`${SYSTEM_SERVER_URL}/api/system/reboot`, {
-            confirm: true,
-            delay: 3
-          });
-          
-          if (rebootResponse.ok) {
-            console.log('🔄 System reboot initiated in 3 seconds...');
-          } else {
-            console.error('❌ Failed to initiate reboot');
-          }
-        } catch (error) {
-          console.error('❌ Reboot request failed:', error);
-        }
-      }, 2000);
-    }
-    
-  } catch (error) {
-    console.error('❌ Force update installation failed:', error);
-  }
-}
 
 // IPC handlers for update functionality
 ipcMain.handle('get-app-version', () => {
@@ -1128,57 +995,22 @@ ipcMain.handle('get-app-version', () => {
 
 ipcMain.handle('get-device-info', async () => {
   try {
-    console.log('🆔 Fetching device info from system manager...');
+    console.log('🆔 Fetching device info from Electron app...');
     
-    // Make HTTP request to local system manager for device info
-    const http = require('http');
+    // Get device info directly from our device ID manager
+    const deviceInfo = deviceIdManager.getDeviceInfo();
     
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: '127.0.0.1',
-        port: 5000,
-        path: '/api/system/device-info',
-        method: 'GET',
-        timeout: 5000
-      };
-      
-      const req = http.request(options, (res) => {
-        let data = '';
-        
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        
-        res.on('end', () => {
-          try {
-            const response = JSON.parse(data);
-            if (response.success) {
-              console.log('✅ Device info retrieved:', response.deviceInfo);
-              resolve(response.deviceInfo);
-            } else {
-              console.log('⚠️ Device info request failed:', response.error);
-              reject(new Error(response.error));
-            }
-          } catch (parseError) {
-            console.log('❌ Failed to parse device info response:', parseError);
-            reject(parseError);
-          }
-        });
-      });
-      
-      req.on('error', (error) => {
-        console.log('❌ Device info request error:', error);
-        reject(error);
-      });
-      
-      req.on('timeout', () => {
-        console.log('⏰ Device info request timeout');
-        req.destroy();
-        reject(new Error('Device info request timeout'));
-      });
-      
-      req.end();
-    });
+    if (deviceInfo) {
+      console.log('✅ Device info retrieved:', deviceInfo);
+      return deviceInfo;
+    } else {
+      // Fallback: try to initialize if not found
+      console.log('⚠️ No device info found, attempting to create...');
+      const ids = await deviceIdManager.ensureDeviceId();
+      const newDeviceInfo = deviceIdManager.getDeviceInfo();
+      console.log('✅ Device info created:', newDeviceInfo);
+      return newDeviceInfo;
+    }
   } catch (error) {
     console.log('❌ Device info handler error:', error);
     throw error;

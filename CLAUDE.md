@@ -11,7 +11,7 @@ SmartTV is a hybrid application consisting of an Electron-based desktop UI for S
 ### Three-Component System
 1. **Electron App** (`Electron_App/SmartTV-UI/`) - Main desktop application
 2. **Flask Server** (`server_side/`) - Backend API services  
-3. **Kiosk Configuration** (`kiosk/`) - Linux TV deployment setup
+3. **System Manager** (`system_manager/`) - Local system management and force updates
 
 ### Technology Stack
 - **Frontend**: Electron 28.0.0 with vanilla HTML/CSS/JavaScript
@@ -47,6 +47,14 @@ python app.py              # Starts on port 3001 by default
 # or set custom port: PORT=5000 python app.py
 ```
 
+### System Manager (Local System Server)
+```bash
+cd system_manager/
+
+# Run local system server (handles updates, shutdown, reboot)
+python local_system_server.py  # Starts on localhost:5000
+```
+
 ### Environment Setup
 Create `server_side/.env` with:
 ```
@@ -73,6 +81,11 @@ PORT=3001
 - **`app.py`** - Flask application factory with CORS enabled
 - **`api/twilio_routes.py`** - Twilio API endpoints (`/api/token`, `/api/health`)
 - **`services/twilio_service.py`** - Twilio business logic and service layer
+
+### System Manager Components
+- **`local_system_server.py`** - Local system management Flask server (localhost:5000)
+- **`device_id.py`** - Device ID generation and management utilities
+- **`setup.sh`** - System installation script with systemd service configuration
 
 ### Build Configuration
 The `forge.config.js` implements:
@@ -103,11 +116,27 @@ Linux TV deployment script handles:
 2. Flask server generates Twilio access tokens for video calls
 3. Frontend establishes WebRTC connections via Twilio's infrastructure
 4. Trivia games use WebSocket connections for real-time multiplayer
+5. System Manager handles local operations via localhost:5000 (shutdown, reboot, updates)
+
+## Update Management
+
+### Force Update System
+The system manager (`local_system_server.py`) automatically checks for force updates on startup:
+- Checks `/api/updates/check` endpoint for `forceUpdate` or `important` flags
+- Downloads and installs .deb packages automatically when force updates are detected
+- Triggers system reboot for important updates
+- Runs independently of the Electron app for reliable update delivery
+
+### Update Flow
+1. **System Boot** → System Manager starts → **Force Update Check** (5-second delay)
+2. **Update Server** responds with update metadata including force/important flags
+3. **Auto-Download** → **Package Verification** → **Installation** → **Reboot** (if important)
 
 ## File Organization Patterns
 
 - Frontend assets and pages are in `Electron_App/SmartTV-UI/`
 - Backend follows Flask blueprint pattern with `api/` and `services/` separation
+- System manager components are in `system_manager/` directory
 - Build outputs go to `out/` directory (gitignored)
 - Kiosk deployment scripts are in dedicated `kiosk/` directory
 
@@ -117,3 +146,5 @@ Linux TV deployment script handles:
 - Video calling requires Twilio credentials and internet connectivity
 - Cross-platform builds are configured but primarily targets Linux for TV deployment
 - The Flask server runs independently and can be deployed separately from the Electron app
+- System manager provides local system control and handles force updates automatically
+- Force update checking has been moved from Electron app to system manager for reliability

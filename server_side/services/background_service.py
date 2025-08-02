@@ -67,8 +67,8 @@ class BackgroundService:
             
             self.scheduler.start()
             self.is_running = True
-            logger.info("🚀 Background service started successfully")
-            logger.info("   📋 Active jobs:")
+            logger.info("Background service started successfully")
+            logger.info("   Active jobs:")
             for job in self.scheduler.get_jobs():
                 logger.info(f"      - {job.name}: {job.trigger}")
             
@@ -84,7 +84,7 @@ class BackgroundService:
         try:
             self.scheduler.shutdown(wait=False)
             self.is_running = False
-            logger.info("🛑 Background service stopped")
+            logger.info("Background service stopped")
         except Exception as e:
             logger.error(f"Error stopping background service: {e}")
     
@@ -112,7 +112,7 @@ class BackgroundService:
                 
                 logger.info(f"🧹 Marked {users_to_cleanup} inactive users as offline")
             else:
-                logger.debug("👥 All users are active - no cleanup needed")
+                logger.debug("All users are active - no cleanup needed")
                 
         except Exception as e:
             logger.error(f"Failed to cleanup inactive users: {e}")
@@ -140,9 +140,9 @@ class BackgroundService:
                 """
                 self.db.execute_query(delete_query, (one_hour_ago.isoformat(),))
                 
-                logger.info(f"🗑️ Cleaned up {calls_to_cleanup} old call records")
+                logger.info(f"Cleaned up {calls_to_cleanup} old call records")
             else:
-                logger.debug("📞 No old calls to cleanup")
+                logger.debug("No old calls to cleanup")
                 
         except Exception as e:
             logger.error(f"Failed to cleanup old calls: {e}")
@@ -164,7 +164,7 @@ class BackgroundService:
             accepted_calls = self.db.execute_query(accepted_calls_query, fetch='all')
             
             if not accepted_calls:
-                logger.debug("📞 No accepted calls to sync with Twilio")
+                logger.debug("No accepted calls to sync with Twilio")
                 return
             
             calls_synced = 0
@@ -213,7 +213,7 @@ class BackgroundService:
                         success = self._end_call_with_twilio_sync(call_id, call['answered_at'], end_reason)
                         if success:
                             calls_ended += 1
-                            logger.info(f"🔧 Ended call {call_id} - {end_reason}")
+                            logger.info(f"Ended call {call_id} - {end_reason}")
                     
                     calls_synced += 1
                     
@@ -221,9 +221,9 @@ class BackgroundService:
                     logger.error(f"Failed to sync call {call.get('call_id', 'unknown')}: {e}")
             
             if calls_ended > 0:
-                logger.info(f"🔄 Synced {calls_synced} calls with Twilio, ended {calls_ended} calls")
+                logger.info(f"Synced {calls_synced} calls with Twilio, ended {calls_ended} calls")
             else:
-                logger.debug(f"🔄 Synced {calls_synced} calls with Twilio, all active")
+                logger.debug(f"Synced {calls_synced} calls with Twilio, all active")
                 
         except Exception as e:
             logger.error(f"Failed to sync calls with Twilio: {e}")
@@ -276,7 +276,7 @@ class BackgroundService:
             )
             
             if result:
-                logger.info(f"📞 Call {call_id} ended via Twilio sync - {reason} (Duration: {duration}s)")
+                logger.info(f"Call {call_id} ended via Twilio sync - {reason} (Duration: {duration}s)")
                 return True
             return False
             

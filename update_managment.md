@@ -142,19 +142,22 @@ The force update system provides automatic update checking and installation for 
 - Combines with force update for fully automated critical updates
 
 #### Startup Update Check
-- Every app startup triggers an automatic update check (with 3-second delay)
-- Compares current version with server's latest version
+- System Manager automatically checks for updates on service startup (with 5-second delay)
+- Compares current version from installed package with server's latest version
 - Automatically processes force updates and important updates
-- Logs all actions for debugging
+- Runs independently of Electron app for reliable update delivery
+- Logs all actions to `/var/log/smarttv-local-system.log` for debugging
 
 ### Update Flow for Force Updates
 
-1. **App Startup**: After window creation, automatic update check is triggered
-2. **Version Check**: HTTP request to `/api/updates/check?version=<current>`
-3. **Force Update Detection**: If `forceUpdate` or `important` flags are true
-4. **Auto Download**: Update package is downloaded to Downloads folder
-5. **Auto Install**: Package is verified and installed via system manager
-6. **Auto Reboot** (if important): System reboots automatically after installation
+1. **System Boot**: System Manager service starts automatically
+2. **Startup Delay**: 5-second wait for system stabilization
+3. **Version Check**: HTTP request to `/api/updates/check?version=<current>` via System Manager
+4. **Force Update Detection**: If `forceUpdate` or `important` flags are true
+5. **Auto Download**: Update package downloaded to `/tmp/smarttv-updates/`
+6. **Package Verification**: `dpkg --info` validates the .deb package
+7. **Auto Install**: Package installed via System Manager (uninstall old → install new)
+8. **Auto Reboot** (if important): System reboots automatically after 10-second delay
 
 ### Configuration
 
@@ -175,7 +178,10 @@ python upload_update.py app.deb 1.2.0 "Critical update" --important --force-upda
 
 ### Local System Server (`system_manager/local_system_server.py`)
 
-The system manager runs as a root-privileged service on `localhost:5000` and provides secure installation endpoints:
+The system manager runs as a root-privileged service on `localhost:5000` and provides:
+- **Force Update Checking**: Automatically checks for updates on service startup
+- **Secure Installation**: Root-privileged .deb package installation
+- **System Control**: Shutdown, reboot, and system status endpoints
 
 #### `/api/system/install-update` (POST)
 Installs .deb packages with root privileges.
@@ -261,6 +267,13 @@ Verifies .deb package integrity before installation.
 
 ### For End Users: Installing Updates
 
+#### Force Updates (Automatic)
+- Force updates are completely automatic - no user interaction required
+- System Manager checks for force updates on every boot/service restart
+- If a force update is available, it downloads and installs automatically
+- System reboots automatically if the update is marked as "important"
+
+#### Regular Updates (Manual)
 1. Open the SmartTV application
 2. Navigate to Settings (press 6 or click the Settings tile)
 3. The app will automatically check for updates on page load

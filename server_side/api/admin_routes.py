@@ -404,7 +404,7 @@ def manual_sync_twilio():
             }), 400
         
         # Manually trigger the sync
-        logger.info("🔧 Manual Twilio sync triggered via admin API")
+        logger.info("Manual Twilio sync triggered via admin API")
         background_service.sync_calls_with_twilio()
         
         return jsonify({
