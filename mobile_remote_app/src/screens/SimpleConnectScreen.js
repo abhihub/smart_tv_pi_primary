@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function SimpleConnectScreen({ onConnect, isConnecting }) {
+export default function SimpleConnectScreen({ onConnect, isConnecting, onShowWifiQR }) {
   const [ipAddress, setIpAddress] = useState(''); // Empty IP for user input
   const [port, setPort] = useState('8080'); // Default port
 
@@ -81,6 +81,16 @@ export default function SimpleConnectScreen({ onConnect, isConnecting }) {
             {isConnecting ? 'Connecting...' : 'Connect'}
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.wifiQRButton}
+          onPress={onShowWifiQR}
+        >
+          <Ionicons name="qr-code" size={24} color="#667eea" />
+          <Text style={styles.wifiQRButtonText}>
+            Generate WiFi QR Code
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.instructions}>
@@ -93,6 +103,9 @@ export default function SimpleConnectScreen({ onConnect, isConnecting }) {
         </Text>
         <Text style={styles.instructionsText}>
           3. Enter the IP address above and tap Connect
+        </Text>
+        <Text style={styles.instructionsText}>
+          💡 OR use "Generate WiFi QR Code" if you can't find your TV's WiFi QR code
         </Text>
       </View>
     </SafeAreaView>
@@ -162,6 +175,23 @@ const styles = StyleSheet.create({
   connectButtonText: {
     color: 'white',
     fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  wifiQRButton: {
+    backgroundColor: 'rgba(102, 126, 234, 0.2)',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#667eea',
+  },
+  wifiQRButtonText: {
+    color: '#667eea',
+    fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
   },
