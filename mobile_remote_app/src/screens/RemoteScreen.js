@@ -96,7 +96,7 @@ export default function RemoteScreen({ tvInfo, onDisconnect }) {
   const handlePower = () => {
     Alert.alert(
       'Power Off',
-      'Are you sure you want to shut down the TV? Any updates will be downloaded and installed on next boot.',
+      'Shutdown the TV? If force updates are available, they will be downloaded before shutdown. The device will not power off during download.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 

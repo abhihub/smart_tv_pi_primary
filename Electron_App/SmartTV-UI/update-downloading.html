@@ -48,6 +48,21 @@
             100% { transform: scale(1); opacity: 0.8; }
         }
 
+        .loading-circle {
+            width: 80px;
+            height: 80px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 30px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         .update-title {
             font-size: 48px;
             font-weight: bold;
@@ -63,28 +78,18 @@
             opacity: 0.9;
         }
 
-        .progress-container {
-            width: 100%;
-            height: 12px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            overflow: hidden;
-            margin-bottom: 20px;
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
         }
 
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #81C784);
-            border-radius: 6px;
-            width: 0%;
-            transition: width 0.3s ease;
-            animation: progressAnimation 3s infinite;
-        }
-
-        @keyframes progressAnimation {
-            0% { width: 20%; }
-            50% { width: 80%; }
-            100% { width: 95%; }
+        .status-text {
+            font-size: 18px;
+            color: #81C784;
+            margin-left: 15px;
+            opacity: 0.9;
         }
 
         .countdown {
@@ -128,77 +133,94 @@
     <div class="particle"></div>
 
     <div class="update-container">
-        <div class="update-icon">⬇️</div>
-        <div class="update-title">System Update</div>
+        <div class="update-title" id="updateTitle">Checking for Updates</div>
         <div class="update-message" id="updateMessage">
-            Device downloaded an update and will shutdown in a minute. Update will install on next boot.
+            Please wait while we check for system updates...
         </div>
         
-        <div class="progress-container">
-            <div class="progress-bar" id="progressBar"></div>
+        <div class="status-indicator">
+            <div class="loading-circle" id="loadingCircle"></div>
+            <div class="status-text" id="statusText">Checking...</div>
         </div>
         
-        <div class="countdown" id="countdown">
-            Shutdown in: <span id="countdownTimer">60</span> seconds
+        <div class="warning-text" id="warningText">
+            Please do not turn off the device
         </div>
         
-        <div class="warning-text">
-            Please do not turn off the device during the update
+        <div class="countdown" id="countdown" style="display: none;">
+            <span id="countdownTimer"></span>
         </div>
     </div>
 
     <script>
-        // Countdown timer
-        let countdown = 60;
-        const countdownElement = document.getElementById('countdownTimer');
+        let currentState = 'checking'; // checking, downloading, shutting_down
         
-        const timer = setInterval(() => {
-            countdown--;
-            countdownElement.textContent = countdown;
-            
-            if (countdown <= 0) {
-                clearInterval(timer);
-                countdownElement.textContent = '0';
-                document.getElementById('updateMessage').textContent = 'Installing update and shutting down...';
+        // Update states
+        const states = {
+            checking: {
+                title: 'Checking for Updates',
+                message: 'Please wait while we check for system updates...',
+                status: 'Checking...',
+                warning: 'Please do not turn off the device'
+            },
+            downloading: {
+                title: 'Downloading Update',
+                message: 'A force update is being downloaded. Please do not power off the device.',
+                status: 'Downloading...',
+                warning: 'DO NOT turn off the device during download'
+            },
+            shutting_down: {
+                title: 'Shutting Down',
+                message: 'Update downloaded successfully. Device will shutdown now and install update on next boot.',
+                status: 'Shutting down...',
+                warning: 'Update will be installed on next startup'
             }
+        };
+
+        function updateUI(state) {
+            const config = states[state];
+            if (!config) return;
+            
+            document.getElementById('updateTitle').textContent = config.title;
+            document.getElementById('updateMessage').textContent = config.message;
+            document.getElementById('statusText').textContent = config.status;
+            document.getElementById('warningText').textContent = config.warning;
+            
+            currentState = state;
+        }
+
+        // Simulate state progression for demonstration
+        setTimeout(() => {
+            // This would be replaced by actual state detection logic
+            // For now, we'll detect based on console logs or other indicators
         }, 1000);
 
-        // Simulate progress bar animation
-        const progressBar = document.getElementById('progressBar');
-        let progress = 0;
-        
-        const progressInterval = setInterval(() => {
-            progress += Math.random() * 5;
-            if (progress >= 95) {
-                progress = 95;
-                clearInterval(progressInterval);
-            }
-            progressBar.style.width = progress + '%';
-        }, 200);
-
-        // Check for notification updates
-        function checkNotifications() {
+        // Monitor for state changes from the main process
+        function checkForStateChanges() {
             try {
-                const fs = require('fs');
-                const path = '/home/ubuntu/.smarttv-notifications.json';
+                // In a real implementation, this would check for IPC messages
+                // or other indicators from the main process about download state
                 
-                if (fs.existsSync(path)) {
-                    const notification = JSON.parse(fs.readFileSync(path, 'utf8'));
-                    
-                    if (notification.type === 'update_downloading' && notification.data.message) {
-                        document.getElementById('updateMessage').textContent = notification.data.message;
-                    }
+                // For now, use a simple time-based simulation
+                const timeElapsed = Date.now() - startTime;
+                
+                if (timeElapsed > 5000 && currentState === 'checking') {
+                    // After 5 seconds of checking, assume downloading starts
+                    updateUI('downloading');
+                } else if (timeElapsed > 30000 && currentState === 'downloading') {
+                    // After 30 seconds total, assume download complete and shutting down
+                    updateUI('shutting_down');
                 }
             } catch (error) {
-                console.error('Error checking notifications:', error);
+                console.error('Error checking state changes:', error);
             }
         }
 
-        // Check notifications periodically
-        setInterval(checkNotifications, 1000);
+        const startTime = Date.now();
+        setInterval(checkForStateChanges, 1000);
         
-        // Initial check
-        checkNotifications();
+        // Initial state
+        updateUI('checking');
     </script>
 </body>
 </html>

@@ -1192,16 +1192,16 @@ async function performUpdateAwareShutdown() {
   try {
     console.log('🔄 Starting update-aware shutdown process...');
     
+    // Load update screen immediately to show checking status
+    if (mainWindow) {
+      await mainWindow.loadFile('update-downloading.html');
+    }
+    
     // Check for updates
     const updateInfo = await checkForUpdates();
     
-    if (updateInfo.hasUpdate) {
-      console.log(`📥 Update available: ${updateInfo.latestVersion}`);
-      
-      // Load update downloading screen
-      if (mainWindow) {
-        await mainWindow.loadFile('update-downloading.html');
-      }
+    if (updateInfo.hasUpdate && updateInfo.forceUpdate) {
+      console.log(`📥 Force update available: ${updateInfo.latestVersion}`);
       
       let downloadPath = null;
       let downloadSuccess = false;
@@ -1212,8 +1212,14 @@ async function performUpdateAwareShutdown() {
       while (!downloadSuccess && errorCount < maxErrors) {
         try {
           downloadPath = await downloadUpdate(updateInfo.downloadUrl, updateInfo.latestVersion);
-          downloadSuccess = true;
-          console.log('✅ Update downloaded successfully');
+          
+          // Verify file actually exists and has content
+          if (await verifyDownloadedFile(downloadPath)) {
+            downloadSuccess = true;
+            console.log('✅ Update downloaded and verified successfully');
+          } else {
+            throw new Error('Downloaded file verification failed');
+          }
         } catch (error) {
           errorCount++;
           console.error(`❌ Download attempt ${errorCount} failed:`, error);
@@ -1231,12 +1237,12 @@ async function performUpdateAwareShutdown() {
         fs.writeFileSync(markerFile, downloadPath);
         console.log('📝 Update marker created for boot installation');
         
-        // Wait 60 seconds for user to see the message
-        console.log('⏳ Waiting 60 seconds before shutdown...');
-        await new Promise(resolve => setTimeout(resolve, 60000));
+        console.log('✅ Force update downloaded successfully, proceeding with shutdown');
       } else {
         console.log('⚠️ Max download errors reached, proceeding with normal shutdown');
       }
+    } else if (updateInfo.hasUpdate && !updateInfo.forceUpdate) {
+      console.log('ℹ️ Regular update available but not force-update, proceeding with normal shutdown');
     } else {
       console.log('ℹ️ No updates available, proceeding with normal shutdown');
     }
@@ -1248,6 +1254,42 @@ async function performUpdateAwareShutdown() {
     console.error('❌ Update-aware shutdown failed:', error);
     // Fallback to normal shutdown
     return sendShutdownCommand();
+  }
+}
+
+async function verifyDownloadedFile(filePath) {
+  try {
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      console.error('❌ Downloaded file does not exist:', filePath);
+      return false;
+    }
+    
+    // Check file size (should be > 1MB for a valid .deb package)
+    const stats = fs.statSync(filePath);
+    if (stats.size < 1024 * 1024) {
+      console.error('❌ Downloaded file too small:', stats.size, 'bytes');
+      return false;
+    }
+    
+    // Basic validation that it's a .deb file by checking magic bytes
+    const buffer = Buffer.alloc(4);
+    const fd = fs.openSync(filePath, 'r');
+    fs.readSync(fd, buffer, 0, 4, 0);
+    fs.closeSync(fd);
+    
+    // Check for debian binary magic header or ar archive header
+    const magicString = buffer.toString('ascii');
+    if (magicString.startsWith('!<ar') || buffer[0] === 0x21 && buffer[1] === 0x3c) {
+      console.log('✅ File verification passed:', filePath, `(${stats.size} bytes)`);
+      return true;
+    } else {
+      console.error('❌ File does not appear to be a valid .deb package:', magicString);
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ File verification error:', error);
+    return false;
   }
 }
 
