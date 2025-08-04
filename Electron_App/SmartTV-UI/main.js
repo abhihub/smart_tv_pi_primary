@@ -1237,22 +1237,30 @@ async function performUpdateAwareShutdown() {
         fs.writeFileSync(markerFile, downloadPath);
         console.log('📝 Update marker created for boot installation');
         
-        console.log('✅ Force update downloaded successfully, proceeding with shutdown');
+        console.log('✅ Force update downloaded and verified successfully, now sending shutdown command');
+        // Only send shutdown after successful download and verification
+        return sendShutdownCommand();
+        
       } else {
         console.log('⚠️ Max download errors reached, proceeding with normal shutdown');
+        // Send shutdown even if download failed after max attempts
+        return sendShutdownCommand();
       }
+      
     } else if (updateInfo.hasUpdate && !updateInfo.forceUpdate) {
       console.log('ℹ️ Regular update available but not force-update, proceeding with normal shutdown');
+      // Send shutdown for regular updates
+      return sendShutdownCommand();
+      
     } else {
       console.log('ℹ️ No updates available, proceeding with normal shutdown');
+      // Send shutdown when no updates
+      return sendShutdownCommand();
     }
-    
-    // Send shutdown command to local system manager
-    return sendShutdownCommand();
     
   } catch (error) {
     console.error('❌ Update-aware shutdown failed:', error);
-    // Fallback to normal shutdown
+    // Fallback to normal shutdown only on critical errors
     return sendShutdownCommand();
   }
 }
