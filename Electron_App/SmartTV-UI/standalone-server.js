@@ -151,6 +151,10 @@ function handleRemoteCommand(message) {
     case 'launch_app':
       console.log(`🎮 Launch app: ${data.app} (simulated)`);
       break;
+    case 'power':
+    case 'shutdown':
+      console.log('🔌 Power/Shutdown command (simulated)');
+      break;
     default:
       console.log(`🎮 Unknown command: ${command} (simulated)`);
   }

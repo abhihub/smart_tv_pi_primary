@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     getDeviceInfo: () => ipcRenderer.invoke('get-device-info'),
     
+    // System control functionality
+    shutdownSystem: () => ipcRenderer.invoke('shutdown-system'),
+    checkForUpdates: () => ipcRenderer.invoke('check-updates'),
+    
     // WiFi functionality
     wifi: {
         scan: () => ipcRenderer.invoke('wifi-scan'),

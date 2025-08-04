@@ -165,6 +165,9 @@ function createWindow() {
     
     // Start remote control server after window is ready
     setupRemoteControlServer();
+    
+    // Start monitoring for system notifications
+    startNotificationMonitoring(win);
   }).catch(error => {
     console.error('❌ Failed to load homepage:', error);
   });
@@ -663,6 +666,10 @@ function handleRemoteCommand(message, ws) {
       case 'launch_app':
         handleAppLaunch(data.app);
         break;
+      case 'power':
+      case 'shutdown':
+        handlePowerShutdown();
+        break;
       default:
         console.log('❓ Unknown remote command:', command);
     }
@@ -818,6 +825,28 @@ function handleAppLaunch(appName) {
   const page = appPages[appName];
   if (page) {
     mainWindow.loadFile(page);
+  }
+}
+
+async function handlePowerShutdown() {
+  console.log('🔌 Power/Shutdown command received from TV remote');
+  
+  try {
+    // Call the same update-aware shutdown function we created earlier
+    console.log('🔄 Initiating update-aware shutdown from TV remote...');
+    await performUpdateAwareShutdown();
+    console.log('✅ Update-aware shutdown completed from TV remote');
+  } catch (error) {
+    console.error('❌ TV remote shutdown failed:', error);
+    
+    // Fallback to basic shutdown if update-aware shutdown fails
+    try {
+      console.log('🔄 Falling back to basic shutdown...');
+      await sendShutdownCommand();
+      console.log('✅ Basic shutdown completed');
+    } catch (fallbackError) {
+      console.error('❌ Fallback shutdown also failed:', fallbackError);
+    }
   }
 }
 
@@ -1066,3 +1095,282 @@ ipcMain.handle('download-update', async (event, url, version) => {
     });
   });
 });
+
+// Update checking functions
+async function checkForUpdates() {
+  try {
+    const SERVER_URL = process.env.SERVER_URL || 'http://100.124.6.99:3001';
+    
+    // Get current version from /etc/smarttv/version file
+    let currentVersion = "1.0.0";
+    try {
+      currentVersion = fs.readFileSync('/etc/smarttv/version', 'utf8').trim();
+    } catch (error) {
+      console.warn('Could not read version from /etc/smarttv/version:', error);
+    }
+    
+    const url = `${SERVER_URL}/api/updates/check?version=${encodeURIComponent(currentVersion)}`;
+    
+    return new Promise((resolve, reject) => {
+      const request = http.get(url, (response) => {
+        let data = '';
+        
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        response.on('end', () => {
+          try {
+            const result = JSON.parse(data);
+            resolve(result);
+          } catch (error) {
+            reject(new Error('Invalid JSON response'));
+          }
+        });
+      });
+      
+      request.on('error', (error) => {
+        reject(error);
+      });
+      
+      request.setTimeout(30000, () => {
+        request.abort();
+        reject(new Error('Request timeout'));
+      });
+    });
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function downloadUpdate(downloadUrl, version) {
+  try {
+    const SERVER_URL = process.env.SERVER_URL || 'http://100.124.6.99:3001';
+    const fullUrl = `${SERVER_URL}${downloadUrl}`;
+    const filename = `smart-tv-ui_${version}_amd64.deb`;
+    const downloadPath = `/home/ubuntu/${filename}`;
+    
+    console.log(`📥 Downloading update from: ${fullUrl} to ${downloadPath}`);
+    
+    return new Promise((resolve, reject) => {
+      const request = http.get(fullUrl, (response) => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Download failed with status code: ${response.statusCode}`));
+          return;
+        }
+        
+        const file = fs.createWriteStream(downloadPath);
+        response.pipe(file);
+        
+        file.on('finish', () => {
+          file.close();
+          console.log('✅ Update downloaded successfully');
+          resolve(downloadPath);
+        });
+        
+        file.on('error', (error) => {
+          fs.unlink(downloadPath, () => {}); // Delete incomplete file
+          reject(error);
+        });
+      });
+      
+      request.on('error', (error) => {
+        reject(error);
+      });
+      
+      request.setTimeout(300000, () => { // 5 minute timeout
+        request.abort();
+        reject(new Error('Download timeout'));
+      });
+    });
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function performUpdateAwareShutdown() {
+  try {
+    console.log('🔄 Starting update-aware shutdown process...');
+    
+    // Check for updates
+    const updateInfo = await checkForUpdates();
+    
+    if (updateInfo.hasUpdate) {
+      console.log(`📥 Update available: ${updateInfo.latestVersion}`);
+      
+      // Load update downloading screen
+      if (mainWindow) {
+        await mainWindow.loadFile('update-downloading.html');
+      }
+      
+      let downloadPath = null;
+      let downloadSuccess = false;
+      let errorCount = 0;
+      const maxErrors = 2;
+      
+      // Try downloading with retry logic
+      while (!downloadSuccess && errorCount < maxErrors) {
+        try {
+          downloadPath = await downloadUpdate(updateInfo.downloadUrl, updateInfo.latestVersion);
+          downloadSuccess = true;
+          console.log('✅ Update downloaded successfully');
+        } catch (error) {
+          errorCount++;
+          console.error(`❌ Download attempt ${errorCount} failed:`, error);
+          
+          if (errorCount < maxErrors) {
+            console.log(`🔄 Retrying download in 10 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 10000));
+          }
+        }
+      }
+      
+      if (downloadSuccess && downloadPath) {
+        // Create marker file for boot installation
+        const markerFile = '/home/ubuntu/.smarttv-update-ready';
+        fs.writeFileSync(markerFile, downloadPath);
+        console.log('📝 Update marker created for boot installation');
+        
+        // Wait 60 seconds for user to see the message
+        console.log('⏳ Waiting 60 seconds before shutdown...');
+        await new Promise(resolve => setTimeout(resolve, 60000));
+      } else {
+        console.log('⚠️ Max download errors reached, proceeding with normal shutdown');
+      }
+    } else {
+      console.log('ℹ️ No updates available, proceeding with normal shutdown');
+    }
+    
+    // Send shutdown command to local system manager
+    return sendShutdownCommand();
+    
+  } catch (error) {
+    console.error('❌ Update-aware shutdown failed:', error);
+    // Fallback to normal shutdown
+    return sendShutdownCommand();
+  }
+}
+
+function sendShutdownCommand() {
+  return new Promise((resolve, reject) => {
+    const postData = JSON.stringify({
+      confirm: true,
+      delay: 0
+    });
+    
+    const options = {
+      hostname: '127.0.0.1',
+      port: 5000,
+      path: '/api/system/shutdown',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+    
+    const request = http.request(options, (response) => {
+      let data = '';
+      
+      response.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      response.on('end', () => {
+        try {
+          const result = JSON.parse(data);
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            resolve(result);
+          } else {
+            reject(new Error(`Shutdown failed: ${result.error || 'Unknown error'}`));
+          }
+        } catch (error) {
+          reject(new Error('Invalid JSON response'));
+        }
+      });
+    });
+    
+    request.on('error', (error) => {
+      reject(error);
+    });
+    
+    request.write(postData);
+    request.end();
+  });
+}
+
+// IPC handlers for shutdown functionality
+ipcMain.handle('shutdown-system', async () => {
+  try {
+    console.log('🛑 Shutdown requested from renderer');
+    const result = await performUpdateAwareShutdown();
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('❌ Shutdown failed:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('check-updates', async () => {
+  try {
+    console.log('🔍 Update check requested from renderer');
+    const result = await checkForUpdates();
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('❌ Update check failed:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// System notification monitoring
+function startNotificationMonitoring(window) {
+  console.log('🔔 Starting notification monitoring...');
+  
+  const notificationFile = '/home/ubuntu/.smarttv-notifications.json';
+  let lastModification = 0;
+  
+  function checkNotifications() {
+    try {
+      if (fs.existsSync(notificationFile)) {
+        const stats = fs.statSync(notificationFile);
+        
+        // Only process if file was modified since last check
+        if (stats.mtime.getTime() > lastModification) {
+          lastModification = stats.mtime.getTime();
+          
+          const notificationData = fs.readFileSync(notificationFile, 'utf8');
+          const notification = JSON.parse(notificationData);
+          
+          console.log('🔔 System notification received:', notification);
+          
+          // Handle different notification types
+          switch (notification.type) {
+            case 'update_downloading':
+              console.log('📥 Showing update downloading screen...');
+              // Load the update downloading screen
+              window.loadFile('update-downloading.html').then(() => {
+                console.log('✅ Update downloading screen loaded');
+              }).catch(error => {
+                console.error('❌ Failed to load update screen:', error);
+              });
+              break;
+              
+            default:
+              console.log('ℹ️ Unknown notification type:', notification.type);
+          }
+        }
+      }
+    } catch (error) {
+      // Silently ignore errors (file might not exist or be malformed)
+      if (error.code !== 'ENOENT') {
+        console.error('❌ Error checking notifications:', error);
+      }
+    }
+  }
+  
+  // Check for notifications every second
+  setInterval(checkNotifications, 1000);
+  
+  // Initial check
+  checkNotifications();
+}

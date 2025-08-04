@@ -494,6 +494,54 @@ def health_check():
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }), 200
 
+def check_for_downloaded_updates():
+    """
+    Check for previously downloaded updates and install them on boot
+    """
+    logger.info("Checking for downloaded updates on boot...")
+    
+    try:
+        update_marker_file = '/home/ubuntu/.smarttv-update-ready'
+        
+        if os.path.exists(update_marker_file):
+            logger.info("Found downloaded update marker file")
+            
+            # Read the update file path
+            with open(update_marker_file, 'r') as f:
+                update_file_path = f.read().strip()
+            
+            if os.path.exists(update_file_path):
+                logger.info(f"Found downloaded update file: {update_file_path}")
+                
+                # Install the update
+                logger.info("Installing downloaded update on boot...")
+                install_success = install_update_package(update_file_path, False)
+                
+                if install_success:
+                    logger.info("✅ Boot update installation completed successfully")
+                    
+                    # Clean up the marker file and update file
+                    try:
+                        os.remove(update_marker_file)
+                        logger.info("Update marker file cleaned up")
+                    except Exception as e:
+                        logger.warning(f"Failed to clean up marker file: {e}")
+                else:
+                    logger.error("❌ Boot update installation failed")
+            else:
+                logger.warning(f"Update file not found: {update_file_path}")
+                # Clean up the stale marker file
+                try:
+                    os.remove(update_marker_file)
+                    logger.info("Stale marker file cleaned up")
+                except Exception as e:
+                    logger.warning(f"Failed to clean up stale marker file: {e}")
+        else:
+            logger.info("No downloaded updates found")
+    
+    except Exception as e:
+        logger.error(f"Error checking for downloaded updates: {e}")
+
 def check_for_force_updates():
     """
     Check for force updates on startup and install them automatically
@@ -503,21 +551,32 @@ def check_for_force_updates():
     try:
         # Configuration - could be moved to env vars or config file
         SERVER_URL = os.environ.get('SERVER_URL', 'http://100.124.6.99:3001')
-
+        CURRENT_VERSION = "1.0.0"  # Default fallback version
         
-        # Try to get current version from installed package
+        # Try to get current version from /etc/smarttv/version file
         try:
-            result = subprocess.run(['dpkg', '-l', 'smart-tv-ui'], 
-                                  capture_output=True, text=True, check=False)
-            if result.returncode == 0:
-                for line in result.stdout.split('\n'):
-                    if 'smart-tv-ui' in line:
-                        parts = line.split()
-                        if len(parts) >= 3:
-                            CURRENT_VERSION = parts[2]
-                            break
+            with open('/etc/smarttv/version', 'r') as f:
+                CURRENT_VERSION = f.read().strip()
+                logger.info(f"Version read from /etc/smarttv/version: {CURRENT_VERSION}")
+        except FileNotFoundError:
+            logger.warning("Version file /etc/smarttv/version not found, using default")
         except Exception as e:
-            logger.warning(f"Could not determine current version: {e}")
+            logger.warning(f"Could not read version from /etc/smarttv/version: {e}")
+            
+            # Fallback: Try to get current version from installed package
+            try:
+                result = subprocess.run(['dpkg', '-l', 'smart-tv-ui'], 
+                                      capture_output=True, text=True, check=False)
+                if result.returncode == 0:
+                    for line in result.stdout.split('\n'):
+                        if 'smart-tv-ui' in line:
+                            parts = line.split()
+                            if len(parts) >= 3:
+                                CURRENT_VERSION = parts[2]
+                                logger.info(f"Version fallback from dpkg: {CURRENT_VERSION}")
+                                break
+            except Exception as dpkg_error:
+                logger.warning(f"Could not determine current version from dpkg: {dpkg_error}")
         
         logger.info(f"Current version: {CURRENT_VERSION}")
         logger.info(f"Checking updates from: {SERVER_URL}")
@@ -607,6 +666,7 @@ def check_for_force_updates():
     except Exception as e:
         logger.error(f"Force update check failed: {e}")
 
+
 def install_update_package(package_path, is_important=False):
     """
     Install a .deb package update
@@ -689,9 +749,14 @@ def install_update_package(package_path, is_important=False):
 if __name__ == '__main__':
     logger.info("Starting SmartTV Local System Management Server on localhost:5000")
     
-    # Check for force updates on startup (run in background thread)
+    # Check for updates on startup (run in background thread)
     def startup_update_check():
         time.sleep(5)  # Wait a few seconds for system to stabilize
+        
+        # First check for downloaded updates from previous shutdown
+        check_for_downloaded_updates()
+        
+        # Then check for force updates from server
         check_for_force_updates()
     
     update_thread = threading.Thread(target=startup_update_check)

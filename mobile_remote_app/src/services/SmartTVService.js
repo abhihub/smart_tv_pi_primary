@@ -163,6 +163,10 @@ class SmartTVServiceClass {
   select() { return this.sendCommand('select'); }
   back() { return this.sendCommand('back'); }
   home() { return this.sendCommand('home'); }
+  
+  // System Control
+  power() { return this.sendCommand('power'); }
+  shutdown() { return this.sendCommand('shutdown'); }
 
   // Volume Control
   volumeUp() { return this.sendCommand('volume', { action: 'up' }); }

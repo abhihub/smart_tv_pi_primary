@@ -89,6 +89,13 @@ echo "📁 Creating SmartTV configuration directory..."
 sudo mkdir -p /etc/smarttv
 sudo mkdir -p /usr/local/share/smarttv
 
+echo "📝 Writing package version to /etc/smarttv/version..."
+# Write the current package version from package.json to /etc/smarttv/version
+PACKAGE_VERSION=$(grep '"version"' "$(dirname "$0")/../Electron_App/SmartTV-UI/package.json" | cut -d'"' -f4)
+echo "$PACKAGE_VERSION" | sudo tee /etc/smarttv/version > /dev/null
+sudo chmod 666 /etc/smarttv/version
+echo "📝 Package version written: $PACKAGE_VERSION"
+
 echo "🐍 Installing local system management server..."
 
 # Copy local system server to system location

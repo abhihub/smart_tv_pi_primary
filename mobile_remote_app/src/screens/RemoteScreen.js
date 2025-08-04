@@ -93,6 +93,24 @@ export default function RemoteScreen({ tvInfo, onDisconnect }) {
     SmartTVService.launchApp(appName);
   };
 
+  const handlePower = () => {
+    Alert.alert(
+      'Power Off',
+      'Are you sure you want to shut down the TV? Any updates will be downloaded and installed on next boot.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Shutdown', 
+          onPress: () => {
+            vibrateFeedback();
+            SmartTVService.power();
+          }, 
+          style: 'destructive' 
+        }
+      ]
+    );
+  };
+
   const renderConnectionStatus = () => (
     <View style={styles.connectionStatus}>
       <View style={styles.statusDot} />
@@ -164,6 +182,14 @@ export default function RemoteScreen({ tvInfo, onDisconnect }) {
       >
         <Ionicons name="home" size={20} color="white" />
         <Text style={styles.controlButtonText}>Home</Text>
+      </RemoteButton>
+
+      <RemoteButton
+        onPress={handlePower}
+        style={[styles.controlButton, styles.powerButton]}
+      >
+        <Ionicons name="power" size={20} color="white" />
+        <Text style={styles.controlButtonText}>Power</Text>
       </RemoteButton>
     </View>
   );
@@ -340,6 +366,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     minWidth: 100,
+  },
+  powerButton: {
+    backgroundColor: 'rgba(255, 107, 107, 0.2)',
+    borderColor: 'rgba(255, 107, 107, 0.4)',
   },
   controlButtonText: {
     color: 'white',
