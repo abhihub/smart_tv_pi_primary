@@ -14,11 +14,67 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
             color: white;
             min-height: 100vh;
             overflow-x: hidden;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            background: rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #FCD34D;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-center {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .current-time {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .user-info, .ip-info {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .user-info span, .ip-info span {
+            color: white;
+            font-weight: 700;
+        }
+
+        .battery-icon {
+            font-size: 1rem;
         }
 
         /* Header Styles */
@@ -27,40 +83,39 @@
             justify-content: space-between;
             align-items: center;
             padding: 20px 40px;
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            margin-top: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            margin: 70px 40px 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
         }
 
         .games-title {
-            font-size: 2.2rem;
-            font-weight: 500;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #FCD34D;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .back-btn {
             display: flex;
             align-items: center;
             gap: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 12px 20px;
-            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 12px 24px;
+            border-radius: 50px;
             border: none;
             color: white;
-            font-size: 1.1rem;
+            font-size: 1rem;
             cursor: pointer;
             transition: all 0.3s ease;
             text-decoration: none;
+            font-weight: 600;
         }
 
         .back-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
             color: white;
         }
@@ -88,16 +143,17 @@
         }
 
         .game-card {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 32px;
+            border: none;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             padding: 30px;
             cursor: pointer;
-            transition: all 0.4s ease;
+            transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
             text-decoration: none;
-            color: white;
+            color: #1f2937;
             display: block;
         }
 
@@ -333,13 +389,27 @@
 </head>
 
 <body>
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="user-info">ID: <span id="userIdDisplay">Loading...</span></div>
+        </div>
+        <div class="status-center">
+            <div class="current-time" id="currentTime">11:35</div>
+        </div>
+        <div class="status-right">
+            <div class="ip-info">Mobile: <span id="deviceIPDisplay">Loading...</span></div>
+            <div class="battery-icon">🔋</div>
+        </div>
+    </div>
+
     <!-- Background floating effects -->
     <div class="floating-effect"></div>
     <div class="floating-effect"></div>
 
     <!-- Header -->
     <div class="games-header">
-        <div class="games-title">Family Games</div>
+        <div class="games-title">games</div>
         <a href="#" class="back-btn" id="backBtn">
             <i class="fas fa-arrow-left"></i> Back to Console
         </a>
@@ -471,6 +541,50 @@
     </script>
     <script src="user-utils.js"></script>
     <script src="universal-navigation.js"></script>
+    <script>
+        // Update time in status bar
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit', 
+                hour12: false 
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+
+        // Update time immediately and then every minute
+        updateTime();
+        setInterval(updateTime, 60000);
+
+        // Display user ID and device IP
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const currentUser = await getCurrentUser();
+                const userIdElement = document.getElementById('userIdDisplay');
+                
+                if (currentUser && currentUser.username) {
+                    userIdElement.textContent = currentUser.username;
+                } else {
+                    userIdElement.textContent = 'Not Set';
+                }
+            } catch (error) {
+                console.error('Error displaying user ID:', error);
+                document.getElementById('userIdDisplay').textContent = 'Error';
+            }
+
+            try {
+                const connectionInfo = await window.electronAPI.getConnectionInfo();
+                const deviceIPElement = document.getElementById('deviceIPDisplay');
+                if (connectionInfo) {
+                    deviceIPElement.textContent = `${connectionInfo.ip}:${connectionInfo.port}`;
+                }
+            } catch (error) {
+                console.error('Error getting connection info:', error);
+                document.getElementById('deviceIPDisplay').textContent = 'IP not available';
+            }
+        });
+    </script>
 </body>
 
 </html>

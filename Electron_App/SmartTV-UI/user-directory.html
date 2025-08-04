@@ -14,18 +14,74 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
             color: white;
             height: 100vh;
             overflow: hidden;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            background: rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #FCD34D;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-center {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .current-time {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .user-info, .ip-info {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .user-info span, .ip-info span {
+            color: white;
+            font-weight: 700;
+        }
+
+        .battery-icon {
+            font-size: 1rem;
         }
 
         .container {
             height: 100vh;
             display: flex;
             flex-direction: column;
-            padding: 40px;
+            padding: 70px 40px 40px;
         }
 
         .header {
@@ -37,11 +93,9 @@
 
         .header h1 {
             font-size: 2.5rem;
-            font-weight: 300;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-weight: 700;
+            color: #FCD34D;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         /* Tab Navigation */
@@ -549,9 +603,23 @@
     </style>
 </head>
 <body>
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="user-info">ID: <span id="userIdDisplay">Loading...</span></div>
+        </div>
+        <div class="status-center">
+            <div class="current-time" id="currentTime">11:35</div>
+        </div>
+        <div class="status-right">
+            <div class="ip-info">Mobile: <span id="deviceIPDisplay">Loading...</span></div>
+            <div class="battery-icon">🔋</div>
+        </div>
+    </div>
+
     <div class="container">
         <div class="header">
-            <h1>👥 User Directory</h1>
+            <h1>video chat</h1>
             <a href="homepage.html" class="back-btn" data-focusable="true" tabindex="0">← Back to Console</a>
         </div>
 
@@ -1727,6 +1795,35 @@
                     }, 1000);
                 }
             }, 100);
+        });
+
+        // Update time in status bar
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit', 
+                hour12: false 
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+
+        // Update time immediately and then every minute
+        updateTime();
+        setInterval(updateTime, 60000);
+
+        // Display device IP
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const connectionInfo = await window.electronAPI.getConnectionInfo();
+                const deviceIPElement = document.getElementById('deviceIPDisplay');
+                if (connectionInfo) {
+                    deviceIPElement.textContent = `${connectionInfo.ip}:${connectionInfo.port}`;
+                }
+            } catch (error) {
+                console.error('Error getting connection info:', error);
+                document.getElementById('deviceIPDisplay').textContent = 'IP not available';
+            }
         });
     </script>
 </body>
