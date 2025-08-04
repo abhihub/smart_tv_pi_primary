@@ -65,7 +65,7 @@ StandardError=inherit
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/ubuntu/.Xauthority
 
-ExecStart=/usr/bin/xinit /usr/local/bin/launch-smarttv.sh -- :0 vt1 -nolisten tcp
+ExecStart=/usr/bin/xinit /usr/local/bin/launch-smarttv.sh -- :0 vt1 -screen 0 1920x1080x24 -nolisten tcp
 Restart=always
 RestartSec=5
 
