@@ -295,12 +295,12 @@ async function installUpdate() {
         
         console.log('Installation initiated:', installData);
         elements.modalTitle.textContent = 'Installation Complete';
-        elements.modalMessage.textContent = 'Update installed successfully. The device will reboot automatically to complete the update.';
+        elements.modalMessage.textContent = 'Update installed successfully. The device will shutdown automatically to complete the update.';
         
-        // Trigger device reboot after successful installation
+        // Trigger device shutdown after successful installation
         setTimeout(async () => {
             try {
-                const rebootResponse = await fetch(`${CONFIG.SYSTEM_SERVER_URL}/api/system/reboot`, {
+                const shutdownResponse = await fetch(`${CONFIG.SYSTEM_SERVER_URL}/api/system/shutdown`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -311,19 +311,19 @@ async function installUpdate() {
                     })
                 });
                 
-                if (rebootResponse.ok) {
-                    elements.modalMessage.textContent = 'Update complete. Device will reboot in 5 seconds...';
+                if (shutdownResponse.ok) {
+                    elements.modalMessage.textContent = 'Update complete. Device will shutdown in 5 seconds...';
                 } else {
-                    console.error('Failed to initiate reboot');
-                    elements.modalMessage.textContent = 'Update complete. Please reboot the device manually.';
+                    console.error('Failed to initiate shutdown');
+                    elements.modalMessage.textContent = 'Update complete. Please shutdown the device manually.';
                 }
             } catch (error) {
-                console.error('Reboot request failed:', error);
-                elements.modalMessage.textContent = 'Update complete. Please reboot the device manually.';
+                console.error('Shutdown request failed:', error);
+                elements.modalMessage.textContent = 'Update complete. Please shutdown the device manually.';
             }
         }, 2000);
         
-        // Close modal after showing reboot message
+        // Close modal after showing shutdown message
         setTimeout(() => {
             closeModal();
         }, 8000);

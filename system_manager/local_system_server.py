@@ -501,7 +501,7 @@ def check_for_downloaded_updates():
     logger.info("Checking for downloaded updates on boot...")
     
     try:
-        update_marker_file = '/home/ubuntu/.smarttv-update-ready'
+        update_marker_file = os.path.expanduser('~/.smarttv-update-ready')
         
         if os.path.exists(update_marker_file):
             logger.info("Found downloaded update marker file")
@@ -749,19 +749,23 @@ def install_update_package(package_path, is_important=False):
 if __name__ == '__main__':
     logger.info("Starting SmartTV Local System Management Server on localhost:5000")
     
-    # Check for updates on startup (run in background thread)
-    def startup_update_check():
-        time.sleep(5)  # Wait a few seconds for system to stabilize
-        
-        # First check for downloaded updates from previous shutdown
-        check_for_downloaded_updates()
-        
-        # Then check for force updates from server
-        check_for_force_updates()
+    # Force update system and boot update installation disabled
+    # Updates now handled manually through settings page
+    logger.info("Force update system disabled - updates handled manually")
     
-    update_thread = threading.Thread(target=startup_update_check)
-    update_thread.daemon = True
-    update_thread.start()
+    # Check for updates on startup (run in background thread) - DISABLED
+    # def startup_update_check():
+    #     time.sleep(5)  # Wait a few seconds for system to stabilize
+    #     
+    #     # First check for downloaded updates from previous shutdown
+    #     check_for_downloaded_updates()
+    #     
+    #     # Then check for force updates from server
+    #     check_for_force_updates()
+    # 
+    # update_thread = threading.Thread(target=startup_update_check)
+    # update_thread.daemon = True
+    # update_thread.start()
     
     logger.info("Available endpoints:")
     logger.info("  POST /api/system/shutdown - Shutdown local system")

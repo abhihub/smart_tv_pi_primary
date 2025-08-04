@@ -832,10 +832,15 @@ async function handlePowerShutdown() {
   console.log('🔌 Power/Shutdown command received from TV remote');
   
   try {
-    // Call the same update-aware shutdown function we created earlier
-    console.log('🔄 Initiating update-aware shutdown from TV remote...');
-    await performUpdateAwareShutdown();
-    console.log('✅ Update-aware shutdown completed from TV remote');
+    // Update-aware shutdown disabled - using direct shutdown
+    console.log('🔄 Initiating direct shutdown from TV remote...');
+    await sendShutdownCommand();
+    console.log('✅ Direct shutdown completed from TV remote');
+    
+    // // Call the same update-aware shutdown function we created earlier - DISABLED
+    // console.log('🔄 Initiating update-aware shutdown from TV remote...');
+    // await performUpdateAwareShutdown();
+    // console.log('✅ Update-aware shutdown completed from TV remote');
   } catch (error) {
     console.error('❌ TV remote shutdown failed:', error);
     
@@ -1188,82 +1193,91 @@ async function downloadUpdate(downloadUrl, version) {
   }
 }
 
-async function performUpdateAwareShutdown() {
-  try {
-    console.log('🔄 Starting update-aware shutdown process...');
-    
-    // Load update screen immediately to show checking status
-    if (mainWindow) {
-      await mainWindow.loadFile('update-downloading.html');
-    }
-    
-    // Check for updates
-    const updateInfo = await checkForUpdates();
-    
-    if (updateInfo.hasUpdate && updateInfo.forceUpdate) {
-      console.log(`📥 Force update available: ${updateInfo.latestVersion}`);
-      
-      let downloadPath = null;
-      let downloadSuccess = false;
-      let errorCount = 0;
-      const maxErrors = 2;
-      
-      // Try downloading with retry logic
-      while (!downloadSuccess && errorCount < maxErrors) {
-        try {
-          downloadPath = await downloadUpdate(updateInfo.downloadUrl, updateInfo.latestVersion);
-          
-          // Verify file actually exists and has content
-          if (await verifyDownloadedFile(downloadPath)) {
-            downloadSuccess = true;
-            console.log('✅ Update downloaded and verified successfully');
-          } else {
-            throw new Error('Downloaded file verification failed');
-          }
-        } catch (error) {
-          errorCount++;
-          console.error(`❌ Download attempt ${errorCount} failed:`, error);
-          
-          if (errorCount < maxErrors) {
-            console.log(`🔄 Retrying download in 10 seconds...`);
-            await new Promise(resolve => setTimeout(resolve, 10000));
-          }
-        }
-      }
-      
-      if (downloadSuccess && downloadPath) {
-        // Create marker file for boot installation
-        const markerFile = '/home/ubuntu/.smarttv-update-ready';
-        fs.writeFileSync(markerFile, downloadPath);
-        console.log('📝 Update marker created for boot installation');
-        
-        console.log('✅ Force update downloaded and verified successfully, now sending shutdown command');
-        // Only send shutdown after successful download and verification
-        return sendShutdownCommand();
-        
-      } else {
-        console.log('⚠️ Max download errors reached, proceeding with normal shutdown');
-        // Send shutdown even if download failed after max attempts
-        return sendShutdownCommand();
-      }
-      
-    } else if (updateInfo.hasUpdate && !updateInfo.forceUpdate) {
-      console.log('ℹ️ Regular update available but not force-update, proceeding with normal shutdown');
-      // Send shutdown for regular updates
-      return sendShutdownCommand();
-      
-    } else {
-      console.log('ℹ️ No updates available, proceeding with normal shutdown');
-      // Send shutdown when no updates
-      return sendShutdownCommand();
-    }
-    
-  } catch (error) {
-    console.error('❌ Update-aware shutdown failed:', error);
-    // Fallback to normal shutdown only on critical errors
-    return sendShutdownCommand();
-  }
-}
+// DISABLED: Force update checking during shutdown
+// async function performUpdateAwareShutdown() {
+//   try {
+//     console.log('🔄 Starting update-aware shutdown process...');
+//     
+//     // Load update screen immediately to show checking status
+//     if (mainWindow) {
+//       await mainWindow.loadFile('update-downloading.html');
+//     }
+//     
+//     // Check for updates
+//     const updateInfo = await checkForUpdates();
+//     
+//     if (updateInfo.hasUpdate && updateInfo.forceUpdate) {
+//       console.log(`📥 Force update available: ${updateInfo.latestVersion}`);
+//       
+//       let downloadPath = null;
+//       let downloadSuccess = false;
+//       let errorCount = 0;
+//       const maxErrors = 2;
+//       
+//       // Try downloading with retry logic
+//       while (!downloadSuccess && errorCount < maxErrors) {
+//         try {
+//           downloadPath = await downloadUpdate(updateInfo.downloadUrl, updateInfo.latestVersion);
+//           
+//           // Verify file actually exists and has content
+//           if (await verifyDownloadedFile(downloadPath)) {
+//             downloadSuccess = true;
+//             console.log('✅ Update downloaded and verified successfully');
+//           } else {
+//             throw new Error('Downloaded file verification failed');
+//           }
+//         } catch (error) {
+//           errorCount++;
+//           console.error(`❌ Download attempt ${errorCount} failed:`, error);
+//           
+//           if (errorCount < maxErrors) {
+//             console.log(`🔄 Retrying download in 10 seconds...`);
+//             await new Promise(resolve => setTimeout(resolve, 10000));
+//           }
+//         }
+//       }
+//       
+//       if (downloadSuccess && downloadPath) {
+//         // Create marker file for boot installation
+//         const os = require('os');
+//         const markerFile = path.join(os.homedir(), '.smarttv-update-ready');
+//         fs.writeFileSync(markerFile, downloadPath);
+//         console.log('📝 Update marker created for boot installation');
+//         
+//         console.log('✅ Force update downloaded and verified successfully, now sending shutdown command');
+//         // Only send shutdown after successful download and verification
+//         try {
+//           const shutdownResult = await sendShutdownCommand();
+//           console.log('✅ Shutdown command sent successfully:', shutdownResult);
+//           return shutdownResult;
+//         } catch (shutdownError) {
+//           console.error('❌ Failed to send shutdown command:', shutdownError);
+//           throw shutdownError;
+//         }
+//         
+//       } else {
+//         console.log('⚠️ Max download errors reached, proceeding with normal shutdown');
+//         // Send shutdown even if download failed after max attempts
+//         return sendShutdownCommand();
+//       }
+//       
+//     } else if (updateInfo.hasUpdate && !updateInfo.forceUpdate) {
+//       console.log('ℹ️ Regular update available but not force-update, proceeding with normal shutdown');
+//       // Send shutdown for regular updates
+//       return sendShutdownCommand();
+//       
+//     } else {
+//       console.log('ℹ️ No updates available, proceeding with normal shutdown');
+//       // Send shutdown when no updates
+//       return sendShutdownCommand();
+//     }
+//     
+//   } catch (error) {
+//     console.error('❌ Update-aware shutdown failed:', error);
+//     // Fallback to normal shutdown only on critical errors
+//     return sendShutdownCommand();
+//   }
+// }
 
 async function verifyDownloadedFile(filePath) {
   try {
@@ -1303,6 +1317,8 @@ async function verifyDownloadedFile(filePath) {
 
 function sendShutdownCommand() {
   return new Promise((resolve, reject) => {
+    console.log('🔄 Preparing shutdown command to localhost:5000...');
+    
     const postData = JSON.stringify({
       confirm: true,
       delay: 0
@@ -1319,7 +1335,10 @@ function sendShutdownCommand() {
       }
     };
     
+    console.log('🔗 Sending shutdown request to:', `${options.hostname}:${options.port}${options.path}`);
+    
     const request = http.request(options, (response) => {
+      console.log('📡 Received response status:', response.statusCode);
       let data = '';
       
       response.on('data', (chunk) => {
@@ -1327,20 +1346,25 @@ function sendShutdownCommand() {
       });
       
       response.on('end', () => {
+        console.log('📨 Received response data:', data);
         try {
           const result = JSON.parse(data);
           if (response.statusCode >= 200 && response.statusCode < 300) {
+            console.log('✅ Shutdown request successful:', result);
             resolve(result);
           } else {
+            console.error('❌ Shutdown request failed with status:', response.statusCode, result);
             reject(new Error(`Shutdown failed: ${result.error || 'Unknown error'}`));
           }
         } catch (error) {
+          console.error('❌ Failed to parse JSON response:', error, 'Raw data:', data);
           reject(new Error('Invalid JSON response'));
         }
       });
     });
     
     request.on('error', (error) => {
+      console.error('❌ Request error occurred:', error);
       reject(error);
     });
     
@@ -1353,8 +1377,11 @@ function sendShutdownCommand() {
 ipcMain.handle('shutdown-system', async () => {
   try {
     console.log('🛑 Shutdown requested from renderer');
-    const result = await performUpdateAwareShutdown();
+    // Update-aware shutdown disabled - using direct shutdown
+    const result = await sendShutdownCommand();
     return { success: true, data: result };
+    
+    // const result = await performUpdateAwareShutdown(); - DISABLED
   } catch (error) {
     console.error('❌ Shutdown failed:', error);
     return { success: false, error: error.message };
