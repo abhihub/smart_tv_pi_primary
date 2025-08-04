@@ -185,45 +185,58 @@ async function downloadUpdate() {
     }
     
     showModal();
-    elements.modalTitle.textContent = 'Downloading Update';
-    elements.modalMessage.textContent = `Downloading v${updateInfo.latestVersion}...`;
+    elements.modalTitle.textContent = 'Processing Update';
+    elements.modalMessage.textContent = `Starting download, install, and shutdown for v${updateInfo.latestVersion}...`;
     
     try {
         const downloadUrl = `${CONFIG.SERVER_URL}${updateInfo.downloadUrl}`;
         
-        // Use Electron's shell module to download file
-        if (window.electronAPI) {
-            const result = await window.electronAPI.downloadUpdate(downloadUrl, updateInfo.latestVersion);
-            
-            if (result.success) {
-                downloadedFilePath = result.filePath;
-                elements.modalTitle.textContent = 'Download Complete';
-                elements.modalMessage.textContent = 'Update downloaded successfully. Ready to install.';
-                // Hide spinner and show completed progress
-                elements.loadingSpinner.style.display = 'none';
-                elements.progressBar.style.display = 'block';
-                elements.progressFill.style.width = '100%';
-                elements.progressText.style.display = 'block';
-                elements.progressText.textContent = 'Download Complete';
-                elements.installBtn.style.display = 'inline-block';
-            } else {
-                throw new Error(result.error || 'Download failed');
-            }
-        } else {
-            // Fallback for browser testing
-            elements.modalTitle.textContent = 'Download Complete';
-            elements.modalMessage.textContent = 'Update would be downloaded in the Electron app.';
-            elements.loadingSpinner.style.display = 'none';
-            elements.progressBar.style.display = 'block';
-            elements.progressFill.style.width = '100%';
-            elements.progressText.style.display = 'block';
-            elements.progressText.textContent = 'Download Complete';
-            elements.modalCloseBtn.style.display = 'inline-block';
+        // Call system manager to download, install, and shutdown in one go
+        const response = await fetch(`${CONFIG.SYSTEM_SERVER_URL}/api/system/download-and-install`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                downloadUrl: downloadUrl,
+                version: updateInfo.latestVersion,
+                confirm: true
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`System manager error: ${errorData.error}`);
         }
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error('System manager failed to initiate update process');
+        }
+        
+        console.log('Update process initiated:', result);
+        elements.modalTitle.textContent = 'Update In Progress';
+        elements.modalMessage.textContent = 'Download, installation, and shutdown initiated. The system will automatically download the update, install it, and shutdown. Please wait...';
+        
+        // Hide spinner and show completed initiation
+        elements.loadingSpinner.style.display = 'none';
+        elements.progressBar.style.display = 'block';
+        elements.progressFill.style.width = '100%';
+        elements.progressText.style.display = 'block';
+        elements.progressText.textContent = 'Update Process Started';
+        
+        // Hide the install button since everything happens automatically
+        elements.installBtn.style.display = 'none';
+        
+        // Auto-close modal after showing message
+        setTimeout(() => {
+            closeModal();
+        }, 5000);
+        
     } catch (error) {
-        console.error('Download error:', error);
-        elements.modalTitle.textContent = 'Download Failed';
-        elements.modalMessage.textContent = `Failed to download update: ${error.message}`;
+        console.error('Update process error:', error);
+        elements.modalTitle.textContent = 'Update Failed';
+        elements.modalMessage.textContent = `Failed to start update process: ${error.message}`;
         // Hide spinner and show error state
         elements.loadingSpinner.style.display = 'none';
         elements.progressBar.style.display = 'none';
@@ -232,113 +245,114 @@ async function downloadUpdate() {
     }
 }
 
-async function installUpdate() {
-    if (!downloadedFilePath) {
-        alert('No update file downloaded.');
-        return;
-    }
-    
-    elements.modalTitle.textContent = 'Installing Update';
-    elements.modalMessage.textContent = 'Installing the update via system manager...';
-    elements.installBtn.style.display = 'none';
-    // Show spinner during installation
-    elements.loadingSpinner.style.display = 'block';
-    elements.progressBar.style.display = 'none';
-    elements.progressText.style.display = 'none';
-    
-    try {
-        // First verify the package with the system manager
-        const verifyResponse = await fetch(`${CONFIG.SYSTEM_SERVER_URL}/api/system/verify-package`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                packagePath: downloadedFilePath
-            })
-        });
-        
-        if (!verifyResponse.ok) {
-            const verifyError = await verifyResponse.json();
-            throw new Error(`Package verification failed: ${verifyError.error}`);
-        }
-        
-        const verifyData = await verifyResponse.json();
-        if (!verifyData.success || !verifyData.valid) {
-            throw new Error('Package verification failed: Invalid package');
-        }
-        
-        console.log('Package verified:', verifyData.packageInfo);
-        
-        // Now install the package
-        const installResponse = await fetch(`${CONFIG.SYSTEM_SERVER_URL}/api/system/install-update`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                packagePath: downloadedFilePath,
-                confirm: true,
-                restartApp: true
-            })
-        });
-        
-        if (!installResponse.ok) {
-            const installError = await installResponse.json();
-            throw new Error(`Installation failed: ${installError.error}`);
-        }
-        
-        const installData = await installResponse.json();
-        if (!installData.success) {
-            throw new Error('Installation failed: Unknown error');
-        }
-        
-        console.log('Installation initiated:', installData);
-        elements.modalTitle.textContent = 'Installation Complete';
-        elements.modalMessage.textContent = 'Update installed successfully. The device will shutdown automatically to complete the update.';
-        
-        // Trigger device shutdown after successful installation
-        setTimeout(async () => {
-            try {
-                const shutdownResponse = await fetch(`${CONFIG.SYSTEM_SERVER_URL}/api/system/shutdown`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        confirm: true,
-                        delay: 5  // 5 second delay to allow UI to show message
-                    })
-                });
-                
-                if (shutdownResponse.ok) {
-                    elements.modalMessage.textContent = 'Update complete. Device will shutdown in 5 seconds...';
-                } else {
-                    console.error('Failed to initiate shutdown');
-                    elements.modalMessage.textContent = 'Update complete. Please shutdown the device manually.';
-                }
-            } catch (error) {
-                console.error('Shutdown request failed:', error);
-                elements.modalMessage.textContent = 'Update complete. Please shutdown the device manually.';
-            }
-        }, 2000);
-        
-        // Close modal after showing shutdown message
-        setTimeout(() => {
-            closeModal();
-        }, 8000);
-        
-    } catch (error) {
-        console.error('Installation error:', error);
-        elements.modalTitle.textContent = 'Installation Failed';
-        elements.modalMessage.textContent = `Failed to install update: ${error.message}`;
-        // Hide spinner and show error state
-        elements.loadingSpinner.style.display = 'none';
-        elements.progressBar.style.display = 'none';
-        elements.progressText.style.display = 'none';
-        elements.modalCloseBtn.style.display = 'inline-block';
-    }
-}
+// DISABLED: Installation now handled by system manager in single call
+// async function installUpdate() {
+//     if (!downloadedFilePath) {
+//         alert('No update file downloaded.');
+//         return;
+//     }
+//     
+//     elements.modalTitle.textContent = 'Installing Update';
+//     elements.modalMessage.textContent = 'Installing the update via system manager...';
+//     elements.installBtn.style.display = 'none';
+//     // Show spinner during installation
+//     elements.loadingSpinner.style.display = 'block';
+//     elements.progressBar.style.display = 'none';
+//     elements.progressText.style.display = 'none';
+//     
+//     try {
+//         // First verify the package with the system manager
+//         const verifyResponse = await fetch(`${CONFIG.SYSTEM_SERVER_URL}/api/system/verify-package`, {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//             },
+//             body: JSON.stringify({
+//                 packagePath: downloadedFilePath
+//             })
+//         });
+//         
+//         if (!verifyResponse.ok) {
+//             const verifyError = await verifyResponse.json();
+//             throw new Error(`Package verification failed: ${verifyError.error}`);
+//         }
+//         
+//         const verifyData = await verifyResponse.json();
+//         if (!verifyData.success || !verifyData.valid) {
+//             throw new Error('Package verification failed: Invalid package');
+//         }
+//         
+//         console.log('Package verified:', verifyData.packageInfo);
+//         
+//         // Now install the package
+//         const installResponse = await fetch(`${CONFIG.SYSTEM_SERVER_URL}/api/system/install-update`, {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//             },
+//             body: JSON.stringify({
+//                 packagePath: downloadedFilePath,
+//                 confirm: true,
+//                 restartApp: true
+//             })
+//         });
+//         
+//         if (!installResponse.ok) {
+//             const installError = await installResponse.json();
+//             throw new Error(`Installation failed: ${installError.error}`);
+//         }
+//         
+//         const installData = await installResponse.json();
+//         if (!installData.success) {
+//             throw new Error('Installation failed: Unknown error');
+//         }
+//         
+//         console.log('Installation initiated:', installData);
+//         elements.modalTitle.textContent = 'Installation Complete';
+//         elements.modalMessage.textContent = 'Update installed successfully. The device will shutdown automatically to complete the update.';
+//         
+//         // Trigger device shutdown after successful installation
+//         setTimeout(async () => {
+//             try {
+//                 const shutdownResponse = await fetch(`${CONFIG.SYSTEM_SERVER_URL}/api/system/shutdown`, {
+//                     method: 'POST',
+//                     headers: {
+//                         'Content-Type': 'application/json',
+//                     },
+//                     body: JSON.stringify({
+//                         confirm: true,
+//                         delay: 5  // 5 second delay to allow UI to show message
+//                     })
+//                 });
+//                 
+//                 if (shutdownResponse.ok) {
+//                     elements.modalMessage.textContent = 'Update complete. Device will shutdown in 5 seconds...';
+//                 } else {
+//                     console.error('Failed to initiate shutdown');
+//                     elements.modalMessage.textContent = 'Update complete. Please shutdown the device manually.';
+//                 }
+//             } catch (error) {
+//                 console.error('Shutdown request failed:', error);
+//                 elements.modalMessage.textContent = 'Update complete. Please shutdown the device manually.';
+//             }
+//         }, 2000);
+//         
+//         // Close modal after showing shutdown message
+//         setTimeout(() => {
+//             closeModal();
+//         }, 8000);
+//         
+//     } catch (error) {
+//         console.error('Installation error:', error);
+//         elements.modalTitle.textContent = 'Installation Failed';
+//         elements.modalMessage.textContent = `Failed to install update: ${error.message}`;
+//         // Hide spinner and show error state
+//         elements.loadingSpinner.style.display = 'none';
+//         elements.progressBar.style.display = 'none';
+//         elements.progressText.style.display = 'none';
+//         elements.modalCloseBtn.style.display = 'inline-block';
+//     }
+// }
 
 function showModal() {
     elements.updateModal.style.display = 'block';
@@ -377,9 +391,8 @@ document.addEventListener('keydown', function(event) {
             break;
         case 'Enter':
             if (elements.updateModal.style.display === 'block') {
-                if (elements.installBtn.style.display !== 'none') {
-                    installUpdate();
-                } else if (elements.modalCloseBtn.style.display !== 'none') {
+                // Install button removed - only close button available
+                if (elements.modalCloseBtn.style.display !== 'none') {
                     closeModal();
                 }
             }

@@ -483,6 +483,220 @@ def get_device_information():
             'success': False
         }), 500
 
+@app.route('/api/system/download-update', methods=['POST'])
+def download_update():
+    """
+    Download an update package from a given URL
+    
+    Expected JSON payload:
+    {
+        "downloadUrl": "http://server.com/path/to/update.deb",
+        "version": "1.2.3",
+        "confirm": true
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        
+        # Basic confirmation check
+        if not data.get('confirm', False):
+            logger.warning("Download rejected: No confirmation")
+            return jsonify({
+                'error': 'Download requires confirmation',
+                'required': {'confirm': True}
+            }), 400
+        
+        download_url = data.get('downloadUrl')
+        version = data.get('version', 'unknown')
+        
+        if not download_url:
+            return jsonify({
+                'error': 'Download URL is required',
+                'required': {'downloadUrl': 'http://server.com/path/to/update.deb'}
+            }), 400
+        
+        logger.info(f"Update download requested from {request.remote_addr}")
+        logger.info(f"Download URL: {download_url}")
+        logger.info(f"Version: {version}")
+        
+        # Execute download in background thread
+        def execute_download():
+            try:
+                # Create downloads directory if it doesn't exist
+                downloads_dir = '/tmp/smarttv-updates'
+                os.makedirs(downloads_dir, exist_ok=True)
+                
+                # Generate filename
+                filename = f"smart-tv-ui_{version}_amd64.deb"
+                download_path = os.path.join(downloads_dir, filename)
+                
+                logger.info(f"Downloading to: {download_path}")
+                
+                # Download the file
+                with urllib.request.urlopen(download_url, timeout=300) as download_response:
+                    if download_response.status != 200:
+                        logger.error(f"Download failed with status: {download_response.status}")
+                        return
+                    
+                    with open(download_path, 'wb') as f:
+                        shutil.copyfileobj(download_response, f)
+                    
+                    logger.info(f"✅ Update downloaded successfully to: {download_path}")
+                
+                # Verify the package immediately after download
+                logger.info("Verifying downloaded package...")
+                verify_cmd = ['dpkg', '--info', download_path]
+                verify_result = subprocess.run(verify_cmd, capture_output=True, text=True, check=False)
+                
+                if verify_result.returncode != 0:
+                    logger.error(f"❌ Package verification failed: {verify_result.stderr}")
+                    try:
+                        os.remove(download_path)
+                    except:
+                        pass
+                    return
+                
+                logger.info("✅ Package verified successfully")
+                
+            except Exception as e:
+                logger.error(f"Download execution error: {e}")
+        
+        # Execute download in background thread
+        download_thread = threading.Thread(target=execute_download)
+        download_thread.daemon = True
+        download_thread.start()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Update download initiated',
+            'downloadUrl': download_url,
+            'version': version,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Download request failed: {e}")
+        return jsonify({
+            'error': f'Download failed: {str(e)}',
+            'success': False
+        }), 500
+
+@app.route('/api/system/download-and-install', methods=['POST'])
+def download_and_install_update():
+    """
+    Download, verify, and install an update package, then shutdown
+    
+    Expected JSON payload:
+    {
+        "downloadUrl": "http://server.com/path/to/update.deb",
+        "version": "1.2.3",
+        "confirm": true
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        
+        # Basic confirmation check
+        if not data.get('confirm', False):
+            logger.warning("Download and install rejected: No confirmation")
+            return jsonify({
+                'error': 'Download and install requires confirmation',
+                'required': {'confirm': True}
+            }), 400
+        
+        download_url = data.get('downloadUrl')
+        version = data.get('version', 'unknown')
+        
+        if not download_url:
+            return jsonify({
+                'error': 'Download URL is required',
+                'required': {'downloadUrl': 'http://server.com/path/to/update.deb'}
+            }), 400
+        
+        logger.info(f"Download and install requested from {request.remote_addr}")
+        logger.info(f"Download URL: {download_url}")
+        logger.info(f"Version: {version}")
+        
+        # Execute download, install, and shutdown in background thread
+        def execute_download_install_shutdown():
+            try:
+                # Create downloads directory if it doesn't exist
+                downloads_dir = '/tmp/smarttv-updates'
+                os.makedirs(downloads_dir, exist_ok=True)
+                
+                # Generate filename
+                filename = f"smart-tv-ui_{version}_amd64.deb"
+                download_path = os.path.join(downloads_dir, filename)
+                
+                logger.info(f"📥 Downloading to: {download_path}")
+                
+                # Download the file
+                with urllib.request.urlopen(download_url, timeout=300) as download_response:
+                    if download_response.status != 200:
+                        logger.error(f"❌ Download failed with status: {download_response.status}")
+                        return
+                    
+                    with open(download_path, 'wb') as f:
+                        shutil.copyfileobj(download_response, f)
+                    
+                    logger.info(f"✅ Update downloaded successfully")
+                
+                # Verify the package
+                logger.info("🔍 Verifying downloaded package...")
+                verify_cmd = ['dpkg', '--info', download_path]
+                verify_result = subprocess.run(verify_cmd, capture_output=True, text=True, check=False)
+                
+                if verify_result.returncode != 0:
+                    logger.error(f"❌ Package verification failed: {verify_result.stderr}")
+                    try:
+                        os.remove(download_path)
+                    except:
+                        pass
+                    return
+                
+                logger.info("✅ Package verified successfully")
+                
+                # Install the package
+                logger.info("🔧 Installing package...")
+                install_success = install_update_package(download_path, False)
+                
+                if install_success:
+                    logger.info("✅ Package installed successfully")
+                    
+                    # Wait a moment then shutdown
+                    logger.info("💤 Waiting 5 seconds before shutdown...")
+                    time.sleep(5)
+                    
+                    logger.info("🔌 Initiating system shutdown...")
+                    shutdown_cmd = ['sudo', 'shutdown', '-h', 'now']
+                    subprocess.run(shutdown_cmd, check=False)
+                    
+                else:
+                    logger.error("❌ Package installation failed")
+                    
+            except Exception as e:
+                logger.error(f"Download, install, shutdown execution error: {e}")
+        
+        # Execute in background thread
+        process_thread = threading.Thread(target=execute_download_install_shutdown)
+        process_thread.daemon = True
+        process_thread.start()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Download, install, and shutdown initiated',
+            'downloadUrl': download_url,
+            'version': version,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Download and install request failed: {e}")
+        return jsonify({
+            'error': f'Download and install failed: {str(e)}',
+            'success': False
+        }), 500
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """
@@ -774,6 +988,8 @@ if __name__ == '__main__':
     logger.info("  POST /api/system/reboot - Reboot local system")
     logger.info("  POST /api/system/install-update - Install .deb package update")
     logger.info("  POST /api/system/verify-package - Verify .deb package")
+    logger.info("  POST /api/system/download-update - Download update package")
+    logger.info("  POST /api/system/download-and-install - Download, install, and shutdown")
     logger.info("  GET  /api/system/status - Get system status")
     logger.info("  GET  /api/system/device-info - Get device ID and information")
     logger.info("  GET  /health - Health check")
