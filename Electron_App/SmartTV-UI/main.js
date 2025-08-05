@@ -677,6 +677,9 @@ function handleRemoteCommand(message, ws) {
       case 'launch_app':
         handleAppLaunch(data.app);
         break;
+      case 'shutdown':
+        handleShutdown();
+        break;
       default:
         console.log('❓ Unknown remote command:', command);
     }
@@ -833,6 +836,60 @@ function handleAppLaunch(appName) {
   const page = appPages[appName];
   if (page) {
     mainWindow.loadFile(page);
+  }
+}
+
+async function handleShutdown() {
+  console.log('🔴 Shutdown command received from remote');
+  
+  try {
+    // Send shutdown request to local system manager
+    console.log('📡 Sending shutdown request to local system manager...');
+    
+    const response = await fetch('http://localhost:5000/api/system/shutdown', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        confirm: true,
+        delay: 0
+      })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('✅ Shutdown request sent to system manager:', result.message);
+      console.log('🔌 Closing servers gracefully...');
+      
+      // Close servers gracefully before system shutdown
+      if (remoteServer) {
+        remoteServer.close();
+      }
+      if (wsServer) {
+        wsServer.close();
+      }
+      
+      // The system manager will handle the actual shutdown
+      console.log('💀 System shutdown initiated by local system manager');
+    } else {
+      const error = await response.json();
+      console.error('❌ Failed to request shutdown from system manager:', error);
+      throw new Error(`System manager returned: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('❌ Error communicating with local system manager:', error);
+    console.log('🔄 Falling back to direct app quit...');
+    
+    // Fallback: just quit the Electron app if system manager is unavailable
+    if (remoteServer) {
+      remoteServer.close();
+    }
+    if (wsServer) {
+      wsServer.close();
+    }
+    
+    app.quit();
   }
 }
 

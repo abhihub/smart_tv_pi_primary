@@ -1114,6 +1114,169 @@
     </script>
     
     <script>
+        // Global Camera Stream Manager - Single stream for all components
+        class GlobalCameraStream {
+            constructor() {
+                this.stream = null;
+                this.isInitialized = false;
+                this.initializationPromise = null;
+                this.components = new Set(); // Track which components are using the stream
+            }
+
+            async initialize() {
+                // Return existing promise if already initializing
+                if (this.initializationPromise) {
+                    return this.initializationPromise;
+                }
+
+                // Return existing stream if already initialized
+                if (this.isInitialized && this.stream) {
+                    return this.stream;
+                }
+
+                // Create initialization promise
+                this.initializationPromise = this.createStream();
+                return this.initializationPromise;
+            }
+
+            async createStream() {
+                try {
+                    console.log('🎥 Creating global camera stream...');
+                    
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            facingMode: 'user'
+                        },
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            sampleRate: 16000
+                        }
+                    });
+
+                    this.isInitialized = true;
+                    console.log('✅ Global camera stream created successfully');
+                    console.log('🎥 Stream details:', {
+                        videoTracks: this.stream.getVideoTracks().length,
+                        audioTracks: this.stream.getAudioTracks().length,
+                        active: this.stream.active
+                    });
+
+                    // Monitor stream for ended tracks
+                    this.stream.getTracks().forEach(track => {
+                        track.onended = () => {
+                            console.warn('⚠️ Camera track ended:', track.kind);
+                            this.handleStreamEnded();
+                        };
+                    });
+
+                    return this.stream;
+
+                } catch (error) {
+                    console.error('❌ Failed to create global camera stream:', error);
+                    this.handleStreamError(error);
+                    throw error;
+                }
+            }
+
+            getStream() {
+                return this.stream;
+            }
+
+            isAvailable() {
+                return this.isInitialized && this.stream && this.stream.active;
+            }
+
+            registerComponent(componentName) {
+                this.components.add(componentName);
+                console.log(`📋 Component registered: ${componentName} (total: ${this.components.size})`);
+            }
+
+            unregisterComponent(componentName) {
+                this.components.delete(componentName);
+                console.log(`📋 Component unregistered: ${componentName} (remaining: ${this.components.size})`);
+                
+                // Clean up stream if no components are using it
+                if (this.components.size === 0) {
+                    console.log('🧹 No components using stream, cleaning up...');
+                    this.cleanup();
+                }
+            }
+
+            handleStreamError(error) {
+                let message = 'Camera access failed';
+                
+                if (error.name === 'NotAllowedError') {
+                    message = 'Camera permission denied. Please allow camera access.';
+                } else if (error.name === 'NotFoundError') {
+                    message = 'No camera found on this device.';
+                } else if (error.name === 'NotReadableError') {
+                    message = 'Camera is already in use by another application.';
+                }
+                
+                console.warn('📹 Global camera stream error:', message);
+                this.showStatusMessage(`📹 ${message}`, 5000);
+            }
+
+            handleStreamEnded() {
+                console.warn('⚠️ Global camera stream ended unexpectedly');
+                this.isInitialized = false;
+                this.stream = null;
+                this.initializationPromise = null;
+                
+                // Notify all registered components
+                this.components.forEach(componentName => {
+                    console.log(`📢 Notifying ${componentName} of stream end`);
+                });
+            }
+
+            showStatusMessage(message, duration = 3000) {
+                const statusEl = document.createElement('div');
+                statusEl.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 15px 25px;
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    z-index: 1000;
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                `;
+                statusEl.textContent = message;
+                
+                document.body.appendChild(statusEl);
+                
+                setTimeout(() => statusEl.remove(), duration);
+            }
+
+            cleanup() {
+                console.log('🧹 Cleaning up global camera stream...');
+                
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => {
+                        track.stop();
+                        console.log(`🛑 Stopped ${track.kind} track`);
+                    });
+                    this.stream = null;
+                }
+                
+                this.isInitialized = false;
+                this.initializationPromise = null;
+                this.components.clear();
+                
+                console.log('✅ Global camera stream cleanup complete');
+            }
+        }
+
+        // Create global instance
+        window.globalCameraStream = new GlobalCameraStream();
+
         // Live Video Background System
         class LiveVideoBackground {
             constructor() {
@@ -1126,17 +1289,13 @@
                 try {
                     console.log('🎥 Initializing live video background...');
                     
-                    // Request camera and microphone access
-                    this.stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 },
-                            facingMode: 'user' // Front-facing camera
-                        },
-                        audio: true
-                    });
+                    // Register with global camera stream
+                    window.globalCameraStream.registerComponent('LiveVideoBackground');
+                    
+                    // Get shared camera stream
+                    this.stream = await window.globalCameraStream.initialize();
 
-                    // Attach stream to video element
+                    // Attach shared stream to video element
                     this.videoElement.srcObject = this.stream;
                     
                     // Wait for video to be ready
@@ -1148,13 +1307,10 @@
                     this.videoElement.classList.add('active');
                     this.isActive = true;
                     
-                    console.log('✅ Live video background activated');
-                    
-                    // Show status message
-                    // this.showStatusMessage('📹 Live video background active', 3000);
+                    console.log('✅ Live video background activated with shared stream');
 
                 } catch (error) {
-                    console.error('❌ Failed to initialize camera:', error);
+                    console.error('❌ Failed to initialize live video background:', error);
                     this.handleCameraError(error);
                 }
             }
@@ -1228,10 +1384,20 @@
             }
 
             cleanup() {
-                if (this.stream) {
-                    this.stream.getTracks().forEach(track => track.stop());
-                    console.log('🎥 Video background stream stopped');
+                console.log('🧹 Cleaning up live video background...');
+                
+                // Unregister from global camera stream
+                window.globalCameraStream.unregisterComponent('LiveVideoBackground');
+                
+                // Clear video element
+                if (this.videoElement) {
+                    this.videoElement.srcObject = null;
                 }
+                
+                this.stream = null;
+                this.isActive = false;
+                
+                console.log('✅ Live video background cleanup complete');
             }
         }
 
@@ -1396,57 +1562,24 @@
                     
                     this.updateStatus('Connecting to microphone...');
                     
-                    // Create a separate audio-only stream for STT
-                    console.log('🎤 Creating separate audio stream for STT...');
+                    // Register with global camera stream
+                    window.globalCameraStream.registerComponent('STTSystem');
                     
-                    try {
-                        // Get fresh audio stream specifically for STT
-                        this.stream = await navigator.mediaDevices.getUserMedia({
-                            audio: {
-                                echoCancellation: true,
-                                noiseSuppression: true,
-                                autoGainControl: true,
-                                sampleRate: 16000 // Whisper prefers 16kHz
-                            },
-                            video: false
-                        });
-                        
-                        console.log('✅ Created separate audio stream for STT');
-                        
-                        // Verify audio tracks
-                        const audioTracks = this.stream.getAudioTracks();
-                        console.log('🎤 Available audio tracks:', audioTracks.length);
-                        if (audioTracks.length === 0) {
-                            throw new Error('No audio tracks available in the stream');
-                        }
-                        
-                        audioTracks.forEach((track, index) => {
-                            console.log(`🎤 Audio track ${index}:`, track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
-                        });
-                        
-                    } catch (error) {
-                        console.error('❌ Failed to create separate audio stream:', error);
-                        console.log('🔄 Falling back to shared video stream...');
-                        
-                        // Fallback to shared stream
-                        if (!window.liveVideoBackground.stream) {
-                            throw new Error('No audio stream available. Please enable camera access first.');
-                        }
-                        
-                        this.stream = window.liveVideoBackground.stream;
-                        console.log('🔗 Using shared audio stream from video background');
-                        
-                        // Verify audio tracks
-                        const audioTracks = this.stream.getAudioTracks();
-                        console.log('🎤 Available audio tracks:', audioTracks.length);
-                        if (audioTracks.length === 0) {
-                            throw new Error('No audio tracks available in the stream');
-                        }
-                        
-                        audioTracks.forEach((track, index) => {
-                            console.log(`🎤 Audio track ${index}:`, track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
-                        });
+                    // Get shared camera stream (includes audio)
+                    this.stream = await window.globalCameraStream.initialize();
+                    
+                    console.log('✅ Using shared audio stream for STT');
+                    
+                    // Verify audio tracks are available
+                    const audioTracks = this.stream.getAudioTracks();
+                    console.log('🎤 Available audio tracks:', audioTracks.length);
+                    if (audioTracks.length === 0) {
+                        throw new Error('No audio tracks available in the shared stream');
                     }
+                    
+                    audioTracks.forEach((track, index) => {
+                        console.log(`🎤 Audio track ${index}:`, track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
+                    });
                     
                     // Setup audio recording
                     await this.setupAudioRecording();
@@ -1736,18 +1869,12 @@
                     this.audioContext = null;
                 }
                 
-                // Clean up separate audio stream if it exists
-                if (this.stream && this.stream !== window.liveVideoBackground.stream) {
-                    console.log('🛑 Cleaning up separate audio stream...');
-                    this.stream.getTracks().forEach(track => {
-                        track.stop();
-                        console.log('🛑 Stopped separate audio track:', track.label);
-                    });
-                } else if (this.stream) {
-                    console.log('🛑 Using shared stream, not stopping tracks');
-                } else {
-                    console.log('🛑 No stream to clean up');
-                }
+                // Unregister from global camera stream
+                window.globalCameraStream.unregisterComponent('STTSystem');
+                
+                // Clear stream reference (don't stop tracks, they belong to global stream)
+                this.stream = null;
+                console.log('🛑 Unregistered from global camera stream');
                 
                 this.sttIndicator.classList.remove('active');
                 this.sttToggle.classList.remove('active');
@@ -1844,6 +1971,17 @@
             if (window.openAIWhisperSTT) {
                 console.log('🧹 Cleaning up OpenAI Whisper STT...');
                 window.openAIWhisperSTT.stopListening();
+            }
+            
+            if (qrWifiScanner) {
+                console.log('🧹 Cleaning up QR WiFi Scanner...');
+                qrWifiScanner.cleanup();
+            }
+            
+            // Finally, cleanup global camera stream
+            if (window.globalCameraStream) {
+                console.log('🧹 Cleaning up global camera stream...');
+                window.globalCameraStream.cleanup();
             }
             
             console.log('🧹 Page cleanup completed at:', new Date().toISOString());
@@ -1955,11 +2093,25 @@
 
             async startScanning() {
                 try {
-                    console.log('📱 Starting QR scanner');
+                    console.log('📱 Starting QR scanner with shared stream');
                     this.updateStatus('Starting camera...');
                     this.retryBtn.style.display = 'none';
 
-                    // Initialize QR scanner
+                    // Register with global camera stream
+                    window.globalCameraStream.registerComponent('QRScanner');
+                    
+                    // Get shared camera stream
+                    const sharedStream = await window.globalCameraStream.initialize();
+                    
+                    // Set shared stream to video element
+                    this.videoElement.srcObject = sharedStream;
+                    
+                    // Wait for video to be ready
+                    await new Promise((resolve) => {
+                        this.videoElement.addEventListener('loadedmetadata', resolve, { once: true });
+                    });
+
+                    // Initialize QR scanner with the video element that now has the shared stream
                     this.qrScanner = new QrScanner(
                         this.videoElement,
                         (result) => this.onScanSuccess(result),
@@ -1969,15 +2121,15 @@
                                 console.debug('QR decode attempt:', error.message);
                             },
                             highlightScanRegion: false,
-                            highlightCodeOutline: false,
-                            preferredCamera: 'environment' // Use back camera if available
+                            highlightCodeOutline: false
                         }
                     );
 
+                    // Start scanning (no need to start camera, just scanning)
                     await this.qrScanner.start();
                     this.isScanning = true;
                     this.updateStatus('Position QR code within the frame');
-                    console.log('✅ QR scanner started successfully');
+                    console.log('✅ QR scanner started with shared stream');
 
                 } catch (error) {
                     console.error('❌ Failed to start QR scanner:', error);
@@ -2365,11 +2517,23 @@
                     this.qrScanner = null;
                 }
                 
+                // Unregister from global camera stream
+                window.globalCameraStream.unregisterComponent('QRScanner');
+                
+                // Clear video element
+                if (this.videoElement) {
+                    this.videoElement.srcObject = null;
+                }
+                
                 this.container.style.display = 'none';
                 this.isScanning = false;
+                
+                console.log('✅ QR scanner cleanup complete');
             }
 
             cleanup() {
+                console.log('🧹 Cleaning up QR WiFi Scanner...');
+                
                 // Stop periodic WiFi monitoring
                 this.stopPeriodicWiFiCheck();
                 
@@ -2377,6 +2541,17 @@
                     this.qrScanner.stop();
                     this.qrScanner = null;
                 }
+                
+                // Unregister from global camera stream
+                window.globalCameraStream.unregisterComponent('QRScanner');
+                
+                // Clear video element
+                if (this.videoElement) {
+                    this.videoElement.srcObject = null;
+                }
+                
+                this.isScanning = false;
+                console.log('✅ QR WiFi Scanner cleanup complete');
             }
         }
 
@@ -2566,13 +2741,7 @@
         // Check WiFi status periodically (every 30 seconds) to catch disconnections
         setInterval(checkAndShowQRScanner, 30000);
 
-        // Add cleanup for QR scanner
-        window.addEventListener('beforeunload', () => {
-            if (qrWifiScanner) {
-                console.log('🧹 Cleaning up QR WiFi Scanner...');
-                qrWifiScanner.cleanup();
-            }
-        });
+        // QR scanner cleanup is now handled in the main beforeunload event
     </script>
     <script src="universal-navigation.js"></script>
 </body>

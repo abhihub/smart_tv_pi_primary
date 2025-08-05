@@ -225,6 +225,9 @@ class SmartTVServiceClass {
   // App Control
   launchApp(appName) { return this.sendCommand('launch_app', { app: appName }); }
   
+  // System Control
+  shutdown() { return this.sendCommand('shutdown'); }
+  
   // WiFi Control
   async getWiFiStatus() {
     return await this.sendHTTPRequest('/api/wifi/status');

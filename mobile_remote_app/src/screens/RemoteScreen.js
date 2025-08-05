@@ -79,6 +79,24 @@ export default function RemoteScreen({ tvInfo, onDisconnect }) {
     SmartTVService.home();
   };
 
+  const handleShutdown = () => {
+    Alert.alert(
+      'Shutdown TV',
+      'Are you sure you want to shutdown the TV?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Shutdown', 
+          onPress: () => {
+            vibrateFeedback();
+            SmartTVService.shutdown();
+          }, 
+          style: 'destructive' 
+        }
+      ]
+    );
+  };
+
   const handleVolumeChange = (action) => {
     vibrateFeedback();
     switch (action) {
@@ -164,6 +182,14 @@ export default function RemoteScreen({ tvInfo, onDisconnect }) {
       >
         <Ionicons name="home" size={20} color="white" />
         <Text style={styles.controlButtonText}>Home</Text>
+      </RemoteButton>
+
+      <RemoteButton
+        onPress={handleShutdown}
+        style={[styles.controlButton, styles.shutdownButton]}
+      >
+        <Ionicons name="power" size={20} color="#ff6b6b" />
+        <Text style={[styles.controlButtonText, styles.shutdownText]}>Shutdown</Text>
       </RemoteButton>
     </View>
   );
@@ -329,6 +355,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 20,
+    flexWrap: 'wrap',
   },
   controlButton: {
     alignItems: 'center',
@@ -346,6 +373,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginTop: 8,
+  },
+  shutdownButton: {
+    borderColor: 'rgba(255, 107, 107, 0.3)',
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+  },
+  shutdownText: {
+    color: '#ff6b6b',
   },
   statusCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
