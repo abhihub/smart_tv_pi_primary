@@ -2,6 +2,15 @@ console.log('Preload script starting...');
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Import QR Scanner library
+let QrScanner;
+try {
+    QrScanner = require('qr-scanner');
+    console.log('QR Scanner library loaded successfully');
+} catch (error) {
+    console.error('Failed to load QR Scanner library:', error);
+}
+
 // Make config available immediately from global
 const appConfig = global.appConfig || {
     SERVER_URL: process.env.SERVER_URL || 'http://167.71.0.87:3001',
@@ -38,7 +47,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Network connectivity and navigation
     checkNetwork: () => ipcRenderer.invoke('check-network'),
     connectToWiFi: (credentials) => ipcRenderer.invoke('connect-to-wifi', credentials),
-    navigateToPage: (pageName) => ipcRenderer.invoke('navigate-to-page', pageName)
+    navigateToPage: (pageName) => ipcRenderer.invoke('navigate-to-page', pageName),
+    
+    // QR Scanner library
+    QrScanner: QrScanner
 });
 
 // Inject config immediately into the DOM when it's ready

@@ -778,7 +778,13 @@
         </div>
     </div>
 
-    <script src="qr-scanner.umd.min.js"></script>
+    <script>
+        // Get QR Scanner from electronAPI
+        const QrScanner = window.electronAPI?.QrScanner || null;
+        if (!QrScanner) {
+            console.error('QR Scanner library not available from electronAPI');
+        }
+    </script>
     <script>
         // Navigation function
         function goBack() {
