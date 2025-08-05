@@ -33,7 +33,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     generateQRCode: (data) => ipcRenderer.invoke('generate-qr-code', data),
     closeQROverlay: () => ipcRenderer.invoke('close-qr-overlay'),
     onMobileConnected: (callback) => ipcRenderer.on('mobile-connected', (event, data) => callback(data)),
-    onMobileDisconnected: (callback) => ipcRenderer.on('mobile-disconnected', (event, data) => callback(data))
+    onMobileDisconnected: (callback) => ipcRenderer.on('mobile-disconnected', (event, data) => callback(data)),
+    
+    // Network connectivity and navigation
+    checkNetwork: () => ipcRenderer.invoke('check-network'),
+    connectToWiFi: (credentials) => ipcRenderer.invoke('connect-to-wifi', credentials),
+    navigateToPage: (pageName) => ipcRenderer.invoke('navigate-to-page', pageName)
 });
 
 // Inject config immediately into the DOM when it's ready

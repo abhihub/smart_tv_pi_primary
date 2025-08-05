@@ -158,14 +158,33 @@ function createWindow() {
     }
   });
 
-  console.log('📄 Loading homepage.html');
-  win.loadFile('homepage.html').then(() => {
-    console.log('✅ Homepage loaded successfully');
-    
-    // Start remote control server after window is ready
-    setupRemoteControlServer();
+  console.log('📄 Checking internet connection and loading initial page...');
+  
+  // Check network connectivity before loading
+  checkNetworkConnectivity().then((hasNetwork) => {
+    if (hasNetwork) {
+      console.log('✅ Network connection detected, loading homepage');
+      win.loadFile('homepage.html').then(() => {
+        console.log('✅ Homepage loaded successfully');
+        setupRemoteControlServer();
+      }).catch(error => {
+        console.error('❌ Failed to load homepage:', error);
+      });
+    } else {
+      console.log('📡 No network connection, loading QR scanner');
+      win.loadFile('qr-scanner.html').then(() => {
+        console.log('✅ QR scanner loaded successfully');
+        setupRemoteControlServer();
+      }).catch(error => {
+        console.error('❌ Failed to load QR scanner:', error);
+      });
+    }
   }).catch(error => {
-    console.error('❌ Failed to load homepage:', error);
+    console.error('❌ Error checking connectivity, defaulting to QR scanner:', error);
+    win.loadFile('qr-scanner.html').then(() => {
+      console.log('✅ QR scanner loaded (fallback)');
+      setupRemoteControlServer();
+    });
   });
   
   // Dev tools can be opened with F12 or Ctrl+Shift+I if needed
@@ -466,6 +485,56 @@ class WiFiManager {
 // Initialize WiFi manager
 const wifiManager = new WiFiManager();
 
+// Network connectivity checking function
+async function checkNetworkConnectivity() {
+  try {
+    console.log('🌐 Checking network connectivity...');
+    
+    // Check if we have any active network connection (WiFi or Ethernet)
+    const wifiStatus = await wifiManager.getCurrentConnection();
+    
+    if (wifiStatus.success && wifiStatus.connected) {
+      console.log('✅ WiFi connection detected:', wifiStatus.connection?.name);
+      return true;
+    }
+    
+    // Check for Ethernet connection on Linux
+    if (process.platform === 'linux') {
+      try {
+        const { stdout } = await execPromise('ip route | grep default');
+        if (stdout.trim()) {
+          console.log('✅ Network connection detected via default route');
+          return true;
+        }
+      } catch (error) {
+        console.log('❌ No default route found:', error.message);
+      }
+      
+      // Alternative check using network interfaces
+      try {
+        const { stdout } = await execPromise('nmcli -t -f DEVICE,STATE device status');
+        const lines = stdout.trim().split('\n');
+        for (const line of lines) {
+          const [device, state] = line.split(':');
+          if (state === 'connected' && (device.startsWith('e') || device.startsWith('w'))) {
+            console.log('✅ Network connection detected via device:', device);
+            return true;
+          }
+        }
+      } catch (error) {
+        console.log('❌ Failed to check network devices:', error.message);
+      }
+    }
+    
+    console.log('❌ No network connectivity detected');
+    return false;
+    
+  } catch (error) {
+    console.error('❌ Error checking network connectivity:', error);
+    return false;
+  }
+}
+
 // IPC handlers for WiFi functionality
 ipcMain.handle('wifi-scan', async () => {
   console.log('📡 IPC: WiFi scan requested');
@@ -490,6 +559,51 @@ ipcMain.handle('wifi-status', async () => {
 ipcMain.handle('wifi-current', async () => {
   console.log('📡 IPC: Current WiFi connection requested');
   return await wifiManager.getCurrentConnection();
+});
+
+// IPC handler for checking network connectivity
+ipcMain.handle('check-network', async () => {
+  console.log('🌐 IPC: Network connectivity check requested');
+  return await checkNetworkConnectivity();
+});
+
+// IPC handler for WiFi connection from QR scanner
+ipcMain.handle('connect-to-wifi', async (event, credentials) => {
+  console.log('📡 IPC: WiFi connection from QR code requested:', credentials);
+  const result = await wifiManager.connectToNetwork(
+    credentials.ssid, 
+    credentials.password, 
+    credentials.security
+  );
+  
+  // If connection was successful, check network and potentially redirect
+  if (result.success) {
+    setTimeout(async () => {
+      const hasNetwork = await checkNetworkConnectivity();
+      if (hasNetwork && mainWindow) {
+        console.log('✅ WiFi connected and network available, redirecting to homepage');
+        mainWindow.loadFile('homepage.html');
+      }
+    }, 3000); // Wait 3 seconds for connection to stabilize
+  }
+  
+  return result;
+});
+
+// IPC handler for navigation between pages
+ipcMain.handle('navigate-to-page', async (event, pageName) => {
+  console.log('🧭 IPC: Navigation requested to:', pageName);
+  if (mainWindow) {
+    try {
+      await mainWindow.loadFile(pageName);
+      console.log('✅ Navigation successful to:', pageName);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Navigation failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false, error: 'No main window available' };
 });
 
 // Remote Control Server Setup

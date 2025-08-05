@@ -22,7 +22,7 @@
             position: relative;
         }
 
-        /* Live video background */
+        /* Live video background with enhanced blur effect */
         #videoBackground {
             position: fixed;
             top: 0;
@@ -31,29 +31,30 @@
             height: 100vh;
             object-fit: cover;
             z-index: -1;
-            opacity: 0.6;
-            filter: blur(0.5px) brightness(0.9);
-            transition: opacity 0.5s ease;
+            opacity: 0.3;
+            filter: blur(15px) brightness(0.6) saturate(1.2) contrast(1.1) hue-rotate(10deg);
+            transition: all 0.8s ease;
+            transform: scale(1.05);
         }
 
         #videoBackground.active {
             opacity: 0.8;
         }
 
-        /* Overlay to ensure readability */
+        /* Enhanced video overlay with creative blur effects */
         .video-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(
-                135deg, 
-                rgba(15, 15, 35, 0.3) 0%, 
-                rgba(26, 26, 46, 0.2) 50%, 
-                rgba(22, 33, 62, 0.3) 100%
-            );
             z-index: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 226, 0.2) 0%, transparent 50%),
+                linear-gradient(135deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.2) 50%, rgba(0, 0, 0, 0.7) 100%);
+            backdrop-filter: blur(2px) saturate(1.5);
             pointer-events: none;
         }
 
@@ -120,6 +121,7 @@
             background: rgba(0, 0, 0, 0.85);
             border-color: rgba(102, 126, 234, 0.5);
         }
+
 
         .ip-label {
             font-size: 11px;
@@ -252,7 +254,7 @@
         }
 
         .tile {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(20px);
             border-radius: 25px;
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -885,6 +887,7 @@
         <div class="ip-value" id="persistentIPValue">Loading...</div>
     </div>
 
+
     <!-- STT Transcription Container -->
     <div class="stt-container" id="sttContainer">
         <div class="stt-indicator" id="sttIndicator"></div>
@@ -1141,13 +1144,14 @@
 
             async createStream() {
                 try {
-                    console.log('🎥 Creating global camera stream...');
+                    console.log('🎥 Creating low-resolution background camera stream...');
                     
                     this.stream = await navigator.mediaDevices.getUserMedia({
                         video: {
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 },
-                            facingMode: 'user'
+                            width: { ideal: 320 },
+                            height: { ideal: 240 },
+                            facingMode: 'user',
+                            frameRate: { ideal: 15, max: 20 }
                         },
                         audio: {
                             echoCancellation: true,
@@ -1255,8 +1259,89 @@
                 setTimeout(() => statusEl.remove(), duration);
             }
 
+            async createHighResolutionStream() {
+                try {
+                    console.log('🎥 Creating high-resolution QR scanner stream...');
+                    
+                    const highResStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            facingMode: 'environment' // Use back camera for QR scanning if available
+                        },
+                        audio: false // QR scanning doesn't need audio
+                    });
+
+                    console.log('✅ High-resolution QR stream created');
+                    return highResStream;
+
+                } catch (error) {
+                    console.error('❌ Failed to create high-resolution stream:', error);
+                    console.log('🔄 Falling back to current stream...');
+                    return this.stream; // Fallback to existing stream
+                }
+            }
+
+            freezeBackgroundVideo() {
+                const videoElement = document.getElementById('videoBackground');
+                if (videoElement) {
+                    console.log('🎥 Freezing background video...');
+                    
+                    // Create a canvas to capture the current frame
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    canvas.width = videoElement.videoWidth || 320;
+                    canvas.height = videoElement.videoHeight || 240;
+                    
+                    // Draw current video frame to canvas
+                    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convert canvas to blob and create object URL
+                    canvas.toBlob((blob) => {
+                        const frozenFrameUrl = URL.createObjectURL(blob);
+                        
+                        // Replace video with frozen image
+                        videoElement.style.backgroundImage = `url(${frozenFrameUrl})`;
+                        videoElement.style.backgroundSize = 'cover';
+                        videoElement.style.backgroundPosition = 'center';
+                        videoElement.srcObject = null; // Stop video stream
+                        
+                        console.log('✅ Background video frozen');
+                        
+                        // Store the URL for cleanup later
+                        videoElement.dataset.frozenFrameUrl = frozenFrameUrl;
+                    }, 'image/jpeg', 0.8);
+                }
+            }
+
+            unfreezeBackgroundVideo() {
+                const videoElement = document.getElementById('videoBackground');
+                if (videoElement) {
+                    console.log('🎥 Unfreezing background video...');
+                    
+                    // Clean up frozen frame
+                    if (videoElement.dataset.frozenFrameUrl) {
+                        URL.revokeObjectURL(videoElement.dataset.frozenFrameUrl);
+                        delete videoElement.dataset.frozenFrameUrl;
+                    }
+                    
+                    // Restore video stream
+                    videoElement.style.backgroundImage = '';
+                    videoElement.srcObject = this.stream;
+                    
+                    console.log('✅ Background video restored');
+                }
+            }
+
             cleanup() {
                 console.log('🧹 Cleaning up global camera stream...');
+                
+                // Clean up frozen frame if exists
+                const videoElement = document.getElementById('videoBackground');
+                if (videoElement && videoElement.dataset.frozenFrameUrl) {
+                    URL.revokeObjectURL(videoElement.dataset.frozenFrameUrl);
+                }
                 
                 if (this.stream) {
                     this.stream.getTracks().forEach(track => {
@@ -1973,6 +2058,7 @@
                 window.openAIWhisperSTT.stopListening();
             }
             
+            // QR WiFi Scanner cleanup only if it was initialized
             if (qrWifiScanner) {
                 console.log('🧹 Cleaning up QR WiFi Scanner...');
                 qrWifiScanner.cleanup();
@@ -2093,25 +2179,29 @@
 
             async startScanning() {
                 try {
-                    console.log('📱 Starting QR scanner with shared stream');
+                    console.log('📱 Starting QR scanner with high-resolution stream');
                     this.updateStatus('Starting camera...');
                     this.retryBtn.style.display = 'none';
+
+                    // Freeze the background video
+                    window.globalCameraStream.freezeBackgroundVideo();
 
                     // Register with global camera stream
                     window.globalCameraStream.registerComponent('QRScanner');
                     
-                    // Get shared camera stream
-                    const sharedStream = await window.globalCameraStream.initialize();
+                    // Get high-resolution stream for QR scanning
+                    const highResStream = await window.globalCameraStream.createHighResolutionStream();
                     
-                    // Set shared stream to video element
-                    this.videoElement.srcObject = sharedStream;
+                    // Set high-resolution stream to QR video element
+                    this.videoElement.srcObject = highResStream;
+                    this.highResStream = highResStream; // Store reference for cleanup
                     
                     // Wait for video to be ready
                     await new Promise((resolve) => {
                         this.videoElement.addEventListener('loadedmetadata', resolve, { once: true });
                     });
 
-                    // Initialize QR scanner with the video element that now has the shared stream
+                    // Initialize QR scanner with the video element that now has the high-res stream
                     this.qrScanner = new QrScanner(
                         this.videoElement,
                         (result) => this.onScanSuccess(result),
@@ -2125,11 +2215,11 @@
                         }
                     );
 
-                    // Start scanning (no need to start camera, just scanning)
+                    // Start scanning
                     await this.qrScanner.start();
                     this.isScanning = true;
                     this.updateStatus('Position QR code within the frame');
-                    console.log('✅ QR scanner started with shared stream');
+                    console.log('✅ QR scanner started with high-resolution stream');
 
                 } catch (error) {
                     console.error('❌ Failed to start QR scanner:', error);
@@ -2517,13 +2607,25 @@
                     this.qrScanner = null;
                 }
                 
-                // Unregister from global camera stream
-                window.globalCameraStream.unregisterComponent('QRScanner');
+                // Clean up high-resolution stream
+                if (this.highResStream) {
+                    this.highResStream.getTracks().forEach(track => {
+                        track.stop();
+                        console.log('🛑 Stopped high-res QR scanner track:', track.kind);
+                    });
+                    this.highResStream = null;
+                }
                 
                 // Clear video element
                 if (this.videoElement) {
                     this.videoElement.srcObject = null;
                 }
+                
+                // Unfreeze the background video and restore low-res stream
+                window.globalCameraStream.unfreezeBackgroundVideo();
+                
+                // Unregister from global camera stream
+                window.globalCameraStream.unregisterComponent('QRScanner');
                 
                 this.container.style.display = 'none';
                 this.isScanning = false;
@@ -2542,55 +2644,66 @@
                     this.qrScanner = null;
                 }
                 
-                // Unregister from global camera stream
-                window.globalCameraStream.unregisterComponent('QRScanner');
+                // Clean up high-resolution stream
+                if (this.highResStream) {
+                    this.highResStream.getTracks().forEach(track => {
+                        track.stop();
+                        console.log('🛑 Stopped high-res QR scanner track:', track.kind);
+                    });
+                    this.highResStream = null;
+                }
                 
                 // Clear video element
                 if (this.videoElement) {
                     this.videoElement.srcObject = null;
                 }
                 
+                // Unfreeze the background video
+                window.globalCameraStream.unfreezeBackgroundVideo();
+                
+                // Unregister from global camera stream
+                window.globalCameraStream.unregisterComponent('QRScanner');
+                
                 this.isScanning = false;
                 console.log('✅ QR WiFi Scanner cleanup complete');
             }
         }
 
-        // Initialize QR WiFi Scanner
+        // QR WiFi Scanner will only be initialized when manually requested
         let qrWifiScanner = null;
 
-        // Function to check and show QR scanner if needed
-        async function checkAndShowQRScanner() {
-            if (!qrWifiScanner) {
-                console.log('📱 QR WiFi Scanner not initialized yet');
-                return;
-            }
-            
+        // Function to manually start WiFi QR scanning
+        async function startWiFiQRScanning() {
             try {
-                const shouldShowQR = await qrWifiScanner.checkWiFiConnectionStatus();
+                console.log('📱 Manual WiFi QR scanning requested');
                 
-                if (shouldShowQR && !qrWifiScanner.isScanning) {
-                    console.log('📱 No WiFi connection - showing QR scanner');
-                    await qrWifiScanner.showQRScanner();
-                } else if (!shouldShowQR && qrWifiScanner.isScanning) {
-                    console.log('📱 WiFi connected - hiding QR scanner');
-                    qrWifiScanner.hideQRScanner();
+                if (!qrWifiScanner) {
+                    console.log('📱 Initializing QR WiFi Scanner...');
+                    qrWifiScanner = new QRWiFiScanner();
                 }
+                
+                await qrWifiScanner.showQRScanner();
+                console.log('✅ WiFi QR scanner started');
+                
             } catch (error) {
-                console.error('❌ Error checking WiFi status for QR scanner:', error);
+                console.error('❌ Error starting WiFi QR scanner:', error);
             }
         }
 
-        // Add keyboard shortcut to manually trigger QR scanner
+        // Make function available globally for other pages/components
+        window.startWiFiQRScanning = startWiFiQRScanning;
+
+        // WiFi and QR shortcuts
         document.addEventListener('keydown', (e) => {
-            // Press 'Q' to force show QR scanner for reconnection
-            if (e.key.toLowerCase() === 'q' && qrWifiScanner) {
-                console.log('🔑 Manual QR scanner trigger (Q key pressed)');
-                qrWifiScanner.showQRScanner();
-            }
             // Press 'W' to go directly to WiFi settings
             if (e.key.toLowerCase() === 'w') {
                 console.log('🔑 WiFi settings shortcut (W key pressed)');
                 window.location.href = 'wifi-settings.html';
+            }
+            // Press 'Q' to start WiFi QR scanning
+            if (e.key.toLowerCase() === 'q') {
+                console.log('🔑 WiFi QR scanning shortcut (Q key pressed)');
+                startWiFiQRScanning();
             }
         });
 
@@ -2704,44 +2817,15 @@
                 });
             }
             
-            try {
-                qrWifiScanner = new QRWiFiScanner();
-                
-                // Check WiFi connection status (not just first-time user)
-                const shouldShowQR = await qrWifiScanner.checkWiFiConnectionStatus();
-                
-                if (shouldShowQR) {
-                    console.log('📱 No WiFi connection detected - showing WiFi setup');
-                    await qrWifiScanner.showQRScanner();
-                } else {
-                    console.log('📱 WiFi connected - skipping WiFi setup');
-                    // Add a small notice for testing
-                    console.log('📱 TIP: Press "Q" key to manually trigger QR scanner for testing');
-                }
-                
-            } catch (error) {
-                console.error('❌ Error initializing QR WiFi Scanner:', error);
-            }
+            // QR WiFi Scanner will be initialized only when user requests WiFi connection
+            console.log('📱 Homepage loaded - QR scanner available on demand only');
+            console.log('🔑 WiFi shortcuts available:');
+            console.log('   - Press "Q" to scan QR code for WiFi connection');
+            console.log('   - Press "W" to open WiFi settings page');
+            console.log('   - Call startWiFiQRScanning() in console to start QR scan');
         });
 
-        // Add periodic WiFi check when page becomes visible
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                console.log('📱 Page became visible - checking WiFi status');
-                setTimeout(checkAndShowQRScanner, 1000);
-            }
-        });
-
-        // Also check when window gains focus
-        window.addEventListener('focus', () => {
-            console.log('📱 Window gained focus - checking WiFi status');
-            setTimeout(checkAndShowQRScanner, 1000);
-        });
-
-        // Check WiFi status periodically (every 30 seconds) to catch disconnections
-        setInterval(checkAndShowQRScanner, 30000);
-
-        // QR scanner cleanup is now handled in the main beforeunload event
+        // No automatic QR scanning - only manual WiFi connection
     </script>
     <script src="universal-navigation.js"></script>
 </body>
