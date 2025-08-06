@@ -7,7 +7,7 @@ curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg | sudo tee
 curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
 sudo apt update
 sudo apt install -y --no-install-recommends \
-  xserver-xorg xinit x11-xserver-utils \
+  xserver-xorg x11-xserver-utils \
   plymouth plymouth-themes \
   pipewire pipewire-pulse wireplumber \
   unclutter \
@@ -22,57 +22,33 @@ echo "Enabling SSH..."
 sudo systemctl start ssh
 sudo systemctl enable ssh
 
-echo "🧹 Disabling resource-intensive desktop environment..."
-sudo systemctl disable lightdm.service || true
-sudo systemctl mask lightdm.service || true
-
 echo "🧱 Creating SmartTV launch script..."
 sudo tee /usr/local/bin/launch-smarttv.sh > /dev/null << 'EOF'
 #!/bin/bash
-
-# Disable screen blanking and energy-saving
+export DISPLAY=:0
 xset s off -dpms
 xset s noblank
-
-# Hide the mouse cursor after 2 seconds of inactivity
 unclutter -idle 2 &
-
-# Wait for X to fully initialize
-sleep 1
-
-# Launch the Electron app
-exec smart-tv-ui
+xrandr --output HDMI-1 --mode 1280x720 --rate 60
+exec /usr/lib/smart-tv-ui/smart-tv-ui >> /tmp/smarttv.log 2>&1
 EOF
 
 sudo chmod +x /usr/local/bin/launch-smarttv.sh
 
-echo "📦 Creating systemd service for SmartTV kiosk..."
-sudo tee /etc/systemd/system/smarttv.service > /dev/null << 'EOF'
-[Unit]
-Description=SmartTV Kiosk
-After=network.target
-
-[Service]
-User=ubuntu
-Group=ubuntu
-
-Environment=HOME=/home/ubuntu
-Environment=DISPLAY=:0
-Environment=XAUTHORITY=/home/ubuntu/.Xauthority
-
-StandardOutput=journal
-StandardError=journal
-
-ExecStart=/bin/bash -c 'sleep 5 && DISPLAY=:0 /usr/lib/smart-tv-ui/smart-tv-ui >> /tmp/smarttv.log 2>&1'
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
+echo "📁 Creating autostart .desktop entry..."
+AUTOSTART_DIR="/home/ubuntu/.config/autostart"
+sudo mkdir -p "$AUTOSTART_DIR"
+sudo tee "$AUTOSTART_DIR/smart-tv-ui.desktop" > /dev/null << 'EOF'
+[Desktop Entry]
+Type=Application
+Exec=/usr/local/bin/launch-smarttv.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Smart TV UI
 EOF
 
-echo "🛑 Masking getty@tty1 to prevent console login..."
-sudo systemctl mask getty@tty1.service
+sudo chmod 644 "$AUTOSTART_DIR/smart-tv-ui.desktop"
 
 echo "🔐 Configuring sudo permissions for shutdown/reboot without password..."
 sudo tee /etc/sudoers.d/smarttv-shutdown > /dev/null << 'EOF'
@@ -83,34 +59,24 @@ EOF
 sudo chmod 440 /etc/sudoers.d/smarttv-shutdown
 
 echo "🐍 Installing local system management server..."
-# Create directory for SmartTV system files
 sudo mkdir -p /usr/local/share/smarttv
-
-# Copy local system server to system location
 sudo cp "$(dirname "$0")/local_system_server.py" /usr/local/share/smarttv/
 sudo chmod +x /usr/local/share/smarttv/local_system_server.py
-
-# Install systemd service for local system server
 sudo cp "$(dirname "$0")/smarttv-local-system.service" /etc/systemd/system/
 
-echo "🔄 Reloading systemd and enabling services..."
+echo "🔄 Reloading systemd and enabling local system service..."
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
-sudo systemctl enable smarttv.service
 sudo systemctl enable smarttv-local-system.service
-
-echo "🚀 Starting local system management server..."
 sudo systemctl start smarttv-local-system.service
 
 echo "📊 Service status:"
 sudo systemctl status smarttv-local-system.service --no-pager -l
 
 echo "✅ Done! Services installed:"
-echo "  - smarttv.service: Main SmartTV kiosk application"
 echo "  - smarttv-local-system.service: Local system management (shutdown/reboot)"
 echo ""
 echo "📝 Logs:"
-echo "  - SmartTV App: journalctl -u smarttv.service -f"
 echo "  - Local System: journalctl -u smarttv-local-system.service -f"
 echo ""
-echo "🔄 Reboot now to start the SmartTV kiosk automatically!"
+echo "🔄 Reboot now to launch the SmartTV UI automatically under LightDM session!"
