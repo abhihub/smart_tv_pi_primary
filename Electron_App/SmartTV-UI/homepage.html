@@ -13,13 +13,68 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
             color: white;
             height: 100vh;
             overflow: hidden;
             cursor: auto;
             position: relative;
+        }
+
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            background: rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #FCD34D;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-center {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .current-time {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .user-info, .ip-info {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .user-info span, .ip-info span {
+            color: white;
+            font-weight: 700;
+        }
+
+        .battery-icon {
+            font-size: 1rem;
         }
 
         /* Live video background */
@@ -61,10 +116,9 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            padding: 40px;
-            padding-bottom: 120px; /* Leave space for voice controls */
+            padding: 70px 40px 120px; /* Top padding for status bar */
             position: relative;
             z-index: 1;
         }
@@ -76,160 +130,22 @@
             position: relative;
         }
 
-        .mobile-connection-info {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(20px);
-            border-radius: 15px;
-            border: 1px solid rgba(102, 126, 234, 0.4);
-            padding: 20px;
-            color: white;
-            font-size: 14px;
-            max-width: 280px;
-            z-index: 1100;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        .mobile-connection-info.hidden {
-            opacity: 0;
-            transform: translateY(20px);
-            pointer-events: none;
-        }
-
-        .persistent-ip-display {
-            position: fixed;
-            top: 30px;
-            left: 30px;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            padding: 12px 16px;
-            color: white;
-            font-size: 14px;
-            font-family: 'Courier New', monospace;
-            z-index: 1000;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .persistent-ip-display:hover {
-            background: rgba(0, 0, 0, 0.85);
-            border-color: rgba(102, 126, 234, 0.5);
-        }
-
-        .ip-label {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 2px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .ip-value {
-            font-size: 16px;
-            font-weight: bold;
-            color: #667eea;
-            font-family: 'Courier New', monospace;
-        }
-
-        .connection-status {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-            font-weight: 600;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 8px;
-            background: #ff6b6b;
-            animation: pulse 2s infinite;
-        }
-
-        .status-dot.connected {
-            background: #00ff88;
-            animation: none;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .ip-display {
-            background: rgba(102, 126, 234, 0.15);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            padding: 10px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 18px;
-            font-weight: bold;
-            color: #667eea;
-            text-align: center;
-            margin-bottom: 12px;
-        }
-
-        .instructions {
-            font-size: 13px;
-            line-height: 1.4;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .instructions strong {
-            color: #667eea;
-        }
-
-        .ip-label {
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
 
         .header h1 {
-            font-size: 3.5rem;
-            font-weight: 300;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 4rem;
+            font-weight: 700;
+            color: #FCD34D;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             margin-bottom: 10px;
+            letter-spacing: -1px;
         }
 
         .header .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.7;
-            font-weight: 300;
-        }
-
-        .user-id-display {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
-            padding: 10px 18px;
-            border-radius: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            font-size: 0.9rem;
-            font-weight: 500;
+            font-size: 1.3rem;
             color: rgba(255, 255, 255, 0.9);
-            z-index: 10;
-            max-width: 200px;
+            font-weight: 500;
         }
 
-        .user-id-display span {
-            color: #667eea;
-            font-weight: 600;
-            font-size: 1rem;
-        }
 
         .grid-wrapper {
             flex-shrink: 0;
@@ -252,19 +168,20 @@
         }
 
         .tile {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
-            border-radius: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 32px;
+            border: none;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
-            min-height: 250px;
+            min-height: 280px;
             animation: fadeInUp 1s ease-out;
         }
 
@@ -276,10 +193,8 @@
         .tile:nth-child(6) { animation-delay: 0.6s; }
 
         .tile:hover, .tile.active {
-            transform: translateY(-10px) scale(1.05);
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
         .tile::before {
@@ -298,29 +213,36 @@
         }
 
         .tile-icon {
-            font-size: 4rem;
-            margin-bottom: 20px;
-            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-            transition: transform 0.4s ease;
+            width: 80px;
+            height: 80px;
+            margin-bottom: 24px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
 
         .tile:hover .tile-icon {
-            transform: scale(1.1) rotate(5deg);
+            transform: scale(1.05);
         }
 
         .tile-title {
             font-size: 1.8rem;
-            font-weight: 500;
+            font-weight: 600;
             text-align: center;
-            opacity: 0.9;
+            color: #1f2937;
+            margin-bottom: 4px;
         }
 
         .tile-subtitle {
-            font-size: 1rem;
-            opacity: 0.6;
+            font-size: 0.9rem;
+            color: #6b7280;
             text-align: center;
-            margin-top: 8px;
-            font-weight: 300;
+            margin-top: 4px;
+            font-weight: 500;
         }
 
         .footer {
@@ -346,27 +268,42 @@
 
         /* Color themes for different tiles */
         .tile.video-call {
-            background: linear-gradient(135deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.1));
+            background: #ef4444;
+        }
+
+        .tile.video-call .tile-icon {
+            background: #fca5a5;
+            color: #dc2626;
         }
 
         .tile.games {
-            background: linear-gradient(135deg, rgba(155, 89, 182, 0.2), rgba(142, 68, 173, 0.1));
+            background: #06b6d4;
         }
 
-        .tile.streaming {
-            background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(192, 57, 43, 0.1));
-        }
-
-        .tile.photos {
-            background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(41, 128, 185, 0.1));
-        }
-
-        .tile.learning {
-            background: linear-gradient(135deg, rgba(241, 196, 15, 0.2), rgba(243, 156, 18, 0.1));
+        .tile.games .tile-icon {
+            background: #67e8f9;
+            color: #0891b2;
         }
 
         .tile.settings {
-            background: linear-gradient(135deg, rgba(149, 165, 166, 0.2), rgba(127, 140, 141, 0.1));
+            background: #3b82f6;
+        }
+
+        .tile.settings .tile-icon {
+            background: #93c5fd;
+            color: #1d4ed8;
+        }
+
+        .tile.video-call .tile-title,
+        .tile.games .tile-title,
+        .tile.settings .tile-title {
+            color: white;
+        }
+
+        .tile.video-call .tile-subtitle,
+        .tile.games .tile-subtitle,
+        .tile.settings .tile-subtitle {
+            color: rgba(255, 255, 255, 0.8);
         }
 
         /* Animations */
@@ -426,28 +363,21 @@
             }
             
             .user-id-display {
-                top: 15px;
-                left: 15px;
-                padding: 8px 12px;
-                font-size: 0.8rem;
-                max-width: 150px;
+                top: 10px;
+                left: 10px;
+                padding: 8px 15px;
+                font-size: 0.9rem;
             }
             
-            .mobile-connection-info {
-                bottom: 15px;
-                right: 15px;
-                padding: 15px;
-                max-width: 250px;
-                font-size: 12px;
-            }
-
             .ip-display {
-                font-size: 16px;
-                padding: 8px;
+                top: 10px;
+                right: 10px;
+                padding: 8px 15px;
+                font-size: 0.9rem;
             }
             
             .user-id-display span {
-                font-size: 0.9rem;
+                font-size: 1rem;
             }
             
             .container {
@@ -535,7 +465,6 @@
             0%, 100% { opacity: 0.8; transform: scale(1); }
             50% { opacity: 1; transform: scale(1.3); }
         }
-
 
         .stt-content {
             flex: 1;
@@ -804,13 +733,24 @@
     <!-- Live video background -->
     <video id="videoBackground" autoplay playsinline muted></video>
     <div class="video-overlay"></div>
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="user-info">ID: <span id="userIdDisplay">Loading...</span></div>
+        </div>
+        <div class="status-center">
+            <div class="current-time" id="currentTime">11:35</div>
+        </div>
+        <div class="status-right">
+            <div class="ip-info">Mobile: <span id="deviceIPDisplay">Loading...</span></div>
+            <div class="battery-icon">🔋</div>
+        </div>
+    </div>
+
     <div class="container">
         <div class="header">
-            <div class="user-id-display">
-                Your ID: <span id="userIdDisplay">Loading...</span>
-            </div>
-            <h1>Family Time</h1>
-            <p class="subtitle">Your Gateway to Family Entertainment</p>
+            <h1>kids zone</h1>
+            <p class="subtitle">Fun apps for everyone!</p>
         </div>
 
         <!-- QR Scanner for WiFi Setup -->
@@ -844,45 +784,24 @@
         <div class="grid-wrapper">
             <div class="grid">
             <div class="tile video-call card" tabindex="0" data-app="user-directory" data-focusable="true" data-shortcut="1">
-                <div class="tile-icon">📞</div>
-                <div class="tile-title">Video Call</div>
-                <div class="tile-subtitle">Call other users • View who's online</div>
+                <div class="tile-icon">📹</div>
+                <div class="tile-title">video chat</div>
+                <div class="tile-subtitle">Call friends and family</div>
             </div>
 
             <div class="tile games card" tabindex="0" data-app="gamepage" data-focusable="true" data-shortcut="2">
                 <div class="tile-icon">🎮</div>
-                <div class="tile-title">Games Hub</div>
-                <div class="tile-subtitle">Interactive family games</div>
+                <div class="tile-title">games</div>
+                <div class="tile-subtitle">Play fun games together</div>
             </div>
 
             <div class="tile settings card" tabindex="0" data-app="settings" data-focusable="true" data-shortcut="3">
                 <div class="tile-icon">⚙️</div>
-                <div class="tile-title">Settings</div>
-                <div class="tile-subtitle">App settings & updates</div>
+                <div class="tile-title">settings</div>
+                <div class="tile-subtitle">Customize your experience</div>
             </div>
             </div>
         </div>
-    </div>
-
-    <!-- Mobile Connection Info -->
-    <div class="mobile-connection-info" id="mobileConnectionInfo">
-        <div class="connection-status">
-            <div class="status-dot" id="connectionStatusDot"></div>
-            <span id="connectionStatusText">Waiting for mobile connection</span>
-        </div>
-        <div class="ip-display" id="deviceIPDisplay">Loading...</div>
-        <div class="instructions">
-            <strong>📱 Connect Your Mobile:</strong><br>
-            1. Open the SmartTV Remote app<br>
-            2. Enter the IP address above<br>
-            3. Start controlling your TV!
-        </div>
-    </div>
-
-    <!-- Persistent IP Display -->
-    <div class="persistent-ip-display" id="persistentIPDisplay">
-        <div class="ip-label">TV IP:</div>
-        <div class="ip-value" id="persistentIPValue">Loading...</div>
     </div>
 
     <!-- STT Transcription Container -->
@@ -1044,19 +963,21 @@
 
         // Add some dynamic background effects
         function createFloatingParticles() {
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < 20; i++) {
                 const particle = document.createElement('div');
+                const size = Math.random() * 4 + 2;
                 particle.style.cssText = `
                     position: fixed;
-                    width: 2px;
-                    height: 2px;
-                    background: rgba(255, 255, 255, 0.1);
+                    width: ${size}px;
+                    height: ${size}px;
+                    background: rgba(252, 211, 77, 0.3);
                     border-radius: 50%;
                     pointer-events: none;
-                    animation: float ${5 + Math.random() * 10}s linear infinite;
+                    animation: float ${15 + Math.random() * 20}s linear infinite;
                     left: ${Math.random() * 100}vw;
                     top: ${Math.random() * 100}vh;
                     z-index: -1;
+                    opacity: ${0.2 + Math.random() * 0.3};
                 `;
                 document.body.appendChild(particle);
             }
@@ -1086,6 +1007,21 @@
 
         // Initialize particles
         createFloatingParticles();
+
+        // Update time in status bar
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit', 
+                hour12: false 
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+
+        // Update time immediately and then every minute
+        updateTime();
+        setInterval(updateTime, 60000);
     </script>
     <script src="user-utils.js"></script>
     <script src="call-monitor.js"></script>
@@ -2419,61 +2355,6 @@
             }
         });
 
-        // Mobile Connection Tracking
-        let connectedDevices = new Set();
-        let hideTimeout = null;
-
-        function initializeMobileConnectionTracking() {
-            console.log('📱 Initializing mobile connection tracking...');
-            
-            // Set up periodic check for WebSocket connections (since we can't directly listen from the main process)
-            const checkInterval = setInterval(() => {
-                // This is a simple approach - in a real implementation, you'd want IPC communication
-                // For now, we'll check if any WebSocket connections exist by monitoring console logs
-                if (window.wsConnections && window.wsConnections.size > 0) {
-                    handleMobileConnected();
-                } else {
-                    handleMobileDisconnected();
-                }
-            }, 2000);
-
-            // Keep connection info visible until first mobile device connects
-            console.log('📱 Connection info will remain visible until mobile connects');
-        }
-
-        function handleMobileConnected() {
-            console.log('📱 Mobile device connected');
-            connectedDevices.add('mobile');
-            
-            const statusDot = document.getElementById('connectionStatusDot');
-            const statusText = document.getElementById('connectionStatusText');
-            const mobileInfo = document.getElementById('mobileConnectionInfo');
-            
-            if (statusDot) statusDot.classList.add('connected');
-            if (statusText) statusText.textContent = 'Mobile connected';
-            
-            // Hide the connection dialog on first connection
-            if (mobileInfo) {
-                setTimeout(() => {
-                    mobileInfo.classList.add('hidden');
-                    console.log('📱 Hiding connection info - mobile connected');
-                }, 3000);
-            }
-        }
-
-        function handleMobileDisconnected() {
-            if (connectedDevices.has('mobile')) {
-                console.log('📱 Mobile device disconnected');
-                connectedDevices.delete('mobile');
-                
-                const statusDot = document.getElementById('connectionStatusDot');
-                const statusText = document.getElementById('connectionStatusText');
-                
-                if (statusDot) statusDot.classList.remove('connected');
-                if (statusText) statusText.textContent = 'Mobile disconnected';
-            }
-        }
-
         // Add to the existing DOMContentLoaded event
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('📱 Initializing homepage...');
@@ -2482,51 +2363,16 @@
             try {
                 const connectionInfo = await window.electronAPI.getConnectionInfo();
                 const deviceIPElement = document.getElementById('deviceIPDisplay');
-                const persistentIPElement = document.getElementById('persistentIPValue');
-                
-                if (connectionInfo) {
-                    const ipDisplayText = `${connectionInfo.ip}:${connectionInfo.port}`;
-                    
-                    if (deviceIPElement) {
-                        deviceIPElement.textContent = ipDisplayText;
-                    }
-                    
-                    if (persistentIPElement) {
-                        persistentIPElement.textContent = ipDisplayText;
-                    }
-                    
-                    console.log('📱 Device IP displayed:', ipDisplayText);
+                if (deviceIPElement && connectionInfo) {
+                    deviceIPElement.textContent = `${connectionInfo.ip}:${connectionInfo.port}`;
+                    console.log('📱 Device IP displayed:', `${connectionInfo.ip}:${connectionInfo.port}`);
                 }
             } catch (error) {
                 console.error('❌ Error getting connection info:', error);
                 const deviceIPElement = document.getElementById('deviceIPDisplay');
-                const persistentIPElement = document.getElementById('persistentIPValue');
-                
                 if (deviceIPElement) {
                     deviceIPElement.textContent = 'IP not available';
                 }
-                
-                if (persistentIPElement) {
-                    persistentIPElement.textContent = 'N/A';
-                }
-            }
-
-            // Initialize mobile connection tracking
-            initializeMobileConnectionTracking();
-            
-            // Set up IPC listeners for mobile connection events
-            if (window.electronAPI && window.electronAPI.onMobileConnected) {
-                window.electronAPI.onMobileConnected((deviceInfo) => {
-                    console.log('📱 IPC: Mobile device connected:', deviceInfo);
-                    handleMobileConnected();
-                });
-            }
-            
-            if (window.electronAPI && window.electronAPI.onMobileDisconnected) {
-                window.electronAPI.onMobileDisconnected((deviceInfo) => {
-                    console.log('📱 IPC: Mobile device disconnected:', deviceInfo);
-                    handleMobileDisconnected();
-                });
             }
             
             try {
