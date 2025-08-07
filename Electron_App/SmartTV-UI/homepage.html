@@ -86,13 +86,24 @@
             height: 100vh;
             object-fit: cover;
             z-index: -1;
-            opacity: 0.6;
-            filter: blur(0.5px) brightness(0.9);
-            transition: opacity 0.5s ease;
+            opacity: 0;
+            filter: blur(5px) brightness(0.7);
+            transition: opacity 0.5s ease, filter 0.5s ease;
+            display: none;
         }
 
         #videoBackground.active {
-            opacity: 0.8;
+            opacity: 0.4;
+            display: block;
+        }
+
+        /* Solid background for offline mode */
+        .offline-background {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
+        }
+
+        .online-background {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.8) 0%, rgba(30, 64, 175, 0.8) 50%, rgba(37, 99, 235, 0.8) 100%);
         }
 
         /* Overlay to ensure readability */
@@ -531,6 +542,60 @@
             z-index: 5;
         }
 
+        /* QR Toggle Button */
+        .qr-toggle-btn {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: rgba(0, 255, 136, 0.2);
+            border: 2px solid rgba(0, 255, 136, 0.6);
+            color: #00ff88;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            z-index: 1001;
+            display: none;
+        }
+
+        .qr-toggle-btn:hover {
+            background: rgba(0, 255, 136, 0.3);
+            border-color: rgba(0, 255, 136, 0.8);
+            transform: translateY(-2px);
+        }
+
+        .qr-toggle-btn.active {
+            background: rgba(0, 255, 136, 0.4);
+            border-color: #00ff88;
+        }
+
+        /* Network status indicator */
+        .network-status {
+            position: fixed;
+            top: 70px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .network-status.online {
+            border-color: rgba(0, 255, 136, 0.6);
+            color: #00ff88;
+        }
+
+        .network-status.offline {
+            border-color: rgba(255, 107, 107, 0.6);
+            color: #ff6b6b;
+        }
+
         .qr-scanner-card {
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(20px);
@@ -733,6 +798,15 @@
     <!-- Live video background -->
     <video id="videoBackground" autoplay playsinline muted></video>
     <div class="video-overlay"></div>
+    
+    <!-- Network Status Indicator -->
+    <div class="network-status" id="networkStatus">
+        📡 Checking...
+    </div>
+    
+    <!-- QR Toggle Button (shown when online) -->
+    <button class="qr-toggle-btn" id="qrToggleBtn">📱 QR Scanner</button>
+    
     <!-- Status Bar -->
     <div class="status-bar">
         <div class="status-left">
@@ -1050,26 +1124,150 @@
     </script>
     
     <script>
+        // Network Detection System
+        class NetworkManager {
+            constructor() {
+                this.isOnline = false;
+                this.networkStatusElement = document.getElementById('networkStatus');
+                this.qrToggleBtn = document.getElementById('qrToggleBtn');
+                this.bodyElement = document.body;
+            }
+
+            async initialize() {
+                await this.checkNetworkStatus();
+                this.setupNetworkMonitoring();
+                this.setupQRToggle();
+            }
+
+            async checkNetworkStatus() {
+                try {
+                    console.log('🌐 Checking network connectivity...');
+                    
+                    // Check if we're connected to WiFi/Ethernet
+                    let isConnected = false;
+                    
+                    if (window.electronAPI && window.electronAPI.wifi) {
+                        try {
+                            const [status, current] = await Promise.all([
+                                window.electronAPI.wifi.getStatus(),
+                                window.electronAPI.wifi.getCurrent()
+                            ]);
+                            
+                            console.log('📡 Network status:', { status, current });
+                            isConnected = (status.success && status.connected) || 
+                                         (current.success && current.connected);
+                            
+                        } catch (wifiError) {
+                            console.warn('⚠️ WiFi API error:', wifiError);
+                            
+                            // Fallback: check browser navigator.onLine
+                            isConnected = navigator.onLine;
+                        }
+                    } else {
+                        console.log('🌐 Using browser connectivity check...');
+                        isConnected = navigator.onLine;
+                    }
+                    
+                    this.updateNetworkStatus(isConnected);
+                    return isConnected;
+                    
+                } catch (error) {
+                    console.error('❌ Error checking network status:', error);
+                    this.updateNetworkStatus(false);
+                    return false;
+                }
+            }
+
+            updateNetworkStatus(isOnline) {
+                this.isOnline = isOnline;
+                
+                if (isOnline) {
+                    console.log('✅ Network: ONLINE');
+                    this.networkStatusElement.textContent = '🟢 Online';
+                    this.networkStatusElement.className = 'network-status online';
+                    this.bodyElement.className = 'online-background';
+                    
+                    // Show QR toggle button in online mode
+                    this.qrToggleBtn.style.display = 'block';
+                    
+                    // Initialize background video with low resolution and high blur
+                    if (window.liveVideoBackground) {
+                        window.liveVideoBackground.initializeOnlineMode();
+                    }
+                } else {
+                    console.log('❌ Network: OFFLINE');
+                    this.networkStatusElement.textContent = '🔴 Offline';
+                    this.networkStatusElement.className = 'network-status offline';
+                    this.bodyElement.className = 'offline-background';
+                    
+                    // Hide QR toggle button in offline mode
+                    this.qrToggleBtn.style.display = 'none';
+                    
+                    // Initialize QR camera only
+                    if (window.qrWifiScanner) {
+                        window.qrWifiScanner.showQRScanner();
+                    }
+                }
+            }
+
+            setupNetworkMonitoring() {
+                // Listen for online/offline events
+                window.addEventListener('online', () => {
+                    console.log('🌐 Browser detected online');
+                    this.checkNetworkStatus();
+                });
+                
+                window.addEventListener('offline', () => {
+                    console.log('🌐 Browser detected offline');
+                    this.updateNetworkStatus(false);
+                });
+                
+                // Periodic network check every 10 seconds
+                setInterval(() => {
+                    this.checkNetworkStatus();
+                }, 10000);
+            }
+
+            setupQRToggle() {
+                this.qrToggleBtn.addEventListener('click', () => {
+                    if (window.qrWifiScanner) {
+                        if (window.qrWifiScanner.isScanning) {
+                            window.qrWifiScanner.hideQRScanner();
+                            this.qrToggleBtn.textContent = '📱 QR Scanner';
+                            this.qrToggleBtn.classList.remove('active');
+                        } else {
+                            window.qrWifiScanner.showQRScanner();
+                            this.qrToggleBtn.textContent = '❌ Close QR';
+                            this.qrToggleBtn.classList.add('active');
+                        }
+                    }
+                });
+            }
+        }
+
         // Live Video Background System
         class LiveVideoBackground {
             constructor() {
                 this.videoElement = document.getElementById('videoBackground');
                 this.isActive = false;
                 this.stream = null;
+                this.isOnlineMode = false;
             }
 
-            async initialize() {
+            async initializeOnlineMode() {
                 try {
-                    console.log('🎥 Initializing live video background...');
+                    console.log('🎥 Initializing online mode video background...');
+                    this.isOnlineMode = true;
                     
-                    // Request camera and microphone access
+                    // Request camera with 480p resolution and optimized settings
                     this.stream = await navigator.mediaDevices.getUserMedia({
                         video: {
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 },
-                            facingMode: 'user' // Front-facing camera
+                            width: { ideal: 640, max: 640 },
+                            height: { ideal: 480, max: 480 },
+                            frameRate: { ideal: 15, max: 20 }, // Lower frame rate
+                            facingMode: 'user'
                         },
-                        audio: true
+                        audio: false // No audio needed for background
                     });
 
                     // Attach stream to video element
@@ -1080,19 +1278,22 @@
                         this.videoElement.addEventListener('loadedmetadata', resolve, { once: true });
                     });
 
-                    // Activate the background
+                    // Activate with high blur and low opacity
                     this.videoElement.classList.add('active');
                     this.isActive = true;
                     
-                    console.log('✅ Live video background activated');
-                    
-                    // Show status message
-                    // this.showStatusMessage('📹 Live video background active', 3000);
+                    console.log('✅ Online mode video background activated (480p, high blur)');
 
                 } catch (error) {
-                    console.error('❌ Failed to initialize camera:', error);
+                    console.error('❌ Failed to initialize online mode camera:', error);
                     this.handleCameraError(error);
                 }
+            }
+
+            async initializeOfflineMode() {
+                // In offline mode, we don't need background video at all
+                console.log('📴 Offline mode: No background video needed');
+                this.cleanup();
             }
 
             handleCameraError(error) {
@@ -1738,14 +1939,24 @@
             console.log('🚀 Page DOMContentLoaded event fired at:', new Date().toISOString());
             
             try {
-                console.log('🎥 Initializing live video background...');
-                // Initialize live video background first
+                // Initialize network manager first
+                console.log('🌐 Initializing network manager...');
+                window.networkManager = new NetworkManager();
+                await window.networkManager.initialize();
+                console.log('✅ Network manager initialized');
+                
+                // Initialize video background (will be activated based on network status)
+                console.log('🎥 Initializing video background system...');
                 window.liveVideoBackground = new LiveVideoBackground();
-                await window.liveVideoBackground.initialize();
-                console.log('✅ Live video background initialized');
+                console.log('✅ Video background system ready');
+                
+                // Initialize QR WiFi Scanner
+                console.log('📱 Initializing QR WiFi Scanner...');
+                window.qrWifiScanner = new QRWiFiScanner();
+                console.log('✅ QR WiFi Scanner initialized');
                 
                 console.log('🎤 Initializing OpenAI Whisper STT...');
-                // Initialize STT after video background is ready
+                // Initialize STT (disabled by default to save resources)
                 window.openAIWhisperSTT = new OpenAIWhisperSTT();
                 console.log('✅ OpenAI Whisper STT initialized and ready');
                 
@@ -1756,6 +1967,19 @@
                     console.log('✅ TV Remote initialized for homepage');
                 } else {
                     console.warn('⚠️ TV Remote not available');
+                }
+                
+                // Initialize device IP display
+                console.log('📱 Initializing device IP display...');
+                await initializeDeviceIP();
+                console.log('✅ Device IP display initialized');
+                
+                // Apply initial network-based configuration
+                const isOnline = await window.networkManager.checkNetworkStatus();
+                if (isOnline) {
+                    console.log('🌐 Online mode: Background video + QR toggle available');
+                } else {
+                    console.log('📴 Offline mode: QR scanner only, solid background');
                 }
                 
                 console.log('🚀 All systems initialized successfully at:', new Date().toISOString());
@@ -2355,11 +2579,8 @@
             }
         });
 
-        // Add to the existing DOMContentLoaded event
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log('📱 Initializing homepage...');
-            
-            // Display device IP for mobile remote connection
+        // Display device IP for mobile remote connection (moved to main initialization)
+        async function initializeDeviceIP() {
             try {
                 const connectionInfo = await window.electronAPI.getConnectionInfo();
                 const deviceIPElement = document.getElementById('deviceIPDisplay');
@@ -2374,26 +2595,7 @@
                     deviceIPElement.textContent = 'IP not available';
                 }
             }
-            
-            try {
-                qrWifiScanner = new QRWiFiScanner();
-                
-                // Check WiFi connection status (not just first-time user)
-                const shouldShowQR = await qrWifiScanner.checkWiFiConnectionStatus();
-                
-                if (shouldShowQR) {
-                    console.log('📱 No WiFi connection detected - showing WiFi setup');
-                    await qrWifiScanner.showQRScanner();
-                } else {
-                    console.log('📱 WiFi connected - skipping WiFi setup');
-                    // Add a small notice for testing
-                    console.log('📱 TIP: Press "Q" key to manually trigger QR scanner for testing');
-                }
-                
-            } catch (error) {
-                console.error('❌ Error initializing QR WiFi Scanner:', error);
-            }
-        });
+        }
 
         // Add periodic WiFi check when page becomes visible
         document.addEventListener('visibilitychange', () => {
