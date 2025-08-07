@@ -184,7 +184,7 @@ async function connectToRoom() {
         const room = await Twilio.Video.connect(token, {
             name: currentRoomName,
             audio: true,
-            video: { width: 640, height: 480 }
+            video: { width: 640, height: 480, frameRate: { ideal: 30, max: 60 } }
         });
         
         activeRoom = room;
@@ -581,7 +581,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Create local preview
         const tracks = await Twilio.Video.createLocalTracks({
             audio: true,
-            video: { width: 640, height: 480 }
+            video: { width: 640, height: 480, frameRate: { ideal: 30, max: 60 } }
         });
         
         localTracks = tracks;

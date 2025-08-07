@@ -1599,25 +1599,69 @@
                     
                     if (wifiData) {
                         console.log('📱 Valid WiFi QR detected:', wifiData);
-                        document.getElementById('qrScannerStatusSettings').textContent = '✅ WiFi QR detected!';
                         
-                        // Hide QR scanner
-                        this.hideQRScanner();
+                        // Stop camera stream immediately
+                        if (this.qrScanner) {
+                            this.qrScanner.stop();
+                            console.log('📱 Camera stream stopped');
+                        }
+                        
+                        // Update status to show QR detected and connecting
+                        document.getElementById('qrScannerStatusSettings').textContent = '✅ WiFi QR detected!';
+                        document.getElementById('qrScannerStatusSettings').style.color = '#00ff88';
+                        
+                        // Show connecting message in the QR scanner area
+                        const qrVideoWrapper = document.querySelector('.qr-scanner-video-wrapper');
+                        if (qrVideoWrapper) {
+                            qrVideoWrapper.innerHTML = `
+                                <div style="
+                                    display: flex;
+                                    flex-direction: column;
+                                    align-items: center;
+                                    justify-content: center;
+                                    height: 300px;
+                                    background: rgba(0, 255, 136, 0.1);
+                                    border: 2px solid rgba(0, 255, 136, 0.3);
+                                    border-radius: 15px;
+                                    color: #00ff88;
+                                    text-align: center;
+                                ">
+                                    <div style="font-size: 3rem; margin-bottom: 20px;">🔗</div>
+                                    <div style="font-size: 1.5rem; font-weight: bold; margin-bottom: 10px;">
+                                        Connecting to WiFi...
+                                    </div>
+                                    <div style="font-size: 1.1rem; opacity: 0.8;">
+                                        ${wifiData.ssid}
+                                    </div>
+                                    <div class="loading-spinner" style="margin-top: 20px; border-color: rgba(0, 255, 136, 0.3); border-top-color: #00ff88;"></div>
+                                </div>
+                            `;
+                        }
+                        
+                        // Update status text below
+                        setTimeout(() => {
+                            document.getElementById('qrScannerStatusSettings').textContent = `🔗 Connecting to ${wifiData.ssid}...`;
+                        }, 1000);
                         
                         // Connect to the network
                         this.connectToQRNetwork(wifiData);
+                        
                     } else {
                         document.getElementById('qrScannerStatusSettings').textContent = '❌ Invalid WiFi QR format';
+                        document.getElementById('qrScannerStatusSettings').style.color = '#ff6b6b';
                         setTimeout(() => {
                             document.getElementById('qrScannerStatusSettings').textContent = 'Position QR code within the frame';
+                            document.getElementById('qrScannerStatusSettings').style.color = '#00ff88';
                         }, 2000);
                     }
                     
                 } catch (error) {
                     console.error('❌ Error processing QR code:', error);
                     document.getElementById('qrScannerStatusSettings').textContent = '❌ Error processing QR code';
+                    document.getElementById('qrScannerStatusSettings').style.color = '#ff6b6b';
                     setTimeout(() => {
                         document.getElementById('qrScannerStatusSettings').textContent = 'Position QR code within the frame';
+                        document.getElementById('qrScannerStatusSettings').style.color = '#00ff88';
                     }, 2000);
                 }
             }

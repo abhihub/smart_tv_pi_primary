@@ -1264,7 +1264,7 @@
                         video: {
                             width: { ideal: 640, max: 640 },
                             height: { ideal: 480, max: 480 },
-                            frameRate: { ideal: 15, max: 20 }, // Lower frame rate
+                            frameRate: { ideal: 30, max: 60 }, // Higher frame rate
                             facingMode: 'user'
                         },
                         audio: false // No audio needed for background
@@ -2156,7 +2156,50 @@
                     let wifiData = this.parseWiFiQR(result.data);
                     
                     if (wifiData) {
+                        console.log('📱 Valid WiFi QR detected:', wifiData);
+                        
+                        // Stop camera stream immediately
+                        if (this.qrScanner) {
+                            this.qrScanner.stop();
+                            this.isScanning = false;
+                            console.log('📱 Camera stream stopped');
+                        }
+                        
                         this.updateStatus('✅ WiFi credentials detected!');
+                        
+                        // Show connecting message in the QR scanner area
+                        const qrVideoWrapper = document.querySelector('.qr-scanner-video-wrapper');
+                        if (qrVideoWrapper) {
+                            qrVideoWrapper.innerHTML = `
+                                <div style="
+                                    display: flex;
+                                    flex-direction: column;
+                                    align-items: center;
+                                    justify-content: center;
+                                    height: 300px;
+                                    background: rgba(0, 255, 136, 0.1);
+                                    border: 2px solid rgba(0, 255, 136, 0.3);
+                                    border-radius: 15px;
+                                    color: #00ff88;
+                                    text-align: center;
+                                ">
+                                    <div style="font-size: 3rem; margin-bottom: 20px;">🔗</div>
+                                    <div style="font-size: 1.5rem; font-weight: bold; margin-bottom: 10px;">
+                                        Connecting to WiFi...
+                                    </div>
+                                    <div style="font-size: 1.1rem; opacity: 0.8;">
+                                        ${wifiData.ssid}
+                                    </div>
+                                    <div class="loading-spinner" style="margin-top: 20px; border: 2px solid rgba(0, 255, 136, 0.3); border-top: 2px solid #00ff88; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite;"></div>
+                                </div>
+                            `;
+                        }
+                        
+                        // Update status text below
+                        setTimeout(() => {
+                            this.updateStatus(`🔗 Connecting to ${wifiData.ssid}...`);
+                        }, 1000);
+                        
                         this.processWiFiCredentials(wifiData);
                     } else {
                         this.updateStatus('❌ Invalid WiFi QR code format');
