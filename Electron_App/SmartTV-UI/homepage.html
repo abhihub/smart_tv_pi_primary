@@ -1120,6 +1120,17 @@
                 document.getElementById('userIdDisplay').textContent = 'Error';
                 document.getElementById('userIdDisplay').style.color = '#ff6b6b';
             }
+
+            try {
+                const connectionInfo = await window.electronAPI.getConnectionInfo();
+                const deviceIPElement = document.getElementById('deviceIPDisplay');
+                if (connectionInfo) {
+                    deviceIPElement.textContent = `${connectionInfo.ip}:${connectionInfo.port}`;
+                }
+            } catch (error) {
+                console.error('Error getting connection info:', error);
+                document.getElementById('deviceIPDisplay').textContent = 'IP not available';
+            }
         });
     </script>
     
