@@ -6,8 +6,8 @@ StartLimitIntervalSec=30
 
 [Service]
 Type=simple
-User=ubuntu
-Group=ubuntu
+User=root
+Group=root
 WorkingDirectory=/usr/local/share/smarttv
 ExecStart=/usr/bin/python3 /usr/local/share/smarttv/local_system_server.py
 Restart=always

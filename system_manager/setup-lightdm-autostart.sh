@@ -72,6 +72,7 @@ sudo systemctl start smarttv-local-system.service
 
 echo "📊 Service status:"
 sudo systemctl status smarttv-local-system.service --no-pager -l
+sudo chmod -R a+r /usr/lib/smart-tv-ui/resources/app/node_modules/
 
 echo "✅ Done! Services installed:"
 echo "  - smarttv-local-system.service: Local system management (shutdown/reboot)"
