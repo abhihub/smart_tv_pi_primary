@@ -298,14 +298,14 @@
         
         <div class="call-actions">
             <div style="text-align: center;">
-                <button class="action-btn answer-btn" id="answerBtn" onclick="answerCall()">
+                <button class="action-btn answer-btn call-btn" data-focusable="true" id="answerBtn" onclick="answerCall()">
                     📞
                 </button>
                 <div class="action-label">Answer</div>
             </div>
             
             <div style="text-align: center;">
-                <button class="action-btn decline-btn" id="declineBtn" onclick="declineCall()">
+                <button class="action-btn decline-btn call-btn" data-focusable="true" id="declineBtn" onclick="declineCall()">
                     ❌
                 </button>
                 <div class="action-label">Decline</div>
@@ -321,6 +321,8 @@
 
     <script src="config.js"></script>
     <script src="user-utils.js"></script>
+    <script src="tv-remote.js"></script>
+    <script src="universal-navigation.js"></script>
     <script>
         let callId = null;
         let callerUsername = null;

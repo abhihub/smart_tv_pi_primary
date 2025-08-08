@@ -183,7 +183,7 @@ class CallMonitor {
                 <div style="font-size: 2rem; font-weight: 600; margin-bottom: 10px;">${call.caller_username}</div>
                 <div style="font-size: 1rem; opacity: 0.6; margin-bottom: 30px;">is calling you</div>
                 <div style="display: flex; gap: 20px; justify-content: center;">
-                    <button onclick="callMonitor.answerCall('${call.call_id}', '${call.caller_username}')" style="
+                    <button class="call-btn answer-btn" data-focusable="true" onclick="callMonitor.answerCall('${call.call_id}', '${call.caller_username}')" style="
                         width: 60px;
                         height: 60px;
                         border-radius: 50%;
@@ -194,7 +194,7 @@ class CallMonitor {
                         cursor: pointer;
                         transition: all 0.3s ease;
                     ">📞</button>
-                    <button onclick="callMonitor.declineCall('${call.call_id}')" style="
+                    <button class="call-btn decline-btn" data-focusable="true" onclick="callMonitor.declineCall('${call.call_id}')" style="
                         width: 60px;
                         height: 60px;
                         border-radius: 50%;
@@ -225,6 +225,11 @@ class CallMonitor {
         document.head.appendChild(style);
 
         document.body.appendChild(notification);
+
+        // Refresh TV remote to make buttons focusable
+        if (window.tvRemote) {
+            window.tvRemote.refresh();
+        }
 
         // Auto-decline after 30 seconds
         setTimeout(() => {
@@ -411,7 +416,7 @@ class CallMonitor {
                 <div style="font-size: 2.5rem; font-weight: 600; margin-bottom: 10px; animation: fadeIn 1s ease-out 0.7s both;">${call.caller_username}</div>
                 <div style="font-size: 1.1rem; opacity: 0.6; margin-bottom: 40px; animation: fadeIn 1s ease-out 0.9s both;">is calling you</div>
                 <div style="display: flex; gap: 40px; justify-content: center; animation: fadeIn 1s ease-out 1.1s both;">
-                    <button id="answerCallBtn" style="
+                    <button id="answerCallBtn" class="call-btn answer-btn" data-focusable="true" style="
                         width: 80px;
                         height: 80px;
                         border-radius: 50%;
@@ -426,7 +431,7 @@ class CallMonitor {
                         justify-content: center;
                         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
                     " onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 15px 35px rgba(46, 204, 113, 0.4)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.3)'">📞</button>
-                    <button id="declineCallBtn" style="
+                    <button id="declineCallBtn" class="call-btn decline-btn" data-focusable="true" style="
                         width: 80px;
                         height: 80px;
                         border-radius: 50%;
@@ -468,6 +473,11 @@ class CallMonitor {
         }
 
         document.body.appendChild(notification);
+
+        // Refresh TV remote to make buttons focusable
+        if (window.tvRemote) {
+            window.tvRemote.refresh();
+        }
 
         // Add event listeners
         document.getElementById('answerCallBtn').addEventListener('click', () => {
