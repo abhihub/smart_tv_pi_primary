@@ -8,6 +8,36 @@ import sys
 import os
 import requests
 import argparse
+import platform
+import subprocess
+
+def get_package_architecture(deb_file):
+    """Extract architecture from .deb package using dpkg"""
+    try:
+        result = subprocess.run(['dpkg', '--info', deb_file], 
+                              capture_output=True, text=True, check=True)
+        for line in result.stdout.split('\n'):
+            if line.strip().startswith('Architecture:'):
+                return line.split(':', 1)[1].strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Fallback to filename parsing
+        if '_' in os.path.basename(deb_file) and deb_file.endswith('.deb'):
+            parts = os.path.basename(deb_file)[:-4].split('_')
+            if len(parts) >= 3:
+                return parts[-1]
+    return 'unknown'
+
+def get_system_architecture():
+    """Get the system architecture in Debian package format"""
+    arch = platform.machine()
+    arch_map = {
+        'x86_64': 'amd64',
+        'aarch64': 'arm64',
+        'armv7l': 'armhf',
+        'i386': 'i386',
+        'i686': 'i386'
+    }
+    return arch_map.get(arch, arch)
 
 def upload_update(server_url, deb_file, version, release_notes=""):
     """Upload a .deb package to the update server"""
@@ -30,7 +60,9 @@ def upload_update(server_url, deb_file, version, release_notes=""):
                 'releaseNotes': release_notes
             }
             
-            print(f"Uploading {deb_file} as version {version}...")
+            # Get package architecture
+            package_arch = get_package_architecture(deb_file)
+            print(f"Uploading {deb_file} as version {version} ({package_arch} architecture)...")
             response = requests.post(upload_url, files=files, data=data)
             
             if response.status_code == 200:
@@ -38,6 +70,7 @@ def upload_update(server_url, deb_file, version, release_notes=""):
                 print(f"✅ Upload successful!")
                 print(f"   Version: {result['version']}")
                 print(f"   Filename: {result['filename']}")
+                print(f"   Architecture: {package_arch}")
                 print(f"   File size: {result['fileSize']} bytes")
                 return True
             else:
@@ -71,7 +104,8 @@ def list_versions(server_url):
                 
             print("Available versions:")
             for version in sorted(versions, key=lambda x: x['version'], reverse=True):
-                print(f"  v{version['version']} - {version['filename']} ({version['fileSize']} bytes)")
+                arch = version.get('architecture', 'unknown')
+                print(f"  v{version['version']} ({arch}) - {version['filename']} ({version['fileSize']} bytes)")
                 if version.get('releaseDate'):
                     print(f"    Released: {version['releaseDate']}")
                 if version.get('releaseNotes'):
@@ -121,6 +155,8 @@ def main():
                        help='List all available versions')
     parser.add_argument('--delete', metavar='VERSION',
                        help='Delete a specific version from the server')
+    parser.add_argument('--arch', metavar='ARCHITECTURE',
+                       help='Target architecture (amd64, arm64, etc.) - auto-detected if not specified')
     parser.add_argument('deb_file', nargs='?', 
                        help='Path to .deb file to upload')
     parser.add_argument('version', nargs='?', 
@@ -140,11 +176,13 @@ def main():
     
     if not args.deb_file or not args.version:
         parser.print_help()
+        system_arch = get_system_architecture()
         print("\nExamples:")
-        print("  python upload_update.py smart-tv-ui_1.1.0_amd64.deb 1.1.0 'Bug fixes and improvements'")
+        print(f"  python upload_update.py smart-tv-ui_1.1.0_{system_arch}.deb 1.1.0 'Bug fixes and improvements'")
         print("  python upload_update.py --list")
         print("  python upload_update.py --delete 1.0.0")
         print("  python upload_update.py --server http://192.168.1.100:3001 app.deb 1.2.0")
+        print(f"\nCurrent system architecture: {system_arch}")
         return
     
     success = upload_update(args.server, args.deb_file, args.version, args.release_notes)

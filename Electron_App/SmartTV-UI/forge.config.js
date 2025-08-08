@@ -4,6 +4,8 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
+    // Support multiple architectures
+    arch: process.env.ELECTRON_ARCH || require('os').arch(),
   },
   rebuildConfig: {},
   makers: [
@@ -17,7 +19,12 @@ module.exports = {
     },
     {
       name: '@electron-forge/maker-deb',
-      config: {},
+      config: {
+        options: {
+          // Auto-detect architecture or use environment variable
+          arch: process.env.DEB_ARCH || (require('os').arch() === 'x64' ? 'amd64' : 'arm64'),
+        }
+      },
     },
     {
       name: '@electron-forge/maker-rpm',

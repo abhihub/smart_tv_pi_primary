@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request, send_file, abort
 import os
 import json
 import datetime
+import platform
+import subprocess
 from werkzeug.utils import secure_filename
 
 update_bp = Blueprint('update', __name__)
@@ -10,6 +12,38 @@ UPDATES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'updates'
 VERSIONS_FILE = os.path.join(UPDATES_DIR, 'versions.json')
 
 os.makedirs(UPDATES_DIR, exist_ok=True)
+
+def get_system_architecture():
+    """Get the system architecture in Debian package format"""
+    arch = platform.machine()
+    arch_map = {
+        'x86_64': 'amd64',
+        'aarch64': 'arm64',
+        'armv7l': 'armhf',
+        'i386': 'i386',
+        'i686': 'i386'
+    }
+    return arch_map.get(arch, arch)
+
+def get_package_architecture(filename):
+    """Extract architecture from .deb package filename or use dpkg"""
+    # Try to extract from filename pattern: package_version_arch.deb
+    if '_' in filename and filename.endswith('.deb'):
+        parts = filename[:-4].split('_')  # Remove .deb extension
+        if len(parts) >= 3:
+            return parts[-1]  # Last part should be architecture
+    
+    # If filename parsing fails, return 'all' for architecture-independent
+    return 'all'
+
+def is_compatible_architecture(package_arch, system_arch):
+    """Check if package architecture is compatible with system architecture"""
+    if package_arch == 'all':
+        return True
+    if package_arch == system_arch:
+        return True
+    # Add cross-compatibility rules if needed
+    return False
 
 def load_versions():
     """Load version metadata from versions.json"""
@@ -30,6 +64,9 @@ def check_for_updates():
     if not current_version:
         return jsonify({'error': 'Version parameter required'}), 400
     
+    # Get system architecture
+    system_arch = get_system_architecture()
+    
     versions_data = load_versions()
     versions = versions_data.get('versions', [])
     
@@ -39,6 +76,19 @@ def check_for_updates():
             'message': 'No versions available'
         })
     
+    # Filter versions for compatible architectures
+    compatible_versions = []
+    for v in versions:
+        package_arch = v.get('architecture', get_package_architecture(v.get('filename', '')))
+        if is_compatible_architecture(package_arch, system_arch):
+            compatible_versions.append(v)
+    
+    if not compatible_versions:
+        return jsonify({
+            'hasUpdate': False,
+            'message': f'No compatible versions available for {system_arch} architecture'
+        })
+    
     # Sort versions by semantic version (assuming x.y.z format)
     def version_key(v):
         try:
@@ -46,7 +96,7 @@ def check_for_updates():
         except:
             return (0, 0, 0)
     
-    latest_version = max(versions, key=version_key)
+    latest_version = max(compatible_versions, key=version_key)
     current_version_tuple = version_key({'version': current_version})
     latest_version_tuple = version_key(latest_version)
     
@@ -59,23 +109,40 @@ def check_for_updates():
         'releaseNotes': latest_version.get('releaseNotes', '') if has_update else '',
         'releaseDate': latest_version.get('releaseDate', '') if has_update else '',
         'downloadUrl': f'/api/updates/download/{latest_version["version"]}' if has_update else '',
-        'fileSize': latest_version.get('fileSize', 0) if has_update else 0
+        'fileSize': latest_version.get('fileSize', 0) if has_update else 0,
+        'architecture': latest_version.get('architecture', system_arch) if has_update else system_arch,
+        'systemArchitecture': system_arch
     })
 
 @update_bp.route('/download/<version>', methods=['GET'])
 def download_update(version):
     """Download a specific version of the .deb package"""
+    system_arch = get_system_architecture()
     versions_data = load_versions()
     versions = versions_data.get('versions', [])
     
-    version_info = None
+    # Find compatible version for this architecture
+    compatible_versions = []
     for v in versions:
         if v['version'] == version:
+            package_arch = v.get('architecture', get_package_architecture(v.get('filename', '')))
+            if is_compatible_architecture(package_arch, system_arch):
+                compatible_versions.append(v)
+    
+    if not compatible_versions:
+        abort(404, description=f'Version {version} not found for {system_arch} architecture')
+    
+    # Prefer exact architecture match over 'all'
+    version_info = None
+    for v in compatible_versions:
+        package_arch = v.get('architecture', get_package_architecture(v.get('filename', '')))
+        if package_arch == system_arch:
             version_info = v
             break
     
+    # Fallback to any compatible version
     if not version_info:
-        abort(404, description=f'Version {version} not found')
+        version_info = compatible_versions[0]
     
     filename = version_info.get('filename')
     if not filename:
@@ -123,18 +190,22 @@ def upload_update():
     
     file_size = os.path.getsize(file_path)
     
+    # Extract architecture from filename
+    package_arch = get_package_architecture(filename)
+    
     versions_data = load_versions()
     
-    # Check if version already exists
+    # Check if version already exists for this architecture
     existing_version = None
     for i, v in enumerate(versions_data['versions']):
-        if v['version'] == version:
+        if v['version'] == version and v.get('architecture', get_package_architecture(v.get('filename', ''))) == package_arch:
             existing_version = i
             break
     
     version_info = {
         'version': version,
         'filename': filename,
+        'architecture': package_arch,
         'releaseNotes': release_notes,
         'releaseDate': datetime.datetime.now().isoformat(),
         'fileSize': file_size

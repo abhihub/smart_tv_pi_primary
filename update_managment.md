@@ -56,6 +56,8 @@ Delete a specific version from the update system (for administrators).
 }
 ```
 
+**Note:** When multiple architectures exist for the same version, you may need to delete each architecture separately.
+
 ### File Structure
 
 ```
@@ -77,13 +79,32 @@ server_side/
     {
       "version": "1.1.0",
       "filename": "smart-tv-ui_1.1.0_amd64.deb",
+      "architecture": "amd64",
       "releaseNotes": "Added auto-update functionality",
       "releaseDate": "2024-01-15T10:30:00",
       "fileSize": 125829120
+    },
+    {
+      "version": "1.1.0",
+      "filename": "smart-tv-ui_1.1.0_arm64.deb",
+      "architecture": "arm64",
+      "releaseNotes": "Added auto-update functionality",
+      "releaseDate": "2024-01-15T10:30:00",
+      "fileSize": 118745600
     }
   ]
 }
 ```
+
+### Multi-Architecture Support
+
+The update system now supports multiple architectures:
+- **amd64**: For development systems and x86_64 processors
+- **arm64**: For production Raspberry Pi and ARM64 processors 
+- **armhf**: For older ARM processors (ARMv7)
+- **all**: Architecture-independent packages
+
+The system automatically detects the target architecture and serves compatible packages.
 
 ## Frontend Components
 
@@ -184,16 +205,41 @@ Verifies .deb package integrity before installation.
 
 ### For Administrators: Uploading Updates
 
-1. **Build the .deb package:**
+1. **Build .deb packages for multiple architectures:**
+   
+   **Single architecture (current system):**
    ```bash
    cd Electron_App/SmartTV-UI/
    npm run make
+   ```
+   
+   **Multi-architecture build:**
+   ```bash
+   # Build for both amd64 and arm64
+   ./build-multi-arch.sh
+   
+   # Build for specific architecture
+   ./build-multi-arch.sh amd64
+   ./build-multi-arch.sh arm64
+   
+   # Cross-compile for ARM64 from x64 system
+   export ELECTRON_ARCH=arm64
+   export DEB_ARCH=arm64
+   cd Electron_App/SmartTV-UI/
+   npm run make -- --arch=arm64
    ```
 
 2. **Upload to server:**
    ```bash
    cd server_side/
+   
+   # Upload amd64 package
    python upload_update.py path/to/smart-tv-ui_1.1.0_amd64.deb 1.1.0 "Bug fixes and improvements"
+   
+   # Upload arm64 package  
+   python upload_update.py path/to/smart-tv-ui_1.1.0_arm64.deb 1.1.0 "Bug fixes and improvements"
+   
+   # The script auto-detects architecture from filename and package contents
    ```
 
 3. **List available versions:**

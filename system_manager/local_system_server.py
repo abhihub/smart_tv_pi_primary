@@ -387,12 +387,41 @@ def verify_package():
                 key, value = line.split(':', 1)
                 package_info[key.strip()] = value.strip()
         
-        return jsonify({
-            'success': True,
-            'valid': True,
-            'packageInfo': package_info,
-            'size': os.path.getsize(package_path)
-        }), 200
+        # Get system architecture for compatibility check
+        try:
+            import platform
+            system_arch = platform.machine()
+            arch_map = {
+                'x86_64': 'amd64',
+                'aarch64': 'arm64',
+                'armv7l': 'armhf',
+                'i386': 'i386',
+                'i686': 'i386'
+            }
+            system_arch = arch_map.get(system_arch, system_arch)
+            
+            package_arch = package_info.get('Architecture', 'unknown')
+            is_compatible = (package_arch == 'all' or 
+                           package_arch == system_arch or
+                           package_arch == 'unknown')
+            
+            return jsonify({
+                'success': True,
+                'valid': True,
+                'packageInfo': package_info,
+                'size': os.path.getsize(package_path),
+                'systemArchitecture': system_arch,
+                'packageArchitecture': package_arch,
+                'isCompatible': is_compatible
+            }), 200
+        except Exception as arch_error:
+            logger.warning(f"Architecture check failed: {arch_error}")
+            return jsonify({
+                'success': True,
+                'valid': True,
+                'packageInfo': package_info,
+                'size': os.path.getsize(package_path)
+            }), 200
         
     except Exception as e:
         logger.error(f"Package verification failed: {e}")
