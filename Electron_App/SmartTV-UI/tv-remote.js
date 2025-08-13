@@ -199,7 +199,7 @@ class TVRemoteController {
             element.setAttribute('data-focus-index', index);
         });
         
-        console.log(`🎮 Found ${this.focusableElements.length} focusable elements`);
+        //console.log(`🎮 Found ${this.focusableElements.length} focusable elements`);
         
         // Auto-detect grid layout
         this.detectGridLayout();

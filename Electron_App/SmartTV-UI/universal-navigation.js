@@ -18,11 +18,11 @@ class UniversalNavigation {
     }
     
     init() {
-        console.log('🎮 Initializing Universal Navigation');
+        //console.log('🎮 Initializing Universal Navigation');
         
         // Check if there's already a navigation system (like on homepage)
         if (this.hasExistingNavigation()) {
-            console.log('🎮 Existing navigation detected, Universal Navigation will be passive');
+            //console.log('🎮 Existing navigation detected, Universal Navigation will be passive');
             this.isPassive = true;
             return;
         }
@@ -43,18 +43,18 @@ class UniversalNavigation {
         if (typeof currentFocus !== 'undefined' || 
             document.querySelector('.tiles-container') || 
             window.location.pathname.includes('homepage.html')) {
-            console.log('🎮 Homepage navigation detected');
+            //console.log('🎮 Homepage navigation detected');
             return true;
         }
         
         // Check for other existing navigation systems
         const existingListeners = document._eventListeners;
         if (existingListeners && existingListeners.keydown) {
-            console.log('🎮 Existing keydown listeners detected');
+            //console.log('🎮 Existing keydown listeners detected');
             return existingListeners.keydown.length > 0;
         }
         
-        console.log('🎮 No existing navigation detected, will initialize universal nav');
+        //console.log('🎮 No existing navigation detected, will initialize universal nav');
         return false;
     }
     
@@ -84,11 +84,11 @@ class UniversalNavigation {
             });
         
         this.focusableElements = elements;
-        console.log(`🎮 Found ${this.focusableElements.length} focusable elements on ${window.location.pathname}`);
+        //console.log(`🎮 Found ${this.focusableElements.length} focusable elements on ${window.location.pathname}`);
         
         // Debug: Log the first few elements
         if (this.focusableElements.length > 0) {
-            console.log('🎮 First few focusable elements:', 
+            //console.log('🎮 First few focusable elements:', 
                 this.focusableElements.slice(0, 3).map(el => 
                     `${el.tagName}${el.className ? '.' + el.className.split(' ')[0] : ''}${el.id ? '#' + el.id : ''}`
                 )
@@ -102,13 +102,13 @@ class UniversalNavigation {
     }
     
     setupKeyboardListeners() {
-        console.log('🎮 Setting up keyboard listeners for universal navigation');
+        //console.log('🎮 Setting up keyboard listeners for universal navigation');
         document.addEventListener('keydown', (event) => {
-            console.log('🎮 Universal nav received key:', event.key, 'passive:', this.isPassive);
+            //console.log('🎮 Universal nav received key:', event.key, 'passive:', this.isPassive);
             
             // Don't interfere if in passive mode
             if (this.isPassive) {
-                console.log('🎮 In passive mode, ignoring key');
+                //console.log('🎮 In passive mode, ignoring key');
                 return;
             }
             
@@ -116,11 +116,11 @@ class UniversalNavigation {
             if (event.target.tagName === 'INPUT' || 
                 event.target.tagName === 'TEXTAREA' || 
                 event.target.isContentEditable) {
-                console.log('🎮 User typing in input field, ignoring key');
+               //console.log('🎮 User typing in input field, ignoring key');
                 return;
             }
             
-            console.log('🎮 Processing navigation key:', event.key);
+            //console.log('🎮 Processing navigation key:', event.key);
             
             switch (event.key) {
                 case 'ArrowRight':
@@ -236,7 +236,7 @@ class UniversalNavigation {
         });
         
         this.currentFocusIndex = index;
-        console.log(`🎮 Focus set to element ${index}: ${targetElement.tagName}${targetElement.className ? '.' + targetElement.className : ''}`);
+        //console.log(`🎮 Focus set to element ${index}: ${targetElement.tagName}${targetElement.className ? '.' + targetElement.className : ''}`);
     }
     
     activateCurrentElement() {
@@ -261,7 +261,7 @@ class UniversalNavigation {
             element.click();
         }
         
-        console.log(`🎮 Activated element: ${element.tagName}`);
+        //console.log(`🎮 Activated element: ${element.tagName}`);
     }
     
     handleEscape() {
@@ -302,7 +302,7 @@ class UniversalNavigation {
     
     // Public method to refresh navigation when content changes
     refreshNavigation() {
-        console.log('🎮 Refreshing navigation due to content change');
+        //console.log('🎮 Refreshing navigation due to content change');
         this.refresh();
     }
     
@@ -343,4 +343,4 @@ navStyle.textContent = `
 `;
 document.head.appendChild(navStyle);
 
-console.log('🎮 Universal Navigation System loaded');
+//console.log('🎮 Universal Navigation System loaded');

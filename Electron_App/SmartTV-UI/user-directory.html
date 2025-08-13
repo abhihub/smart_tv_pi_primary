@@ -745,7 +745,7 @@
 
     <script>
         // Config will be injected by main process - no fallback values
-        console.log('Config initialized:', window.appConfig);
+        // console.log('Config initialized:', window.appConfig);
     </script>
     <script src="user-utils.js"></script>
     <script src="call-monitor.js"></script>
@@ -941,9 +941,9 @@
                     dataCache.lastContactsHash = newHash;
                     displayContacts(contacts);
                     updateContactStats(contacts);
-                    console.log('🔄 Contacts updated - data changed');
+                    // console.log('🔄 Contacts updated - data changed');
                 } else {
-                    console.log('📋 Contacts unchanged - skipping UI update');
+                    // console.log('📋 Contacts unchanged - skipping UI update');
                 }
                 
             } catch (error) {
@@ -979,9 +979,9 @@
                     dataCache.lastUsersHash = newHash;
                     displayAllUsers(users);
                     document.getElementById('onlineCount').textContent = data.count || 0;
-                    console.log('🔄 Online users updated - data changed');
+                    // console.log('🔄 Online users updated - data changed');
                 } else {
-                    console.log('🌐 Online users unchanged - skipping UI update');
+                    // console.log('🌐 Online users unchanged - skipping UI update');
                 }
                 
             } catch (error) {
@@ -1199,7 +1199,7 @@
             if (window.tvRemote) {
                 setTimeout(() => {
                     window.tvRemote.refresh();
-                    console.log('🎮 TV Remote refreshed after UI update');
+                    // console.log('🎮 TV Remote refreshed after UI update');
                 }, 100);
             }
         }
@@ -1613,14 +1613,14 @@
                     
                     // Only show dialog if it's a new call and no popup is currently shown
                     if (call.call_id !== lastIncomingCallId && !isCallPopupShown) {
-                        console.log('🔔 New incoming call detected:', call);
+                        // console.log('🔔 New incoming call detected:', call);
                         lastIncomingCallId = call.call_id;
                         showIncomingCallDialog(call);
                     }
                 } else {
                     // No pending calls - reset state
                     if (lastIncomingCallId) {
-                        console.log('📞 No more pending calls');
+                        // console.log('📞 No more pending calls');
                         lastIncomingCallId = null;
                     }
                 }
@@ -1641,7 +1641,7 @@
                 const response = await fetch(`${serverUrl}/api/calls/pending/${currentUser.username}`);
                 const data = await response.json();
 
-                console.log('Pending calls for', currentUser.username, ':', data);
+                // console.log('Pending calls for', currentUser.username, ':', data);
 
                 if (data.success && data.calls && data.calls.length > 0) {
                     const call = data.calls[0];
@@ -1661,7 +1661,7 @@
                             });
 
                             const answerData = await answerResponse.json();
-                            console.log('Answer response:', answerData);
+                            // console.log('Answer response:', answerData);
 
                             if (answerData.success) {
                                 showError(`Call answered! Room: ${answerData.call.room_name}`);
@@ -1734,7 +1734,7 @@
                 }
 
                 currentCallId = data.call.call_id;
-                console.log('Test call created successfully:', data.call);
+                // console.log('Test call created successfully:', data.call);
                 
                 showCallStatus(`Test call created!`, `Call ID: ${currentCallId.substring(0, 8)}...`);
 
@@ -1754,7 +1754,7 @@
                         });
 
                         const answerData = await answerResponse.json();
-                        console.log('Answer response:', answerData);
+                        // console.log('Answer response:', answerData);
 
                         if (answerData.success) {
                             showCallStatus('🎉 Call System Working!', `Room created: ${answerData.call.room_name}`);

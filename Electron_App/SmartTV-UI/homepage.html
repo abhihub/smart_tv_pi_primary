@@ -923,7 +923,7 @@
             setTimeout(() => tile.classList.remove('pulse'), 600);
 
             // Simulate app launch
-            console.log(`Launching ${app} application...`);
+            // console.log(`Launching ${app} application...`);
             
             // Here you would integrate with your RPI system
             // Example: window.location.href = `/apps/${app}`;
@@ -1152,7 +1152,7 @@
 
             async checkNetworkStatus() {
                 try {
-                    console.log('🌐 Checking network connectivity...');
+                    // console.log('🌐 Checking network connectivity...');
                     
                     // Check if we're connected to WiFi/Ethernet
                     let isConnected = false;
@@ -1164,7 +1164,7 @@
                                 window.electronAPI.wifi.getCurrent()
                             ]);
                             
-                            console.log('📡 Network status:', { status, current });
+                            // console.log('📡 Network status:', { status, current });
                             isConnected = (status.success && status.connected) || 
                                          (current.success && current.connected);
                             
@@ -1175,7 +1175,7 @@
                             isConnected = navigator.onLine;
                         }
                     } else {
-                        console.log('🌐 Using browser connectivity check...');
+                        // console.log('🌐 Using browser connectivity check...');
                         isConnected = navigator.onLine;
                     }
                     
@@ -1193,7 +1193,7 @@
                 this.isOnline = isOnline;
                 
                 if (isOnline) {
-                    console.log('✅ Network: ONLINE');
+                    // console.log('✅ Network: ONLINE');
                     this.networkStatusElement.textContent = '🟢 Online';
                     this.networkStatusElement.className = 'network-status online';
                     this.bodyElement.className = 'online-background';
@@ -1206,7 +1206,7 @@
                         window.liveVideoBackground.initializeOnlineMode();
                     }
                 } else {
-                    console.log('❌ Network: OFFLINE');
+                    // console.log('❌ Network: OFFLINE');
                     this.networkStatusElement.textContent = '🔴 Offline';
                     this.networkStatusElement.className = 'network-status offline';
                     this.bodyElement.className = 'offline-background';
@@ -1224,12 +1224,12 @@
             setupNetworkMonitoring() {
                 // Listen for online/offline events
                 window.addEventListener('online', () => {
-                    console.log('🌐 Browser detected online');
+                    // console.log('🌐 Browser detected online');
                     this.checkNetworkStatus();
                 });
                 
                 window.addEventListener('offline', () => {
-                    console.log('🌐 Browser detected offline');
+                    // console.log('🌐 Browser detected offline');
                     this.updateNetworkStatus(false);
                 });
                 
@@ -1267,7 +1267,7 @@
 
             async initializeOnlineMode() {
                 try {
-                    console.log('🎥 Initializing online mode video background...');
+                    // console.log('🎥 Initializing online mode video background...');
                     this.isOnlineMode = true;
                     
                     // Request camera with 480p resolution and optimized settings
@@ -1293,7 +1293,7 @@
                     this.videoElement.classList.add('active');
                     this.isActive = true;
                     
-                    console.log('✅ Online mode video background activated (480p, high blur)');
+                    // console.log('✅ Online mode video background activated (480p, high blur)');
 
                 } catch (error) {
                     console.error('❌ Failed to initialize online mode camera:', error);
@@ -1303,7 +1303,7 @@
 
             async initializeOfflineMode() {
                 // In offline mode, we don't need background video at all
-                console.log('📴 Offline mode: No background video needed');
+                // console.log('📴 Offline mode: No background video needed');
                 this.cleanup();
             }
 
@@ -1371,14 +1371,14 @@
                 if (this.videoElement) {
                     this.videoElement.classList.toggle('active');
                     this.isActive = !this.isActive;
-                    console.log(`🎥 Video background ${this.isActive ? 'enabled' : 'disabled'}`);
+                    // console.log(`🎥 Video background ${this.isActive ? 'enabled' : 'disabled'}`);
                 }
             }
 
             cleanup() {
                 if (this.stream) {
                     this.stream.getTracks().forEach(track => track.stop());
-                    console.log('🎥 Video background stream stopped');
+                    // console.log('🎥 Video background stream stopped');
                 }
             }
         }
@@ -1412,7 +1412,7 @@
                 // Get API key from Electron environment variables
                 const envKey = window.electronAPI?.getEnvVariable?.('OPEN_AI');
                 if (envKey) {
-                    console.log('✅ Using OpenAI API key from environment variables');
+                    // console.log('✅ Using OpenAI API key from environment variables');
                     return envKey;
                 }
                 
@@ -1518,20 +1518,20 @@
             }
 
             async toggleSTT() {
-                console.log('🎤 STT toggle requested. Current state:', this.isActive ? 'ACTIVE' : 'INACTIVE');
+                // console.log('🎤 STT toggle requested. Current state:', this.isActive ? 'ACTIVE' : 'INACTIVE');
                 
                 if (!this.isActive) {
-                    console.log('🎤 Starting STT...');
+                    // console.log('🎤 Starting STT...');
                     await this.startListening();
                 } else {
-                    console.log('🎤 Stopping STT...');
+                    // console.log('🎤 Stopping STT...');
                     this.stopListening();
                 }
             }
 
             async startListening() {
                 try {
-                    console.log('🎤 Starting OpenAI Whisper STT...');
+                    // console.log('🎤 Starting OpenAI Whisper STT...');
                     
                     // Check API key and prompt if needed
                     if (!this.apiKey) {
@@ -1545,7 +1545,7 @@
                     this.updateStatus('Connecting to microphone...');
                     
                     // Create a separate audio-only stream for STT
-                    console.log('🎤 Creating separate audio stream for STT...');
+                    // console.log('🎤 Creating separate audio stream for STT...');
                     
                     try {
                         // Get fresh audio stream specifically for STT
@@ -1559,22 +1559,22 @@
                             video: false
                         });
                         
-                        console.log('✅ Created separate audio stream for STT');
+                        // console.log('✅ Created separate audio stream for STT');
                         
                         // Verify audio tracks
                         const audioTracks = this.stream.getAudioTracks();
-                        console.log('🎤 Available audio tracks:', audioTracks.length);
+                        // console.log('🎤 Available audio tracks:', audioTracks.length);
                         if (audioTracks.length === 0) {
                             throw new Error('No audio tracks available in the stream');
                         }
                         
                         audioTracks.forEach((track, index) => {
-                            console.log(`🎤 Audio track ${index}:`, track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
+                            // console.log(`🎤 Audio track ${index}:`, track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
                         });
                         
                     } catch (error) {
                         console.error('❌ Failed to create separate audio stream:', error);
-                        console.log('🔄 Falling back to shared video stream...');
+                        // console.log('🔄 Falling back to shared video stream...');
                         
                         // Fallback to shared stream
                         if (!window.liveVideoBackground.stream) {
@@ -1582,17 +1582,17 @@
                         }
                         
                         this.stream = window.liveVideoBackground.stream;
-                        console.log('🔗 Using shared audio stream from video background');
+                        // console.log('🔗 Using shared audio stream from video background');
                         
                         // Verify audio tracks
                         const audioTracks = this.stream.getAudioTracks();
-                        console.log('🎤 Available audio tracks:', audioTracks.length);
+                        // console.log('🎤 Available audio tracks:', audioTracks.length);
                         if (audioTracks.length === 0) {
                             throw new Error('No audio tracks available in the stream');
                         }
                         
                         audioTracks.forEach((track, index) => {
-                            console.log(`🎤 Audio track ${index}:`, track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
+                            // console.log(`🎤 Audio track ${index}:`, track.label, 'enabled:', track.enabled, 'readyState:', track.readyState);
                         });
                     }
                     
@@ -1609,7 +1609,7 @@
                     // Start recording and transcription
                     this.startRecording();
                     
-                    console.log('✅ OpenAI Whisper STT started');
+                    // console.log('✅ OpenAI Whisper STT started');
 
                 } catch (error) {
                     console.error('❌ Failed to start STT:', error);
@@ -1637,30 +1637,30 @@
                     }
                 }
 
-                console.log('🎤 Using MediaRecorder with mime type:', options.mimeType);
+                // console.log('🎤 Using MediaRecorder with mime type:', options.mimeType);
                 
                 try {
                     this.mediaRecorder = new MediaRecorder(this.stream, options);
-                    console.log('✅ MediaRecorder created successfully');
+                    // console.log('✅ MediaRecorder created successfully');
                 } catch (error) {
                     console.error('❌ Failed to create MediaRecorder:', error);
                     // Try with basic options
-                    console.log('🔄 Trying with basic MediaRecorder options...');
+                    // console.log('🔄 Trying with basic MediaRecorder options...');
                     this.mediaRecorder = new MediaRecorder(this.stream);
-                    console.log('✅ MediaRecorder created with basic options');
+                    // console.log('✅ MediaRecorder created with basic options');
                 }
 
                 this.audioChunks = [];
 
                 this.mediaRecorder.ondataavailable = (event) => {
-                    console.log('🎵 Audio data available:', event.data.size, 'bytes', 'type:', event.data.type, 'timestamp:', new Date().toISOString());
+                    // console.log('🎵 Audio data available:', event.data.size, 'bytes', 'type:', event.data.type, 'timestamp:', new Date().toISOString());
                     if (event.data.size > 0) {
                         this.audioChunks.push(event.data);
-                        console.log('🎵 Total chunks collected:', this.audioChunks.length);
+                        // console.log('🎵 Total chunks collected:', this.audioChunks.length);
                         
                         // For real-time processing, process immediately if we have enough data
                         if (this.audioChunks.length >= 2) {
-                            console.log('🎵 Processing audio chunk immediately for real-time response');
+                            // console.log('🎵 Processing audio chunk immediately for real-time response');
                             this.processAudioChunk();
                         }
                     } else {
@@ -1669,13 +1669,13 @@
                 };
 
                 this.mediaRecorder.onstop = async () => {
-                    console.log('🎵 MediaRecorder stopped at:', new Date().toISOString());
-                    console.log('🎵 Audio chunks collected:', this.audioChunks.length);
+                    // console.log('🎵 MediaRecorder stopped at:', new Date().toISOString());
+                    // console.log('🎵 Audio chunks collected:', this.audioChunks.length);
                     
                     if (this.audioChunks.length > 0) {
                         const totalSize = this.audioChunks.reduce((sum, chunk) => sum + chunk.size, 0);
-                        console.log('🎵 Total audio data size:', totalSize, 'bytes');
-                        console.log('🎵 Processing remaining audio chunks...');
+                        // console.log('🎵 Total audio data size:', totalSize, 'bytes');
+                        // console.log('🎵 Processing remaining audio chunks...');
                         await this.processAudioChunk();
                     } else {
                         console.warn('⚠️ No audio chunks to process');
@@ -1683,11 +1683,11 @@
                 };
 
                 this.mediaRecorder.onstart = () => {
-                    console.log('🎵 MediaRecorder started at:', new Date().toISOString());
-                    console.log('🎵 MediaRecorder state:', this.mediaRecorder.state);
-                    console.log('🎵 MediaRecorder mimeType:', this.mediaRecorder.mimeType);
-                    console.log('🎵 MediaRecorder videoBitsPerSecond:', this.mediaRecorder.videoBitsPerSecond);
-                    console.log('🎵 MediaRecorder audioBitsPerSecond:', this.mediaRecorder.audioBitsPerSecond);
+                    // console.log('🎵 MediaRecorder started at:', new Date().toISOString());
+                    // console.log('🎵 MediaRecorder state:', this.mediaRecorder.state);
+                    // console.log('🎵 MediaRecorder mimeType:', this.mediaRecorder.mimeType);
+                    // console.log('🎵 MediaRecorder videoBitsPerSecond:', this.mediaRecorder.videoBitsPerSecond);
+                    // console.log('🎵 MediaRecorder audioBitsPerSecond:', this.mediaRecorder.audioBitsPerSecond);
                 };
 
                 this.mediaRecorder.onerror = (error) => {
@@ -1698,14 +1698,14 @@
                 };
 
                 this.mediaRecorder.onpause = () => {
-                    console.log('🎵 MediaRecorder paused at:', new Date().toISOString());
+                    // console.log('🎵 MediaRecorder paused at:', new Date().toISOString());
                 };
 
                 this.mediaRecorder.onresume = () => {
-                    console.log('🎵 MediaRecorder resumed at:', new Date().toISOString());
+                    // console.log('🎵 MediaRecorder resumed at:', new Date().toISOString());
                 };
 
-                console.log('🎤 Audio recording setup complete');
+                // console.log('🎤 Audio recording setup complete');
             }
 
             startRecording() {
@@ -1714,19 +1714,19 @@
                 
                 const recordChunk = () => {
                     if (!this.isActive) {
-                        console.log('🎵 STT not active, stopping recording loop at:', new Date().toISOString());
+                        // console.log('🎵 STT not active, stopping recording loop at:', new Date().toISOString());
                         return;
                     }
                     
-                    console.log('🎵 Starting new recording chunk at:', new Date().toISOString());
-                    console.log('🎵 MediaRecorder state before start:', this.mediaRecorder.state);
-                    console.log('🎵 Audio stream active:', this.stream && this.stream.active);
-                    console.log('🎵 Audio tracks count:', this.stream ? this.stream.getAudioTracks().length : 0);
+                    // console.log('🎵 Starting new recording chunk at:', new Date().toISOString());
+                    // console.log('🎵 MediaRecorder state before start:', this.mediaRecorder.state);
+                    // console.log('🎵 Audio stream active:', this.stream && this.stream.active);
+                    // console.log('🎵 Audio tracks count:', this.stream ? this.stream.getAudioTracks().length : 0);
                     
                     // Check audio tracks status
                     if (this.stream) {
                         this.stream.getAudioTracks().forEach((track, index) => {
-                            console.log(`🎵 Track ${index} - enabled: ${track.enabled}, readyState: ${track.readyState}, muted: ${track.muted}`);
+                            // console.log(`🎵 Track ${index} - enabled: ${track.enabled}, readyState: ${track.readyState}, muted: ${track.muted}`);
                         });
                     }
                     
@@ -1734,27 +1734,27 @@
                     
                     try {
                         // Start recording
-                        console.log('🎵 Calling MediaRecorder.start()...');
+                        // console.log('🎵 Calling MediaRecorder.start()...');
                         this.mediaRecorder.start();
-                        console.log('🎵 MediaRecorder.start() called successfully');
+                        // console.log('🎵 MediaRecorder.start() called successfully');
                         
                         // Stop recording after interval
                         setTimeout(() => {
-                            console.log('🎵 Recording interval elapsed. Checking state...');
-                            console.log('🎵 isActive:', this.isActive, 'MediaRecorder state:', this.mediaRecorder.state);
+                            // console.log('🎵 Recording interval elapsed. Checking state...');
+                            // console.log('🎵 isActive:', this.isActive, 'MediaRecorder state:', this.mediaRecorder.state);
                             
                             if (this.isActive && this.mediaRecorder.state === 'recording') {
-                                console.log('🎵 Stopping recording chunk at:', new Date().toISOString());
+                                // console.log('🎵 Stopping recording chunk at:', new Date().toISOString());
                                 this.mediaRecorder.stop();
                                 // Schedule next chunk after a short delay
                                 setTimeout(() => {
-                                    console.log('🎵 Scheduling next recording chunk...');
+                                    // console.log('🎵 Scheduling next recording chunk...');
                                     recordChunk();
                                 }, 200); // Reduced delay between chunks
                             } else {
-                                console.log('🎵 Recording chunk not active or not recording. State:', this.mediaRecorder.state, 'isActive:', this.isActive);
+                                // console.log('🎵 Recording chunk not active or not recording. State:', this.mediaRecorder.state, 'isActive:', this.isActive);
                                 if (!this.isActive) {
-                                    console.log('🎵 STT deactivated, stopping recording loop');
+                                    // console.log('🎵 STT deactivated, stopping recording loop');
                                 } else {
                                     console.warn('⚠️ MediaRecorder not in recording state, attempting to restart...');
                                     setTimeout(recordChunk, 1000);
@@ -1772,12 +1772,12 @@
                 
                 recordChunk();
                 this.isRecording = true;
-                console.log('🎵 Started recording audio chunks');
+                // console.log('🎵 Started recording audio chunks');
             }
 
             async processAudioChunk() {
                 if (this.audioChunks.length === 0) {
-                    console.log('🎵 No audio chunks to process');
+                    // console.log('🎵 No audio chunks to process');
                     return;
                 }
                 
@@ -1785,28 +1785,28 @@
                 const chunksToProcess = [...this.audioChunks];
                 this.audioChunks = [];
                 
-                console.log('🎵 Processing', chunksToProcess.length, 'audio chunks');
+                // console.log('🎵 Processing', chunksToProcess.length, 'audio chunks');
                 await this.sendToOpenAI(chunksToProcess);
             }
 
             async sendToOpenAI(chunks = null) {
                 try {
-                    console.log('📤 Starting OpenAI transcription process at:', new Date().toISOString());
+                    // console.log('📤 Starting OpenAI transcription process at:', new Date().toISOString());
                     
                     // Use passed chunks or current chunks
                     const chunksToUse = chunks || this.audioChunks;
-                    console.log('📤 Audio chunks to process:', chunksToUse.length);
+                    // console.log('📤 Audio chunks to process:', chunksToUse.length);
                     
                     // Convert audio chunks to blob
                     const audioBlob = new Blob(chunksToUse, { type: 'audio/webm' });
-                    console.log('📤 Created audio blob - size:', audioBlob.size, 'bytes, type:', audioBlob.type);
+                    // console.log('📤 Created audio blob - size:', audioBlob.size, 'bytes, type:', audioBlob.type);
                     
                     if (audioBlob.size < 500) { // Reduced threshold for smaller chunks
-                        console.log('⏭️ Audio chunk too small, skipping... Size:', audioBlob.size, 'bytes');
+                        // console.log('⏭️ Audio chunk too small, skipping... Size:', audioBlob.size, 'bytes');
                         return;
                     }
                     
-                    console.log(`📤 Sending audio to OpenAI (${audioBlob.size} bytes)...`);
+                    // console.log(`📤 Sending audio to OpenAI (${audioBlob.size} bytes)...`);
                     this.updateStatus('🔄 Processing speech...');
                     
                     // Prepare form data for OpenAI API
@@ -1816,7 +1816,7 @@
                     formData.append('language', 'en');
                     formData.append('response_format', 'text');
                     
-                    console.log('📤 FormData prepared. Making API request...');
+                    // console.log('📤 FormData prepared. Making API request...');
                     
                     // Send to OpenAI Whisper API
                     const startTime = Date.now();
@@ -1829,9 +1829,9 @@
                     });
                     
                     const requestTime = Date.now() - startTime;
-                    console.log('📤 OpenAI API request completed in:', requestTime, 'ms');
-                    console.log('📤 Response status:', response.status, response.statusText);
-                    console.log('📤 Response headers:', Object.fromEntries(response.headers.entries()));
+                    // console.log('📤 OpenAI API request completed in:', requestTime, 'ms');
+                    // console.log('📤 Response status:', response.status, response.statusText);
+                    // console.log('📤 Response headers:', Object.fromEntries(response.headers.entries()));
                     
                     if (!response.ok) {
                         const errorText = await response.text();
@@ -1840,15 +1840,15 @@
                     }
                     
                     const transcription = await response.text();
-                    console.log('📝 OpenAI API response received:', transcription.length, 'characters');
-                    console.log('📝 Raw transcription:', JSON.stringify(transcription));
+                    // console.log('📝 OpenAI API response received:', transcription.length, 'characters');
+                    // console.log('📝 Raw transcription:', JSON.stringify(transcription));
                     
                     if (transcription && transcription.trim()) {
-                        console.log('📝 Processing transcription:', transcription.trim());
+                        // console.log('📝 Processing transcription:', transcription.trim());
                         this.displayTranscription(transcription.trim());
                         this.updateStatus('🎤 Listening... Speak now');
                     } else {
-                        console.log('🔇 No speech detected in audio chunk (empty response)');
+                        // console.log('🔇 No speech detected in audio chunk (empty response)');
                     }
                     
                 } catch (error) {
@@ -1862,39 +1862,39 @@
             }
 
             stopListening() {
-                console.log('🛑 Stopping OpenAI Whisper STT at:', new Date().toISOString());
-                console.log('🛑 Current state - isActive:', this.isActive, 'isRecording:', this.isRecording);
+                // console.log('🛑 Stopping OpenAI Whisper STT at:', new Date().toISOString());
+                // console.log('🛑 Current state - isActive:', this.isActive, 'isRecording:', this.isRecording);
                 
                 this.isActive = false;
                 this.isRecording = false;
                 
                 if (this.mediaRecorder) {
-                    console.log('🛑 MediaRecorder state before stop:', this.mediaRecorder.state);
+                    // console.log('🛑 MediaRecorder state before stop:', this.mediaRecorder.state);
                     if (this.mediaRecorder.state !== 'inactive') {
-                        console.log('🛑 Stopping MediaRecorder...');
+                        // console.log('🛑 Stopping MediaRecorder...');
                         this.mediaRecorder.stop();
                     } else {
-                        console.log('🛑 MediaRecorder already inactive');
+                        // console.log('🛑 MediaRecorder already inactive');
                     }
                 }
                 
                 if (this.audioContext) {
-                    console.log('🛑 Closing AudioContext...');
+                    // console.log('🛑 Closing AudioContext...');
                     this.audioContext.close();
                     this.audioContext = null;
                 }
                 
                 // Clean up separate audio stream if it exists
                 if (this.stream && this.stream !== window.liveVideoBackground.stream) {
-                    console.log('🛑 Cleaning up separate audio stream...');
+                    // console.log('🛑 Cleaning up separate audio stream...');
                     this.stream.getTracks().forEach(track => {
                         track.stop();
-                        console.log('🛑 Stopped separate audio track:', track.label);
+                        // console.log('🛑 Stopped separate audio track:', track.label);
                     });
                 } else if (this.stream) {
-                    console.log('🛑 Using shared stream, not stopping tracks');
+                    // console.log('🛑 Using shared stream, not stopping tracks');
                 } else {
-                    console.log('🛑 No stream to clean up');
+                    // console.log('🛑 No stream to clean up');
                 }
                 
                 this.sttIndicator.classList.remove('active');
@@ -1902,11 +1902,11 @@
                 this.sttToggle.textContent = 'Start Listening';
                 this.updateStatus('OpenAI Whisper Ready');
                 
-                console.log('✅ STT stopped at:', new Date().toISOString());
+                // console.log('✅ STT stopped at:', new Date().toISOString());
             }
 
             displayTranscription(text) {
-                console.log('📝 Displaying transcription:', text);
+                // console.log('📝 Displaying transcription:', text);
                 this.sttText.textContent = text;
                 this.sttText.classList.remove('empty');
                 
@@ -1914,7 +1914,7 @@
                 clearTimeout(this.clearTimer);
                 this.clearTimer = setTimeout(() => {
                     if (this.isActive) {
-                        console.log('📝 Auto-clearing transcription after timeout');
+                        // console.log('📝 Auto-clearing transcription after timeout');
                         this.sttText.textContent = 'Listening for speech...';
                         this.sttText.classList.add('empty');
                     }
@@ -1922,7 +1922,7 @@
             }
 
             updateStatus(message) {
-                console.log('📱 Status update:', message);
+                // console.log('📱 Status update:', message);
                 this.sttStatus.textContent = message;
             }
 
@@ -1933,7 +1933,7 @@
                 this.sttText.style.color = '#ff6b6b';
                 
                 setTimeout(() => {
-                    console.log('📱 Clearing error message');
+                    // console.log('📱 Clearing error message');
                     this.sttText.style.color = '';
                     if (this.isActive) {
                         this.updateStatus('🎤 Listening... Speak now');
@@ -1947,53 +1947,53 @@
 
         // Initialize everything when page loads
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🚀 Page DOMContentLoaded event fired at:', new Date().toISOString());
+            // console.log('🚀 Page DOMContentLoaded event fired at:', new Date().toISOString());
             
             try {
                 // Initialize network manager first
-                console.log('🌐 Initializing network manager...');
+                // console.log('🌐 Initializing network manager...');
                 window.networkManager = new NetworkManager();
                 await window.networkManager.initialize();
-                console.log('✅ Network manager initialized');
+                // console.log('✅ Network manager initialized');
                 
                 // Initialize video background (will be activated based on network status)
-                console.log('🎥 Initializing video background system...');
+                // console.log('🎥 Initializing video background system...');
                 window.liveVideoBackground = new LiveVideoBackground();
-                console.log('✅ Video background system ready');
+                // console.log('✅ Video background system ready');
                 
                 // Initialize QR WiFi Scanner
-                console.log('📱 Initializing QR WiFi Scanner...');
+                // console.log('📱 Initializing QR WiFi Scanner...');
                 window.qrWifiScanner = new QRWiFiScanner();
-                console.log('✅ QR WiFi Scanner initialized');
+                // console.log('✅ QR WiFi Scanner initialized');
                 
-                console.log('🎤 Initializing OpenAI Whisper STT...');
+                // console.log('🎤 Initializing OpenAI Whisper STT...');
                 // Initialize STT (disabled by default to save resources)
                 window.openAIWhisperSTT = new OpenAIWhisperSTT();
-                console.log('✅ OpenAI Whisper STT initialized and ready');
+                // console.log('✅ OpenAI Whisper STT initialized and ready');
                 
-                console.log('🎮 Initializing TV remote...');
+                // console.log('🎮 Initializing TV remote...');
                 // Initialize TV remote with 3-column grid
                 if (window.tvRemote) {
                     window.tvRemote.setGridColumns(3);
-                    console.log('✅ TV Remote initialized for homepage');
+                    // console.log('✅ TV Remote initialized for homepage');
                 } else {
                     console.warn('⚠️ TV Remote not available');
                 }
                 
                 // Initialize device IP display
-                console.log('📱 Initializing device IP display...');
+                // console.log('📱 Initializing device IP display...');
                 await initializeDeviceIP();
-                console.log('✅ Device IP display initialized');
+                // console.log('✅ Device IP display initialized');
                 
                 // Apply initial network-based configuration
                 const isOnline = await window.networkManager.checkNetworkStatus();
                 if (isOnline) {
-                    console.log('🌐 Online mode: Background video + QR toggle available');
+                    // console.log('🌐 Online mode: Background video + QR toggle available');
                 } else {
-                    console.log('📴 Offline mode: QR scanner only, solid background');
+                    // console.log('📴 Offline mode: QR scanner only, solid background');
                 }
                 
-                console.log('🚀 All systems initialized successfully at:', new Date().toISOString());
+                // console.log('🚀 All systems initialized successfully at:', new Date().toISOString());
                 
             } catch (error) {
                 console.error('❌ Initialization error at:', new Date().toISOString());
@@ -2005,19 +2005,19 @@
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
-            console.log('🧹 Page unload event fired, cleaning up at:', new Date().toISOString());
+            // console.log('🧹 Page unload event fired, cleaning up at:', new Date().toISOString());
             
             if (window.liveVideoBackground) {
-                console.log('🧹 Cleaning up live video background...');
+                // console.log('🧹 Cleaning up live video background...');
                 window.liveVideoBackground.cleanup();
             }
             
             if (window.openAIWhisperSTT) {
-                console.log('🧹 Cleaning up OpenAI Whisper STT...');
+                // console.log('🧹 Cleaning up OpenAI Whisper STT...');
                 window.openAIWhisperSTT.stopListening();
             }
             
-            console.log('🧹 Page cleanup completed at:', new Date().toISOString());
+            // console.log('🧹 Page cleanup completed at:', new Date().toISOString());
         });
 
         // QR WiFi Scanner System
@@ -2045,7 +2045,7 @@
 
             async checkWiFiConnectionStatus() {
                 try {
-                    console.log('🔍 Checking WiFi connection status...');
+                    // console.log('🔍 Checking WiFi connection status...');
                     
                     // Check actual WiFi connection status
                     let isConnected = false;
@@ -2058,7 +2058,7 @@
                                 window.electronAPI.wifi.getCurrent()
                             ]);
                             
-                            console.log('📡 WiFi status check results:', { status, current });
+                            // console.log('📡 WiFi status check results:', { status, current });
                             
                             // Consider connected if either method reports connection
                             isConnected = (status.success && status.connected) || 
@@ -2068,9 +2068,9 @@
                                 const networkName = status.network || 
                                                    (current.connection && current.connection.name) || 
                                                    'Unknown';
-                                console.log('✅ WiFi connected to:', networkName);
+                                // console.log('✅ WiFi connected to:', networkName);
                             } else {
-                                console.log('❌ No WiFi connection detected');
+                                // console.log('❌ No WiFi connection detected');
                             }
                             
                         } catch (wifiError) {
@@ -2079,14 +2079,14 @@
                             isConnected = false;
                         }
                     } else {
-                        console.log('📡 Electron WiFi API not available, checking localStorage...');
+                        // console.log('📡 Electron WiFi API not available, checking localStorage...');
                         
                         // Fallback: check if we have stored WiFi config and assume connection
                         const storedConfig = localStorage.getItem('wifiConfig');
                         const wifiSetupComplete = localStorage.getItem('wifiSetupComplete');
                         isConnected = !!(storedConfig && wifiSetupComplete);
                         
-                        console.log('📡 Fallback connection check:', { 
+                        // console.log('📡 Fallback connection check:', { 
                             hasStoredConfig: !!storedConfig, 
                             setupComplete: !!wifiSetupComplete,
                             assumedConnected: isConnected 
@@ -2096,7 +2096,7 @@
                     // Show QR scanner if NOT connected (regardless of previous setup)
                     const shouldShowQR = !isConnected;
                     
-                    console.log('📱 WiFi connection decision:', { 
+                    // console.log('📱 WiFi connection decision:', { 
                         isConnected, 
                         shouldShowQR,
                         timestamp: new Date().toISOString()
@@ -2112,7 +2112,7 @@
             }
 
             async showQRScanner() {
-                console.log('📱 Showing QR WiFi scanner');
+                // console.log('📱 Showing QR WiFi scanner');
                 this.container.style.display = 'flex';
                 
                 // Start periodic WiFi monitoring
@@ -2126,7 +2126,7 @@
 
             async startScanning() {
                 try {
-                    console.log('📱 Starting QR scanner');
+                    // console.log('📱 Starting QR scanner');
                     this.updateStatus('Starting camera...');
                     this.retryBtn.style.display = 'none';
 
@@ -2148,7 +2148,7 @@
                     await this.qrScanner.start();
                     this.isScanning = true;
                     this.updateStatus('Position QR code within the frame');
-                    console.log('✅ QR scanner started successfully');
+                    // console.log('✅ QR scanner started successfully');
 
                 } catch (error) {
                     console.error('❌ Failed to start QR scanner:', error);
@@ -2157,7 +2157,7 @@
             }
 
             onScanSuccess(result) {
-                console.log('📱 QR code scanned successfully:', result.data);
+                // console.log('📱 QR code scanned successfully:', result.data);
                 
                 try {
                     // Parse WiFi QR code - common formats:
@@ -2167,13 +2167,13 @@
                     let wifiData = this.parseWiFiQR(result.data);
                     
                     if (wifiData) {
-                        console.log('📱 Valid WiFi QR detected:', wifiData);
+                        // console.log('📱 Valid WiFi QR detected:', wifiData);
                         
                         // Stop camera stream immediately
                         if (this.qrScanner) {
                             this.qrScanner.stop();
                             this.isScanning = false;
-                            console.log('📱 Camera stream stopped');
+                            // console.log('📱 Camera stream stopped');
                         }
                         
                         this.updateStatus('✅ WiFi credentials detected!');
@@ -2229,7 +2229,7 @@
             }
 
             parseWiFiQR(qrData) {
-                console.log('📱 Parsing QR data:', qrData);
+                // console.log('📱 Parsing QR data:', qrData);
                 
                 try {
                     // Try JSON format first
@@ -2296,7 +2296,7 @@
             }
 
             async processWiFiCredentials(wifiData) {
-                console.log('📱 Processing WiFi credentials:', { 
+                // console.log('📱 Processing WiFi credentials:', { 
                     ssid: wifiData.ssid, 
                     hasPassword: !!wifiData.password,
                     security: wifiData.security 
@@ -2317,7 +2317,7 @@
                     
                     // Attempt real WiFi connection via Electron main process
                     if (window.electronAPI && window.electronAPI.wifi) {
-                        console.log('📡 Attempting real WiFi connection via Electron...');
+                        // console.log('📡 Attempting real WiFi connection via Electron...');
                         
                         // Add a small delay to prevent race conditions
                         await new Promise(resolve => setTimeout(resolve, 500));
@@ -2329,7 +2329,7 @@
                         );
                         
                         if (result.success) {
-                            console.log('✅ WiFi connection successful:', result.message);
+                            // console.log('✅ WiFi connection successful:', result.message);
                             this.updateStatus('✅ Successfully connected to WiFi!');
                             
                             // Mark setup as complete
@@ -2347,7 +2347,7 @@
                         } else {
                             // Don't show "already in progress" errors - they're usually temporary
                             if (result.error && result.error.includes('already in progress')) {
-                                console.log('📡 Connection in progress, waiting for completion...');
+                                // console.log('📡 Connection in progress, waiting for completion...');
                                 this.updateStatus('🔄 Connection in progress...');
                                 
                                 // Use a more robust verification with multiple attempts
@@ -2358,7 +2358,7 @@
                             }
                         }
                     } else {
-                        console.log('📡 Electron API not available, using fallback...');
+                        // console.log('📡 Electron API not available, using fallback...');
                         
                         // Fallback simulation for development/testing
                         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -2395,12 +2395,12 @@
             }
 
             startPeriodicWiFiCheck() {
-                console.log('📡 Starting periodic WiFi connection monitoring...');
+                // console.log('📡 Starting periodic WiFi connection monitoring...');
                 
                 // Check WiFi status every 5 seconds when QR scanner is active
                 this.wifiCheckInterval = setInterval(async () => {
                     if (!this.isScanning) {
-                        console.log('📡 QR scanner not active, stopping WiFi monitoring');
+                        // console.log('📡 QR scanner not active, stopping WiFi monitoring');
                         this.stopPeriodicWiFiCheck();
                         return;
                     }
@@ -2410,7 +2410,7 @@
                         
                         if (!shouldShowQR) {
                             // WiFi is now connected, hide the QR scanner
-                            console.log('📡 WiFi connection detected during monitoring - hiding QR scanner');
+                            // console.log('📡 WiFi connection detected during monitoring - hiding QR scanner');
                             this.showSuccessMessage('WiFi Connected', 'Connection established!');
                             setTimeout(() => {
                                 this.hideQRScanner();
@@ -2424,7 +2424,7 @@
             
             stopPeriodicWiFiCheck() {
                 if (this.wifiCheckInterval) {
-                    console.log('📡 Stopping periodic WiFi connection monitoring');
+                    // console.log('📡 Stopping periodic WiFi connection monitoring');
                     clearInterval(this.wifiCheckInterval);
                     this.wifiCheckInterval = null;
                 }
@@ -2434,17 +2434,17 @@
                 const maxAttempts = 4;
                 const delayMs = 2000; // 2 seconds between attempts
                 
-                console.log(`📡 Verifying connection attempt ${attempt + 1}/${maxAttempts} for: ${expectedSSID}`);
+                // console.log(`📡 Verifying connection attempt ${attempt + 1}/${maxAttempts} for: ${expectedSSID}`);
                 
                 try {
                     // Wait before checking to allow system to update
                     await new Promise(resolve => setTimeout(resolve, delayMs));
                     
                     const status = await window.electronAPI.wifi.getStatus();
-                    console.log('📡 Connection status check:', status);
+                    // console.log('📡 Connection status check:', status);
                     
                     if (status.success && status.connected && status.network === expectedSSID) {
-                        console.log('✅ Connection verification successful!');
+                        // console.log('✅ Connection verification successful!');
                         this.updateStatus('✅ Successfully connected to WiFi!');
                         localStorage.setItem('wifiSetupComplete', 'true');
                         localStorage.setItem('hasConnectedWifi', 'true');
@@ -2455,12 +2455,12 @@
                     
                     // If not connected yet and we have more attempts, try again
                     if (attempt < maxAttempts - 1) {
-                        console.log(`📡 Not connected yet, retrying... (attempt ${attempt + 2}/${maxAttempts})`);
+                        // console.log(`📡 Not connected yet, retrying... (attempt ${attempt + 2}/${maxAttempts})`);
                         this.updateStatus(`🔄 Verifying connection... (${attempt + 2}/${maxAttempts})`);
                         this.verifyConnectionWithRetry(expectedSSID, attempt + 1);
                     } else {
                         // All attempts exhausted
-                        console.log('❌ Connection verification failed after all attempts');
+                        // console.log('❌ Connection verification failed after all attempts');
                         this.updateStatus('❌ Connection verification failed');
                         this.showErrorMessage('Unable to verify WiFi connection. Connection may still be in progress.');
                         this.retryBtn.style.display = 'inline-block';
@@ -2470,7 +2470,7 @@
                     console.error(`❌ Connection verification error (attempt ${attempt + 1}):`, error);
                     
                     if (attempt < maxAttempts - 1) {
-                        console.log('📡 Verification error, retrying...');
+                        // console.log('📡 Verification error, retrying...');
                         this.updateStatus(`🔄 Checking connection... (${attempt + 2}/${maxAttempts})`);
                         this.verifyConnectionWithRetry(expectedSSID, attempt + 1);
                     } else {
@@ -2558,18 +2558,18 @@
             }
 
             updateStatus(message) {
-                console.log('📱 QR Scanner status:', message);
+                // console.log('📱 QR Scanner status:', message);
                 this.statusElement.textContent = message;
             }
 
             skipSetup() {
-                console.log('📱 User skipped WiFi setup');
+                // console.log('📱 User skipped WiFi setup');
                 localStorage.setItem('wifiSetupSkipped', 'true');
                 this.hideQRScanner();
             }
 
             hideQRScanner() {
-                console.log('📱 Hiding QR scanner');
+                // console.log('📱 Hiding QR scanner');
                 
                 // Stop periodic WiFi monitoring
                 this.stopPeriodicWiFiCheck();
@@ -2600,7 +2600,7 @@
         // Function to check and show QR scanner if needed
         async function checkAndShowQRScanner() {
             if (!qrWifiScanner) {
-                console.log('📱 QR WiFi Scanner not initialized yet');
+                // console.log('📱 QR WiFi Scanner not initialized yet');
                 return;
             }
             
@@ -2608,10 +2608,10 @@
                 const shouldShowQR = await qrWifiScanner.checkWiFiConnectionStatus();
                 
                 if (shouldShowQR && !qrWifiScanner.isScanning) {
-                    console.log('📱 No WiFi connection - showing QR scanner');
+                    // console.log('📱 No WiFi connection - showing QR scanner');
                     await qrWifiScanner.showQRScanner();
                 } else if (!shouldShowQR && qrWifiScanner.isScanning) {
-                    console.log('📱 WiFi connected - hiding QR scanner');
+                    // console.log('📱 WiFi connected - hiding QR scanner');
                     qrWifiScanner.hideQRScanner();
                 }
             } catch (error) {
@@ -2623,12 +2623,12 @@
         document.addEventListener('keydown', (e) => {
             // Press 'Q' to force show QR scanner for reconnection
             if (e.key.toLowerCase() === 'q' && qrWifiScanner) {
-                console.log('🔑 Manual QR scanner trigger (Q key pressed)');
+                // console.log('🔑 Manual QR scanner trigger (Q key pressed)');
                 qrWifiScanner.showQRScanner();
             }
             // Press 'W' to go directly to WiFi settings
             if (e.key.toLowerCase() === 'w') {
-                console.log('🔑 WiFi settings shortcut (W key pressed)');
+                // console.log('🔑 WiFi settings shortcut (W key pressed)');
                 window.location.href = 'wifi-settings.html';
             }
         });
@@ -2640,7 +2640,7 @@
                 const deviceIPElement = document.getElementById('deviceIPDisplay');
                 if (deviceIPElement && connectionInfo) {
                     deviceIPElement.textContent = `${connectionInfo.ip}:${connectionInfo.port}`;
-                    console.log('📱 Device IP displayed:', `${connectionInfo.ip}:${connectionInfo.port}`);
+                    // console.log('📱 Device IP displayed:', `${connectionInfo.ip}:${connectionInfo.port}`);
                 }
             } catch (error) {
                 console.error('❌ Error getting connection info:', error);
@@ -2654,14 +2654,14 @@
         // Add periodic WiFi check when page becomes visible
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
-                console.log('📱 Page became visible - checking WiFi status');
+                // console.log('📱 Page became visible - checking WiFi status');
                 setTimeout(checkAndShowQRScanner, 1000);
             }
         });
 
         // Also check when window gains focus
         window.addEventListener('focus', () => {
-            console.log('📱 Window gained focus - checking WiFi status');
+            // console.log('📱 Window gained focus - checking WiFi status');
             setTimeout(checkAndShowQRScanner, 1000);
         });
 
@@ -2671,7 +2671,7 @@
         // Add cleanup for QR scanner
         window.addEventListener('beforeunload', () => {
             if (qrWifiScanner) {
-                console.log('🧹 Cleaning up QR WiFi Scanner...');
+                // console.log('🧹 Cleaning up QR WiFi Scanner...');
                 qrWifiScanner.cleanup();
             }
         });

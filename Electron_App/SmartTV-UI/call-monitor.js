@@ -130,7 +130,7 @@ class CallMonitor {
         this.stopMonitoring();
 
         // Show incoming call notification
-        this.showIncomingCallNotification(call);
+        //this.showIncomingCallNotification(call);
     }
 
     // Show incoming call notification
@@ -356,7 +356,7 @@ class CallMonitor {
     }
 
     // Static method to create beautiful incoming call UI for any page
-    static createIncomingCallUI(call, answerCallback, declineCallback) {
+    static createIncomingCallUI(call, answerCallback, declineCallback) {  
         // Remove existing notification if any
         const existing = document.getElementById('incomingCallNotification');
         if (existing) {
