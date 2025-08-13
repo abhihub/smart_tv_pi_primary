@@ -199,7 +199,7 @@ class TVRemoteController {
             element.setAttribute('data-focus-index', index);
         });
         
-        //console.log(`🎮 Found ${this.focusableElements.length} focusable elements`);
+        console.log(`🎮 📋 Found ${this.focusableElements.length} focusable elements (scan)`);
         
         // Auto-detect grid layout
         this.detectGridLayout();
@@ -225,10 +225,13 @@ class TVRemoteController {
     }
     
     setFocus(index) {
+        console.log(`🎮 setFocus called with index: ${index}, total elements: ${this.focusableElements.length}`);
+        
         // Remove focus from all elements
-        this.focusableElements.forEach(el => {
+        this.focusableElements.forEach((el, i) => {
             el.classList.remove('tv-focused');
             el.setAttribute('tabindex', '-1');
+            console.log(`🎮 Removed focus from element ${i}:`, el.tagName, el.className, el.id);
         });
         
         // Set focus to target element
@@ -247,7 +250,15 @@ class TVRemoteController {
                 inline: 'center'
             });
             
-            console.log(`🎮 Focus set to element ${index}:`, element);
+            console.log(`🎮 ✅ Focus set to element ${index}:`, {
+                tagName: element.tagName,
+                className: element.className,
+                id: element.id,
+                textContent: element.textContent?.substring(0, 50),
+                isInPopup: !!element.closest('#incomingCallNotification')
+            });
+        } else {
+            console.log(`🎮 ❌ Invalid focus index: ${index} (max: ${this.focusableElements.length - 1})`);
         }
     }
     
@@ -283,43 +294,60 @@ class TVRemoteController {
     }
     
     navigateUp() {
+        console.log(`🎮 ⬆️ Navigate UP - Current: ${this.currentFocusIndex}, Grid: ${this.gridColumns}`);
         const newIndex = this.currentFocusIndex - this.gridColumns;
+        console.log(`🎮 ⬆️ Calculated newIndex: ${newIndex}`);
+        
         if (newIndex >= 0) {
+            console.log(`🎮 ⬆️ Moving up to index: ${newIndex}`);
             this.setFocus(newIndex);
         } else {
             // Wrap to bottom
             const bottomRowStart = Math.floor((this.focusableElements.length - 1) / this.gridColumns) * this.gridColumns;
             const column = this.currentFocusIndex % this.gridColumns;
             const targetIndex = Math.min(bottomRowStart + column, this.focusableElements.length - 1);
+            console.log(`🎮 ⬆️ Wrapping to bottom - targetIndex: ${targetIndex}`);
             this.setFocus(targetIndex);
         }
     }
     
     navigateDown() {
+        console.log(`🎮 ⬇️ Navigate DOWN - Current: ${this.currentFocusIndex}, Grid: ${this.gridColumns}`);
         const newIndex = this.currentFocusIndex + this.gridColumns;
+        console.log(`🎮 ⬇️ Calculated newIndex: ${newIndex}`);
+        
         if (newIndex < this.focusableElements.length) {
+            console.log(`🎮 ⬇️ Moving down to index: ${newIndex}`);
             this.setFocus(newIndex);
         } else {
             // Wrap to top
             const column = this.currentFocusIndex % this.gridColumns;
+            console.log(`🎮 ⬇️ Wrapping to top - column: ${column}`);
             this.setFocus(column);
         }
     }
     
     navigateLeft() {
+        console.log(`🎮 ⬅️ Navigate LEFT - Current: ${this.currentFocusIndex}`);
         if (this.currentFocusIndex > 0) {
+            console.log(`🎮 ⬅️ Moving left to index: ${this.currentFocusIndex - 1}`);
             this.setFocus(this.currentFocusIndex - 1);
         } else {
             // Wrap to end
-            this.setFocus(this.focusableElements.length - 1);
+            const targetIndex = this.focusableElements.length - 1;
+            console.log(`🎮 ⬅️ Wrapping to end - index: ${targetIndex}`);
+            this.setFocus(targetIndex);
         }
     }
     
     navigateRight() {
+        console.log(`🎮 ➡️ Navigate RIGHT - Current: ${this.currentFocusIndex}`);
         if (this.currentFocusIndex < this.focusableElements.length - 1) {
+            console.log(`🎮 ➡️ Moving right to index: ${this.currentFocusIndex + 1}`);
             this.setFocus(this.currentFocusIndex + 1);
         } else {
             // Wrap to beginning
+            console.log(`🎮 ➡️ Wrapping to beginning - index: 0`);
             this.setFocus(0);
         }
     }
@@ -404,14 +432,107 @@ class TVRemoteController {
     }
     
     refresh() {
-        console.log('🎮 Refreshing TV Remote');
-        this.scanFocusableElements();
-        this.setInitialFocus();
+        console.log('🎮 🔄 Refreshing TV Remote');
+        
+        // Don't rescan if focus is currently constrained to avoid breaking containment
+        if (this.originalFocusableElements) {
+            console.log('🎮 🔄 Focus is constrained - skipping full scan, just re-indexing current elements');
+            // Just re-index the current constrained elements
+            this.focusableElements.forEach((element, index) => {
+                element.setAttribute('data-focus-index', index);
+            });
+        } else {
+            console.log('🎮 🔄 Normal refresh - scanning all focusable elements');
+            this.scanFocusableElements();
+            this.setInitialFocus();
+        }
     }
     
     setGridColumns(columns) {
         this.gridColumns = columns;
         console.log(`🎮 Grid columns set to: ${columns}`);
+    }
+
+    // Constrain focus to only elements within a specific container
+    constrainFocusToContainer(container) {
+        if (!container) {
+            console.log('🎮 ❌ No container provided for focus constraint');
+            return;
+        }
+        
+        console.log('🎮 🔒 Constraining focus to container:', container.id || container.className);
+        console.log('🎮 🔒 Original focusable elements count:', this.focusableElements.length);
+        
+        // Store original state
+        this.originalFocusableElements = [...this.focusableElements];
+        this.originalCurrentFocusIndex = this.currentFocusIndex;
+        
+        console.log('🎮 🔒 Stored original state - elements:', this.originalFocusableElements.length, 'index:', this.originalCurrentFocusIndex);
+        
+        // Only include focusable elements within the container
+        const originalElements = this.focusableElements;
+        this.focusableElements = this.focusableElements.filter(element => 
+            container.contains(element)
+        );
+        
+        console.log('🎮 🔒 Filtered elements:', this.focusableElements.map(el => ({
+            tagName: el.tagName,
+            id: el.id,
+            className: el.className,
+            textContent: el.textContent?.substring(0, 30)
+        })));
+        
+        // Re-index the filtered elements
+        this.focusableElements.forEach((element, index) => {
+            element.setAttribute('data-focus-index', index);
+        });
+        
+        console.log(`🎮 🔒 ✅ Focus constrained from ${originalElements.length} to ${this.focusableElements.length} elements`);
+        
+        // Set focus to first element in container
+        if (this.focusableElements.length > 0) {
+            console.log('🎮 🔒 Setting focus to first element in container');
+            this.setFocus(0);
+        } else {
+            console.log('🎮 🔒 ❌ No focusable elements found in container!');
+        }
+    }
+    
+    // Restore original focus scope
+    restoreOriginalFocusScope() {
+        console.log('🎮 🔓 Restoring original focus scope');
+        
+        if (this.originalFocusableElements) {
+            console.log('🎮 🔓 Restoring from:', this.focusableElements.length, 'to:', this.originalFocusableElements.length, 'elements');
+            
+            this.focusableElements = [...this.originalFocusableElements];
+            
+            // Re-index all elements
+            this.focusableElements.forEach((element, index) => {
+                element.setAttribute('data-focus-index', index);
+            });
+            
+            console.log(`🎮 🔓 Focus scope restored to ${this.focusableElements.length} elements`);
+            
+            // Restore previous focus or set to first element
+            const targetIndex = this.originalCurrentFocusIndex || 0;
+            console.log(`🎮 🔓 Restoring focus to index: ${targetIndex}`);
+            
+            if (targetIndex < this.focusableElements.length) {
+                this.setFocus(targetIndex);
+            } else {
+                console.log(`🎮 🔓 Target index ${targetIndex} out of range, setting to 0`);
+                this.setFocus(0);
+            }
+            
+            // Clear stored state
+            this.originalFocusableElements = null;
+            this.originalCurrentFocusIndex = null;
+            
+            console.log('🎮 🔓 ✅ Original focus scope restored successfully');
+        } else {
+            console.log('🎮 🔓 ❌ No original focus state to restore');
+        }
     }
     
     getActionByKeyCode(keyCode) {
@@ -466,7 +587,8 @@ const observer = new MutationObserver(() => {
     if (window.tvRemote) {
         clearTimeout(window.tvRemote.refreshTimeout);
         window.tvRemote.refreshTimeout = setTimeout(() => {
-            window.tvRemote.scanFocusableElements();
+            console.log('🎮 🔄 MutationObserver triggered refresh');
+            window.tvRemote.refresh(); // Use refresh() instead of scanFocusableElements()
         }, 500);
     }
 });

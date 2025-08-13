@@ -128,117 +128,10 @@ class CallMonitor {
         
         // Stop monitoring temporarily to prevent multiple notifications
         this.stopMonitoring();
-
-        // Show incoming call notification
-        //this.showIncomingCallNotification(call);
+        
     }
 
-    // Show incoming call notification
-    showIncomingCallNotification(call) {
-        // Create notification overlay
-        const notification = document.createElement('div');
-        notification.id = 'incomingCallNotification';
-        notification.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(20px);
-            z-index: 10000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            animation: fadeIn 0.5s ease-out;
-        `;
-
-        notification.innerHTML = `
-            <div style="
-                background: rgba(255, 255, 255, 0.1);
-                backdrop-filter: blur(20px);
-                border-radius: 25px;
-                padding: 40px;
-                text-align: center;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                max-width: 400px;
-                width: 90%;
-                color: white;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            ">
-                <div style="font-size: 1.2rem; opacity: 0.7; margin-bottom: 20px;">Incoming Call</div>
-                <div style="
-                    width: 100px;
-                    height: 100px;
-                    border-radius: 50%;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 2.5rem;
-                    font-weight: bold;
-                    margin: 0 auto 20px auto;
-                    animation: pulse 2s ease-in-out infinite;
-                ">${call.caller_username.substring(0, 2)}</div>
-                <div style="font-size: 2rem; font-weight: 600; margin-bottom: 10px;">${call.caller_username}</div>
-                <div style="font-size: 1rem; opacity: 0.6; margin-bottom: 30px;">is calling you</div>
-                <div style="display: flex; gap: 20px; justify-content: center;">
-                    <button class="call-btn answer-btn" data-focusable="true" onclick="callMonitor.answerCall('${call.call_id}', '${call.caller_username}')" style="
-                        width: 60px;
-                        height: 60px;
-                        border-radius: 50%;
-                        border: none;
-                        background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
-                        color: white;
-                        font-size: 1.5rem;
-                        cursor: pointer;
-                        transition: all 0.3s ease;
-                    ">📞</button>
-                    <button class="call-btn decline-btn" data-focusable="true" onclick="callMonitor.declineCall('${call.call_id}')" style="
-                        width: 60px;
-                        height: 60px;
-                        border-radius: 50%;
-                        border: none;
-                        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-                        color: white;
-                        font-size: 1.5rem;
-                        cursor: pointer;
-                        transition: all 0.3s ease;
-                    ">❌</button>
-                </div>
-            </div>
-        `;
-
-        // Add CSS animations
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes fadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
-            }
-            @keyframes pulse {
-                0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
-                70% { box-shadow: 0 0 0 20px rgba(102, 126, 234, 0); }
-                100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
-            }
-        `;
-        document.head.appendChild(style);
-
-        document.body.appendChild(notification);
-
-        // Refresh TV remote to make buttons focusable
-        if (window.tvRemote) {
-            window.tvRemote.refresh();
-        }
-
-        // Auto-decline after 30 seconds
-        setTimeout(() => {
-            if (document.getElementById('incomingCallNotification')) {
-                this.declineCall(call.call_id);
-            }
-        }, 30000);
-    }
-
+    
     // Answer incoming call
     async answerCall(callId, callerUsername) {
         try {
@@ -474,23 +367,34 @@ class CallMonitor {
 
         document.body.appendChild(notification);
 
-        // Refresh TV remote to make buttons focusable
+        // Refresh TV remote to make buttons focusable, then constrain focus to popup
         if (window.tvRemote) {
+            console.log('📞 Refreshing TV remote and constraining focus to call popup');
             window.tvRemote.refresh();
+            // Small delay to ensure DOM is ready, then constrain focus
+            setTimeout(() => {
+                window.tvRemote.constrainFocusToContainer(notification);
+            }, 50);
         }
 
         // Add event listeners
         document.getElementById('answerCallBtn').addEventListener('click', () => {
+            // Hide UI and restore focus immediately
+            CallMonitor.hideIncomingCallUI();
             answerCallback(call);
         });
 
         document.getElementById('declineCallBtn').addEventListener('click', () => {
+            // Hide UI and restore focus immediately
+            CallMonitor.hideIncomingCallUI();
             declineCallback(call);
         });
 
         // Auto-decline after 30 seconds
         setTimeout(() => {
             if (document.getElementById('incomingCallNotification')) {
+                // Hide UI and restore focus before auto-decline
+                CallMonitor.hideIncomingCallUI();
                 declineCallback(call);
             }
         }, 30000);
@@ -503,6 +407,11 @@ class CallMonitor {
         const notification = document.getElementById('incomingCallNotification');
         if (notification) {
             notification.remove();
+        }
+        
+        // Restore original TV remote focus scope
+        if (window.tvRemote) {
+            window.tvRemote.restoreOriginalFocusScope();
         }
     }
 }
