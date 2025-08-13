@@ -155,6 +155,7 @@
             font-size: 1.3rem;
             color: rgba(255, 255, 255, 0.9);
             font-weight: 500;
+            margin-bottom: 20px;
         }
 
 
@@ -801,7 +802,7 @@
     
     <!-- Network Status Indicator -->
     <div class="network-status" id="networkStatus">
-        📡 Checking...
+        📡 
     </div>
     
     <!-- QR Toggle Button (shown when online) -->
@@ -823,8 +824,8 @@
 
     <div class="container">
         <div class="header">
-            <h1>kids zone</h1>
-            <p class="subtitle">Fun apps for everyone!</p>
+            <h1>Family Time</h1>
+            <p class="subtitle">Video Chat Meets Family Game Night!</p>
         </div>
 
         <!-- QR Scanner for WiFi Setup -->
@@ -1103,6 +1104,8 @@
     <script src="node_modules/qr-scanner/qr-scanner.umd.min.js"></script>
     
     <script>
+
+
         // Display user ID in header
         document.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -1111,6 +1114,22 @@
                 
                 if (currentUser && currentUser.username) {
                     userIdElement.textContent = currentUser.username;
+                    console.log('🟢 Homepage: User loaded, starting presence updates for:', currentUser.username);
+                    
+                    // Update presence status when user is loaded using call-monitor
+                    if (window.callMonitor) {
+                        await callMonitor.updatePresence('online');
+                    }
+                    
+                    // Set up periodic presence updates every 30 seconds
+                    setInterval(() => {
+                        console.log('🟢 Homepage: Periodic presence update triggered');
+                        if (window.callMonitor) {
+                            callMonitor.updatePresence('online');
+                        }
+                    }, 30000);
+                    
+                    console.log('🟢 Homepage: Presence system initialized');
                 } else {
                     userIdElement.textContent = 'Not Set';
                     userIdElement.style.color = '#ff6b6b';

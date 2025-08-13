@@ -199,8 +199,6 @@ class TVRemoteController {
             element.setAttribute('data-focus-index', index);
         });
         
-        console.log(`🎮 📋 Found ${this.focusableElements.length} focusable elements (scan)`);
-        
         // Auto-detect grid layout
         this.detectGridLayout();
     }
@@ -215,7 +213,6 @@ class TVRemoteController {
                 this.gridColumns = gridTemplateColumns.split(' ').length;
             }
         }
-        console.log(`🎮 Grid layout: ${this.gridColumns} columns`);
     }
     
     setInitialFocus() {
@@ -225,13 +222,10 @@ class TVRemoteController {
     }
     
     setFocus(index) {
-        console.log(`🎮 setFocus called with index: ${index}, total elements: ${this.focusableElements.length}`);
-        
         // Remove focus from all elements
-        this.focusableElements.forEach((el, i) => {
+        this.focusableElements.forEach(el => {
             el.classList.remove('tv-focused');
             el.setAttribute('tabindex', '-1');
-            console.log(`🎮 Removed focus from element ${i}:`, el.tagName, el.className, el.id);
         });
         
         // Set focus to target element
@@ -249,16 +243,6 @@ class TVRemoteController {
                 block: 'center',
                 inline: 'center'
             });
-            
-            console.log(`🎮 ✅ Focus set to element ${index}:`, {
-                tagName: element.tagName,
-                className: element.className,
-                id: element.id,
-                textContent: element.textContent?.substring(0, 50),
-                isInPopup: !!element.closest('#incomingCallNotification')
-            });
-        } else {
-            console.log(`🎮 ❌ Invalid focus index: ${index} (max: ${this.focusableElements.length - 1})`);
         }
     }
     
@@ -294,60 +278,43 @@ class TVRemoteController {
     }
     
     navigateUp() {
-        console.log(`🎮 ⬆️ Navigate UP - Current: ${this.currentFocusIndex}, Grid: ${this.gridColumns}`);
         const newIndex = this.currentFocusIndex - this.gridColumns;
-        console.log(`🎮 ⬆️ Calculated newIndex: ${newIndex}`);
-        
         if (newIndex >= 0) {
-            console.log(`🎮 ⬆️ Moving up to index: ${newIndex}`);
             this.setFocus(newIndex);
         } else {
             // Wrap to bottom
             const bottomRowStart = Math.floor((this.focusableElements.length - 1) / this.gridColumns) * this.gridColumns;
             const column = this.currentFocusIndex % this.gridColumns;
             const targetIndex = Math.min(bottomRowStart + column, this.focusableElements.length - 1);
-            console.log(`🎮 ⬆️ Wrapping to bottom - targetIndex: ${targetIndex}`);
             this.setFocus(targetIndex);
         }
     }
     
     navigateDown() {
-        console.log(`🎮 ⬇️ Navigate DOWN - Current: ${this.currentFocusIndex}, Grid: ${this.gridColumns}`);
         const newIndex = this.currentFocusIndex + this.gridColumns;
-        console.log(`🎮 ⬇️ Calculated newIndex: ${newIndex}`);
-        
         if (newIndex < this.focusableElements.length) {
-            console.log(`🎮 ⬇️ Moving down to index: ${newIndex}`);
             this.setFocus(newIndex);
         } else {
             // Wrap to top
             const column = this.currentFocusIndex % this.gridColumns;
-            console.log(`🎮 ⬇️ Wrapping to top - column: ${column}`);
             this.setFocus(column);
         }
     }
     
     navigateLeft() {
-        console.log(`🎮 ⬅️ Navigate LEFT - Current: ${this.currentFocusIndex}`);
         if (this.currentFocusIndex > 0) {
-            console.log(`🎮 ⬅️ Moving left to index: ${this.currentFocusIndex - 1}`);
             this.setFocus(this.currentFocusIndex - 1);
         } else {
             // Wrap to end
-            const targetIndex = this.focusableElements.length - 1;
-            console.log(`🎮 ⬅️ Wrapping to end - index: ${targetIndex}`);
-            this.setFocus(targetIndex);
+            this.setFocus(this.focusableElements.length - 1);
         }
     }
     
     navigateRight() {
-        console.log(`🎮 ➡️ Navigate RIGHT - Current: ${this.currentFocusIndex}`);
         if (this.currentFocusIndex < this.focusableElements.length - 1) {
-            console.log(`🎮 ➡️ Moving right to index: ${this.currentFocusIndex + 1}`);
             this.setFocus(this.currentFocusIndex + 1);
         } else {
             // Wrap to beginning
-            console.log(`🎮 ➡️ Wrapping to beginning - index: 0`);
             this.setFocus(0);
         }
     }
@@ -356,8 +323,6 @@ class TVRemoteController {
         const element = this.focusableElements[this.currentFocusIndex];
         if (!element) return;
         
-        console.log('🎮 Activating element:', element);
-        console.log('🎮 Element type:', element.tagName, 'class:', element.className);
         
         // Add visual feedback
         element.classList.add('tv-focused', 'pulse');
@@ -366,24 +331,19 @@ class TVRemoteController {
         // Try different activation methods in order of preference
         if (element.tagName === 'BUTTON') {
             // Direct button click
-            console.log('🎮 Clicking button');
             element.click();
         } else if (element.onclick) {
             // Element has onclick handler
-            console.log('🎮 Calling onclick handler');
             element.onclick();
         } else if (element.href) {
             // Link navigation
-            console.log('🎮 Navigating to:', element.href);
             window.location.href = element.href;
         } else if (element.getAttribute('data-app')) {
             // Homepage tiles with data-app attribute
             const app = element.getAttribute('data-app');
-            console.log('🎮 Launching app:', app);
             window.location.href = `${app}.html`;
         } else {
             // Fallback: dispatch click event
-            console.log('🎮 Dispatching click event');
             element.dispatchEvent(new MouseEvent('click', {
                 bubbles: true,
                 cancelable: true,
@@ -393,8 +353,6 @@ class TVRemoteController {
     }
     
     goBack() {
-        console.log('🎮 Back button pressed');
-        
         // Look for back button first
         const backBtn = document.querySelector('.back-btn, [data-action="back"]');
         if (backBtn) {
@@ -423,26 +381,20 @@ class TVRemoteController {
     // Public methods for page-specific control
     enable() {
         this.isEnabled = true;
-        console.log('🎮 TV Remote enabled');
     }
     
     disable() {
         this.isEnabled = false;
-        console.log('🎮 TV Remote disabled');
     }
     
     refresh() {
-        console.log('🎮 🔄 Refreshing TV Remote');
-        
         // Don't rescan if focus is currently constrained to avoid breaking containment
         if (this.originalFocusableElements) {
-            console.log('🎮 🔄 Focus is constrained - skipping full scan, just re-indexing current elements');
             // Just re-index the current constrained elements
             this.focusableElements.forEach((element, index) => {
                 element.setAttribute('data-focus-index', index);
             });
         } else {
-            console.log('🎮 🔄 Normal refresh - scanning all focusable elements');
             this.scanFocusableElements();
             this.setInitialFocus();
         }
@@ -450,7 +402,6 @@ class TVRemoteController {
     
     setGridColumns(columns) {
         this.gridColumns = columns;
-        console.log(`🎮 Grid columns set to: ${columns}`);
     }
 
     // Constrain focus to only elements within a specific container

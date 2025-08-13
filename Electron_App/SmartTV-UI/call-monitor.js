@@ -129,6 +129,12 @@ class CallMonitor {
         // Stop monitoring temporarily to prevent multiple notifications
         this.stopMonitoring();
         
+        // Show the beautiful incoming call UI
+        CallMonitor.createIncomingCallUI(
+            call,
+            (call) => this.answerCall(call.call_id, call.caller_username),
+            (call) => this.declineCall(call.call_id)
+        );
     }
 
     
