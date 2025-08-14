@@ -239,6 +239,8 @@ async function connectToRoom() {
 // Attach track to UI
 function attachTrack(track, participant) {
     if (track.kind === 'video') {
+        console.log('🎬 Adding participant video element for', participant.identity);
+        
         // Create video element for participant
         const participantElement = document.createElement('div');
         participantElement.className = 'participant';
@@ -290,6 +292,12 @@ function participantConnected(participant) {
     
     updateParticipantCount(activeRoom.participants.size + 1);
     
+    // Manually refresh focus elements when participants change (only if needed)
+    if (window.tvRemote && !window.tvRemote.stableMode) {
+        console.log('🎮 Refreshing focus elements after participant joined');
+        window.tvRemote.refresh();
+    }
+    
     // Handle existing tracks
     participant.tracks.forEach(publication => {
         if (publication.track) {
@@ -318,11 +326,19 @@ function participantDisconnected(participant) {
     if (participantElement) {
         participantElement.remove();
     }
+    
+    // Manually refresh focus elements when participants change (only if needed)
+    if (window.tvRemote && !window.tvRemote.stableMode) {
+        console.log('🎮 Refreshing focus elements after participant left');
+        window.tvRemote.refresh();
+    }
 }
 
 // Detach track from UI
 function detachTrack(track, participant) {
     if (track.kind === 'video') {
+        console.log('🎬 Removing participant video element for', participant.identity);
+        
         const participantElement = document.getElementById(`participant-${participant.sid}`);
         if (participantElement) {
             participantElement.remove();

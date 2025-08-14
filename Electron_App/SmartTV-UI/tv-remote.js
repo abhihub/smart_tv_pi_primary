@@ -9,6 +9,7 @@ class TVRemoteController {
         this.currentFocusIndex = 0;
         this.isEnabled = true;
         this.gridColumns = 3; // Default grid layout
+        this.stableMode = false; // When true, prevents auto-refresh from MutationObserver
         
         // Key mappings for different remote types
         this.keyMappings = {
@@ -404,6 +405,18 @@ class TVRemoteController {
         this.gridColumns = columns;
     }
 
+    // Enable stable mode to prevent auto-refresh (useful for video calls)
+    enableStableMode() {
+        this.stableMode = true;
+        console.log('🎮 🔒 Stable mode enabled - auto-refresh disabled');
+    }
+
+    // Disable stable mode to restore auto-refresh
+    disableStableMode() {
+        this.stableMode = false;
+        console.log('🎮 🔓 Stable mode disabled - auto-refresh restored');
+    }
+
     // Constrain focus to only elements within a specific container
     constrainFocusToContainer(container) {
         if (!container) {
@@ -533,9 +546,61 @@ class TVRemoteController {
 // Global instance
 window.tvRemote = new TVRemoteController();
 
-// Auto-refresh when page content changes
-const observer = new MutationObserver(() => {
-    if (window.tvRemote) {
+// Auto-refresh when page content changes (but ignore video-related changes)
+const observer = new MutationObserver((mutations) => {
+    if (!window.tvRemote) return;
+    
+    // Filter out mutations that are video-related or focus-related to prevent constant refreshing
+    const relevantMutations = mutations.filter(mutation => {
+        // Ignore mutations to video elements and their containers
+        if (mutation.target.tagName === 'VIDEO') return false;
+        if (mutation.target.classList?.contains('participant-video')) return false;
+        if (mutation.target.classList?.contains('participant')) return false;
+        if (mutation.target.classList?.contains('video-container')) return false;
+        if (mutation.target.id === 'videoContainer') return false;
+        
+        // Ignore focus-related attribute changes to prevent refresh cycles
+        if (mutation.type === 'attributes') {
+            if (mutation.attributeName === 'tabindex') {
+                console.log('🎮 🚫 Ignoring tabindex attribute change to prevent refresh cycle');
+                return false;
+            }
+            if (mutation.attributeName === 'class' && mutation.target.hasAttribute('data-focusable')) {
+                // Check if this is just a tv-focused class change
+                const target = mutation.target;
+                if (target.classList.contains('tv-focused') || mutation.oldValue?.includes('tv-focused')) {
+                    console.log('🎮 🚫 Ignoring tv-focused class change to prevent refresh cycle');
+                    return false;
+                }
+            }
+        }
+        
+        // Ignore mutations where added/removed nodes are video-related
+        const hasVideoChanges = Array.from(mutation.addedNodes).concat(Array.from(mutation.removedNodes))
+            .some(node => {
+                if (node.nodeType !== Node.ELEMENT_NODE) return false;
+                const element = node;
+                return element.tagName === 'VIDEO' || 
+                       element.classList?.contains('participant-video') ||
+                       element.classList?.contains('participant') ||
+                       element.id?.startsWith('participant-');
+            });
+        
+        if (hasVideoChanges) {
+            console.log('🎮 🚫 Ignoring video-related mutation to prevent focus loss');
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // Only refresh if there are relevant mutations and not in stable mode
+    if (relevantMutations.length > 0) {
+        if (window.tvRemote.stableMode) {
+            console.log('🎮 🔒 Stable mode: Ignoring mutations to preserve focus');
+            return;
+        }
+        
         clearTimeout(window.tvRemote.refreshTimeout);
         window.tvRemote.refreshTimeout = setTimeout(() => {
             console.log('🎮 🔄 MutationObserver triggered refresh');
@@ -546,5 +611,7 @@ const observer = new MutationObserver(() => {
 
 observer.observe(document.body, {
     childList: true,
-    subtree: true
+    subtree: true,
+    attributes: true,
+    attributeOldValue: true
 });

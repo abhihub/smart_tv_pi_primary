@@ -696,7 +696,11 @@
             if (window.tvRemote) {
                 // Set linear navigation for video call controls
                 window.tvRemote.setGridColumns(4); // 4 controls in a row
-                console.log('🎮 TV Remote initialized for video call');
+                
+                // Enable stable mode to prevent focus loss during video calls
+                window.tvRemote.enableStableMode();
+                
+                console.log('🎮 TV Remote initialized for video call with stable mode');
             }
         });
     </script>
