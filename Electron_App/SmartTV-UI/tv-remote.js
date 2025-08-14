@@ -562,14 +562,14 @@ const observer = new MutationObserver((mutations) => {
         // Ignore focus-related attribute changes to prevent refresh cycles
         if (mutation.type === 'attributes') {
             if (mutation.attributeName === 'tabindex') {
-                console.log('🎮 🚫 Ignoring tabindex attribute change to prevent refresh cycle');
+                // console.log('🎮 🚫 Ignoring tabindex attribute change to prevent refresh cycle');
                 return false;
             }
             if (mutation.attributeName === 'class' && mutation.target.hasAttribute('data-focusable')) {
                 // Check if this is just a tv-focused class change
                 const target = mutation.target;
                 if (target.classList.contains('tv-focused') || mutation.oldValue?.includes('tv-focused')) {
-                    console.log('🎮 🚫 Ignoring tv-focused class change to prevent refresh cycle');
+                    // console.log('🎮 🚫 Ignoring tv-focused class change to prevent refresh cycle');
                     return false;
                 }
             }
@@ -603,7 +603,7 @@ const observer = new MutationObserver((mutations) => {
         
         clearTimeout(window.tvRemote.refreshTimeout);
         window.tvRemote.refreshTimeout = setTimeout(() => {
-            console.log('🎮 🔄 MutationObserver triggered refresh');
+            // console.log('🎮 🔄 MutationObserver triggered refresh');
             window.tvRemote.refresh(); // Use refresh() instead of scanFocusableElements()
         }, 500);
     }

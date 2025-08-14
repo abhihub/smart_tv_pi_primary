@@ -1342,14 +1342,14 @@
         // Show incoming call dialog using beautiful shared UI
         function showIncomingCallDialog(call) {
             // Set flag to prevent UI refresh interference
-            isCallPopupShown = true;
+            // isCallPopupShown = true;
             
-            // Use the beautiful shared incoming call UI from CallMonitor
-            CallMonitor.createIncomingCallUI(
-                call,
-                (call) => answerIncomingCall(call.call_id, call.caller_username),
-                (call) => declineIncomingCall(call.call_id)
-            );
+            // // Use the beautiful shared incoming call UI from CallMonitor
+            // CallMonitor.createIncomingCallUI(
+            //     call,
+            //     (call) => answerIncomingCall(call.call_id, call.caller_username),
+            //     (call) => declineIncomingCall(call.call_id)
+            // );
         }
 
         // Answer incoming call
