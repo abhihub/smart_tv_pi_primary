@@ -396,8 +396,17 @@ class TVRemoteController {
                 element.setAttribute('data-focus-index', index);
             });
         } else {
+            // Store current focus index before rescanning
+            const previousFocusIndex = this.currentFocusIndex;
+            
             this.scanFocusableElements();
-            this.setInitialFocus();
+            
+            // Try to restore previous focus position, fall back to 0 if out of bounds
+            if (previousFocusIndex >= 0 && previousFocusIndex < this.focusableElements.length) {
+                this.setFocus(previousFocusIndex);
+            } else {
+                this.setInitialFocus();
+            }
         }
     }
     
