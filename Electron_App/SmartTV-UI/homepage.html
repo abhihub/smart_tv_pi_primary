@@ -1161,6 +1161,11 @@
                 this.networkStatusElement = document.getElementById('networkStatus');
                 this.qrToggleBtn = document.getElementById('qrToggleBtn');
                 this.bodyElement = document.body;
+                
+                console.log('🔍 NetworkManager constructor - Elements found:');
+                console.log('🔍 Network status element:', this.networkStatusElement);
+                console.log('🔍 QR toggle button:', this.qrToggleBtn);
+                console.log('🔍 Body element:', this.bodyElement);
             }
 
             async initialize() {
@@ -1171,19 +1176,23 @@
 
             async checkNetworkStatus() {
                 try {
-                    // console.log('🌐 Checking network connectivity...');
+                    console.log('🌐 Checking network connectivity...');
                     
                     // Check if we're connected to WiFi/Ethernet
                     let isConnected = false;
                     
+                    console.log('🔍 Electron API available:', !!window.electronAPI);
+                    console.log('🔍 WiFi API available:', !!(window.electronAPI && window.electronAPI.wifi));
+                    
                     if (window.electronAPI && window.electronAPI.wifi) {
                         try {
+                            console.log('📡 Calling Electron WiFi API...');
                             const [status, current] = await Promise.all([
                                 window.electronAPI.wifi.getStatus(),
                                 window.electronAPI.wifi.getCurrent()
                             ]);
                             
-                            // console.log('📡 Network status:', { status, current });
+                            console.log('📡 Network status:', { status, current });
                             isConnected = (status.success && status.connected) || 
                                          (current.success && current.connected);
                             
@@ -1194,10 +1203,11 @@
                             isConnected = navigator.onLine;
                         }
                     } else {
-                        // console.log('🌐 Using browser connectivity check...');
+                        console.log('🌐 Using browser connectivity check...');
                         isConnected = navigator.onLine;
                     }
                     
+                    console.log('🌐 Final connection status:', isConnected);
                     this.updateNetworkStatus(isConnected);
                     return isConnected;
                     
@@ -1211,8 +1221,12 @@
             updateNetworkStatus(isOnline) {
                 this.isOnline = isOnline;
                 
+                console.log('🔄 Updating network status to:', isOnline ? 'ONLINE' : 'OFFLINE');
+                console.log('🔄 Network status element:', this.networkStatusElement);
+                console.log('🔄 Body element:', this.bodyElement);
+                
                 if (isOnline) {
-                    // console.log('✅ Network: ONLINE');
+                    console.log('✅ Network: ONLINE');
                     this.networkStatusElement.textContent = '🟢 Online';
                     this.networkStatusElement.className = 'network-status online';
                     this.bodyElement.className = 'online-background';
@@ -1225,7 +1239,7 @@
                         window.liveVideoBackground.initializeOnlineMode();
                     }
                 } else {
-                    // console.log('❌ Network: OFFLINE');
+                    console.log('❌ Network: OFFLINE');
                     this.networkStatusElement.textContent = '🔴 Offline';
                     this.networkStatusElement.className = 'network-status offline';
                     this.bodyElement.className = 'offline-background';
@@ -2106,20 +2120,20 @@
                         isConnected = !!(storedConfig && wifiSetupComplete);
                         
                         // console.log('📡 Fallback connection check:', { 
-                            hasStoredConfig: !!storedConfig, 
-                            setupComplete: !!wifiSetupComplete,
-                            assumedConnected: isConnected 
-                        });
+                        //     hasStoredConfig: !!storedConfig, 
+                        //     setupComplete: !!wifiSetupComplete,
+                        //     assumedConnected: isConnected 
+                        // });
                     }
                     
                     // Show QR scanner if NOT connected (regardless of previous setup)
                     const shouldShowQR = !isConnected;
                     
                     // console.log('📱 WiFi connection decision:', { 
-                        isConnected, 
-                        shouldShowQR,
-                        timestamp: new Date().toISOString()
-                    });
+                    //     isConnected, 
+                    //     shouldShowQR,
+                    //     timestamp: new Date().toISOString()
+                    // });
 
                     return shouldShowQR;
                     
@@ -2316,10 +2330,10 @@
 
             async processWiFiCredentials(wifiData) {
                 // console.log('📱 Processing WiFi credentials:', { 
-                    ssid: wifiData.ssid, 
-                    hasPassword: !!wifiData.password,
-                    security: wifiData.security 
-                });
+                //     ssid: wifiData.ssid, 
+                //     hasPassword: !!wifiData.password,
+                //     security: wifiData.security 
+                // });
                 
                 try {
                     this.updateStatus('🔄 Connecting to WiFi...');
@@ -2615,6 +2629,20 @@
 
         // Initialize QR WiFi Scanner
         let qrWifiScanner = null;
+        
+        // Assign the local variable to the window instance after initialization
+        // This is needed for the auto-start functionality to work
+        setTimeout(() => {
+            if (window.qrWifiScanner) {
+                qrWifiScanner = window.qrWifiScanner;
+                console.log('📱 QR WiFi Scanner auto-start enabled');
+                
+                // Check immediately after assignment to start working right away
+                setTimeout(() => {
+                    checkAndShowQRScanner();
+                }, 500);
+            }
+        }, 1000);
 
         // Function to check and show QR scanner if needed
         async function checkAndShowQRScanner() {
@@ -2686,6 +2714,14 @@
 
         // Check WiFi status periodically (every 30 seconds) to catch disconnections
         setInterval(checkAndShowQRScanner, 30000);
+        
+        // Initial check after 30 seconds to show QR scanner if needed
+        setTimeout(() => {
+            if (qrWifiScanner) {
+                console.log('📱 Initial QR scanner check (30 second delay)');
+                checkAndShowQRScanner();
+            }
+        }, 30000);
 
         // Add cleanup for QR scanner
         window.addEventListener('beforeunload', () => {
