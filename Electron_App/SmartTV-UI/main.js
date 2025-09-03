@@ -650,12 +650,23 @@ function setupRemoteControlServer() {
 }
 
 function handleRemoteCommand(message, ws) {
+  const { type, command, data } = message;
+  
+  // Handle ping/pong for connection keepalive
+  if (type === 'ping') {
+    ws.send(JSON.stringify({
+      type: 'pong',
+      timestamp: Date.now(),
+      originalTimestamp: message.timestamp
+    }));
+    console.log('🏓 Ping received, pong sent');
+    return;
+  }
+  
   if (!mainWindow) {
     console.error('❌ No main window available for remote command');
     return;
   }
-  
-  const { type, command, data } = message;
   
   if (type === 'remote_command') {
     switch (command) {

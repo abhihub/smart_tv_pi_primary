@@ -1,6 +1,8 @@
-// User identification utility for SmartTV
-// Generates and manages persistent usernames using localStorage
-
+/**
+ * User identification utility for SmartTV
+ * Generates and manages persistent usernames using localStorage
+ * Handles user registration with backend server and presence management
+ */
 class UserUtils {
     constructor() {
         this.storageKey = 'smarttv_user_id';
@@ -13,6 +15,13 @@ class UserUtils {
         this.initializeConfig();
     }
     
+    /**
+     * Initialize configuration by trying multiple sources in order:
+     * 1. electronAPI (preload script) - highest priority
+     * 2. window.appConfig (main process injection) - fallback
+     * 3. configReady event listener - async fallback
+     * This ensures the server URL is available for API calls
+     */
     initializeConfig() {
         // Try electronAPI first (preload script)
         if (window.electronAPI?.getAppConfig) {
@@ -287,18 +296,14 @@ window.userUtils.init();
 // Helper functions for compatibility with existing code
 async function getCurrentUser() {
     await window.userUtils.waitForConfig();
-    if (!window.userUtils.isRegistered) {
-        await window.userUtils.registerWithServer();
-    }
+    // Don't register again if already registered
     return {
         username: window.userUtils.getUsername(),
         display_name: window.userUtils.getUsername()
     };
 }
 
-async function registerWithServer() {
-    return await window.userUtils.registerWithServer();
-}
+// This function is no longer needed - use window.userUtils.registerWithServer() directly
 
 function getUserProfile() {
     return window.userUtils.getUserProfile();

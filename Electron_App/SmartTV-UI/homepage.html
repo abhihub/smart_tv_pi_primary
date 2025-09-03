@@ -1154,36 +1154,68 @@
     </script>
     
     <script>
-        // Network Detection System
+        /**
+         * Network Detection System
+         * Monitors WiFi/Ethernet connection status and updates UI accordingly
+         * Controls QR scanner visibility, background video, and network status display
+         * Key functions:
+         * - checkNetworkStatus(): Determines if device is online/offline
+         * - updateNetworkStatus(): Updates UI elements based on connection status
+         * - setupNetworkMonitoring(): Sets up event listeners for network changes
+         */
         class NetworkManager {
             constructor() {
                 this.isOnline = false;
                 this.networkStatusElement = document.getElementById('networkStatus');
                 this.qrToggleBtn = document.getElementById('qrToggleBtn');
                 this.bodyElement = document.body;
+                
+                console.log('🔍 NetworkManager constructor - Elements found:');
+                console.log('🔍 Network status element:', this.networkStatusElement);
+                console.log('🔍 QR toggle button:', this.qrToggleBtn);
+                console.log('🔍 Body element:', this.bodyElement);
             }
 
+            /**
+             * Initialize the network manager
+             * 1. Check current network status
+             * 2. Set up network monitoring (online/offline events + periodic checks)
+             * 3. Set up QR toggle button functionality
+             */
             async initialize() {
                 await this.checkNetworkStatus();
                 this.setupNetworkMonitoring();
                 this.setupQRToggle();
             }
 
+            /**
+             * Check current network connectivity status
+             * Priority order:
+             * 1. Electron WiFi API (most accurate - checks actual WiFi connection)
+             * 2. Browser navigator.onLine (fallback - less reliable)
+             * 
+             * Updates UI and returns boolean indicating if device is online
+             * Called on initialization, network events, and every 10 seconds
+             */
             async checkNetworkStatus() {
                 try {
-                    // console.log('🌐 Checking network connectivity...');
+                    console.log('🌐 Checking network connectivity...');
                     
                     // Check if we're connected to WiFi/Ethernet
                     let isConnected = false;
                     
+                    console.log('🔍 Electron API available:', !!window.electronAPI);
+                    console.log('🔍 WiFi API available:', !!(window.electronAPI && window.electronAPI.wifi));
+                    
                     if (window.electronAPI && window.electronAPI.wifi) {
                         try {
+                            console.log('📡 Calling Electron WiFi API...');
                             const [status, current] = await Promise.all([
                                 window.electronAPI.wifi.getStatus(),
                                 window.electronAPI.wifi.getCurrent()
                             ]);
                             
-                            // console.log('📡 Network status:', { status, current });
+                            console.log('📡 Network status:', { status, current });
                             isConnected = (status.success && status.connected) || 
                                          (current.success && current.connected);
                             
@@ -1194,10 +1226,11 @@
                             isConnected = navigator.onLine;
                         }
                     } else {
-                        // console.log('🌐 Using browser connectivity check...');
+                        console.log('🌐 Using browser connectivity check...');
                         isConnected = navigator.onLine;
                     }
                     
+                    console.log('🌐 Final connection status:', isConnected);
                     this.updateNetworkStatus(isConnected);
                     return isConnected;
                     
@@ -1208,11 +1241,29 @@
                 }
             }
 
+            /**
+             * Update UI elements based on network connection status
+             * ONLINE mode:
+             * - Shows green "🟢 Online" status
+             * - Applies online-background CSS class
+             * - Shows QR toggle button (user can manually show/hide QR scanner)
+             * - Initializes background video with camera
+             * 
+             * OFFLINE mode:
+             * - Shows red "🔴 Offline" status  
+             * - Applies offline-background CSS class (solid blue background)
+             * - Hides QR toggle button
+             * - Automatically shows QR scanner for WiFi setup
+             */
             updateNetworkStatus(isOnline) {
                 this.isOnline = isOnline;
                 
+                console.log('🔄 Updating network status to:', isOnline ? 'ONLINE' : 'OFFLINE');
+                console.log('🔄 Network status element:', this.networkStatusElement);
+                console.log('🔄 Body element:', this.bodyElement);
+                
                 if (isOnline) {
-                    // console.log('✅ Network: ONLINE');
+                    console.log('✅ Network: ONLINE');
                     this.networkStatusElement.textContent = '🟢 Online';
                     this.networkStatusElement.className = 'network-status online';
                     this.bodyElement.className = 'online-background';
@@ -1225,7 +1276,7 @@
                         window.liveVideoBackground.initializeOnlineMode();
                     }
                 } else {
-                    // console.log('❌ Network: OFFLINE');
+                    console.log('❌ Network: OFFLINE');
                     this.networkStatusElement.textContent = '🔴 Offline';
                     this.networkStatusElement.className = 'network-status offline';
                     this.bodyElement.className = 'offline-background';
@@ -1964,7 +2015,21 @@
             }
         }
 
-        // Initialize everything when page loads
+        /**
+         * MAIN PAGE INITIALIZATION
+         * This is the primary initialization function that runs when the page loads
+         * Initialization order is critical:
+         * 1. NetworkManager - determines online/offline status and controls UI
+         * 2. LiveVideoBackground - camera system for online mode
+         * 3. QRWiFiScanner - WiFi setup system for offline mode
+         * 4. OpenAI Whisper STT - speech recognition (disabled by default)
+         * 5. TV Remote - navigation system
+         * 6. Device IP display - connection info for mobile remote
+         * 
+         * After initialization, applies network-based configuration:
+         * - ONLINE: Background video + QR toggle button available
+         * - OFFLINE: Solid background + QR scanner automatically shown
+         */
         document.addEventListener('DOMContentLoaded', async () => {
             // console.log('🚀 Page DOMContentLoaded event fired at:', new Date().toISOString());
             
@@ -2039,7 +2104,21 @@
             // console.log('🧹 Page cleanup completed at:', new Date().toISOString());
         });
 
-        // QR WiFi Scanner System
+        /**
+         * QR WiFi Scanner System
+         * Scans WiFi QR codes and automatically connects to networks
+         * Key features:
+         * - Camera-based QR code scanning
+         * - WiFi credential parsing (WIFI: format, JSON, key:value)
+         * - Automatic connection via Electron WiFi API
+         * - Fallback simulation for development
+         * - Periodic WiFi status monitoring
+         * 
+         * Auto-start behavior:
+         * - Shows automatically when device is offline (no WiFi)
+         * - Hides automatically when WiFi connection is established
+         * - Can be manually triggered with 'Q' key
+         */
         class QRWiFiScanner {
             constructor() {
                 this.qrScanner = null;
@@ -2062,6 +2141,15 @@
                 });
             }
 
+            /**
+             * Check if device is currently connected to WiFi
+             * Priority order:
+             * 1. Electron WiFi API (most accurate - checks actual connection)
+             * 2. localStorage fallback (assumes connection if config exists)
+             * 
+             * Returns boolean: true = show QR scanner (no WiFi), false = hide QR scanner (WiFi connected)
+             * This is the core logic that determines when QR scanner should be visible
+             */
             async checkWiFiConnectionStatus() {
                 try {
                     // console.log('🔍 Checking WiFi connection status...');
@@ -2106,20 +2194,20 @@
                         isConnected = !!(storedConfig && wifiSetupComplete);
                         
                         // console.log('📡 Fallback connection check:', { 
-                            hasStoredConfig: !!storedConfig, 
-                            setupComplete: !!wifiSetupComplete,
-                            assumedConnected: isConnected 
-                        });
+                        //     hasStoredConfig: !!storedConfig, 
+                        //     setupComplete: !!wifiSetupComplete,
+                        //     assumedConnected: isConnected 
+                        // });
                     }
                     
                     // Show QR scanner if NOT connected (regardless of previous setup)
                     const shouldShowQR = !isConnected;
                     
                     // console.log('📱 WiFi connection decision:', { 
-                        isConnected, 
-                        shouldShowQR,
-                        timestamp: new Date().toISOString()
-                    });
+                    //     isConnected, 
+                    //     shouldShowQR,
+                    //     timestamp: new Date().toISOString()
+                    // });
 
                     return shouldShowQR;
                     
@@ -2316,10 +2404,10 @@
 
             async processWiFiCredentials(wifiData) {
                 // console.log('📱 Processing WiFi credentials:', { 
-                    ssid: wifiData.ssid, 
-                    hasPassword: !!wifiData.password,
-                    security: wifiData.security 
-                });
+                //     ssid: wifiData.ssid, 
+                //     hasPassword: !!wifiData.password,
+                //     security: wifiData.security 
+                // });
                 
                 try {
                     this.updateStatus('🔄 Connecting to WiFi...');
@@ -2615,8 +2703,46 @@
 
         // Initialize QR WiFi Scanner
         let qrWifiScanner = null;
+        
+        /**
+         * CRITICAL: QR Scanner Auto-Start Fix
+         * Problem: The local qrWifiScanner variable was never assigned the actual instance
+         * Solution: Assign it after the window instance is created during page initialization
+         * 
+         * Timing:
+         * - 1000ms: Wait for main initialization to complete
+         * - 1500ms: Perform initial QR scanner check
+         * - 30000ms: Start periodic checks every 30 seconds
+         * 
+         * This enables the setInterval(checkAndShowQRScanner, 30000) to work properly
+         */
+        setTimeout(() => {
+            if (window.qrWifiScanner) {
+                qrWifiScanner = window.qrWifiScanner;
+                console.log('📱 QR WiFi Scanner auto-start enabled');
+                
+                // Check immediately after assignment to start working right away
+                setTimeout(() => {
+                    checkAndShowQRScanner();
+                }, 500);
+            }
+        }, 1000);
 
-        // Function to check and show QR scanner if needed
+        /**
+         * Main QR Scanner Auto-Start Function
+         * This function is called:
+         * - Every 30 seconds via setInterval (main auto-start mechanism)
+         * - When page becomes visible/focused
+         * - After initial setup (1500ms delay)
+         * 
+         * Logic:
+         * 1. Check if QR scanner is available
+         * 2. Call qrWifiScanner.checkWiFiConnectionStatus() to determine if WiFi is connected
+         * 3. Show QR scanner if no WiFi (shouldShowQR = true)
+         * 4. Hide QR scanner if WiFi is connected (shouldShowQR = false)
+         * 
+         * This is the core function that makes the QR scanner appear automatically after 30 seconds
+         */
         async function checkAndShowQRScanner() {
             if (!qrWifiScanner) {
                 // console.log('📱 QR WiFi Scanner not initialized yet');
@@ -2684,8 +2810,23 @@
             setTimeout(checkAndShowQRScanner, 1000);
         });
 
-        // Check WiFi status periodically (every 30 seconds) to catch disconnections
+        /**
+         * QR Scanner Auto-Start Setup
+         * 1. setInterval: Main mechanism - checks every 30 seconds
+         * 2. setTimeout: Initial check - ensures QR scanner appears after 30 seconds on page load
+         * 
+         * This creates the "QR scanner appears after 30 seconds" behavior
+         * The setInterval continues monitoring for network changes after the initial delay
+         */
         setInterval(checkAndShowQRScanner, 30000);
+        
+        // Initial check after 30 seconds to show QR scanner if needed
+        setTimeout(() => {
+            if (qrWifiScanner) {
+                console.log('📱 Initial QR scanner check (30 second delay)');
+                checkAndShowQRScanner();
+            }
+        }, 30000);
 
         // Add cleanup for QR scanner
         window.addEventListener('beforeunload', () => {

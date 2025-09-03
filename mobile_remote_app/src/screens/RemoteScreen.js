@@ -19,6 +19,8 @@ import AppLauncher from '../components/AppLauncher';
 export default function RemoteScreen({ tvInfo, onDisconnect }) {
   const [tvStatus, setTvStatus] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('connected');
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
 
   useEffect(() => {
     // Get initial TV status
@@ -27,7 +29,25 @@ export default function RemoteScreen({ tvInfo, onDisconnect }) {
     // Set up periodic status updates
     const interval = setInterval(loadTVStatus, 5000);
     
-    return () => clearInterval(interval);
+    // Set up connection status listener
+    const handleConnectionChange = (status, data) => {
+      console.log('🔌 Connection status changed:', status, data);
+      setConnectionStatus(status);
+      
+      if (status === 'disconnected' || status === 'failed') {
+        const statusInfo = SmartTVService.getConnectionStatus();
+        setReconnectAttempts(statusInfo.reconnectAttempts);
+      } else if (status === 'connected' || status === 'reconnected') {
+        setReconnectAttempts(0);
+      }
+    };
+    
+    SmartTVService.addConnectionListener(handleConnectionChange);
+    
+    return () => {
+      clearInterval(interval);
+      SmartTVService.removeConnectionListener(handleConnectionChange);
+    };
   }, []);
 
   const loadTVStatus = async () => {
@@ -93,12 +113,48 @@ export default function RemoteScreen({ tvInfo, onDisconnect }) {
     SmartTVService.launchApp(appName);
   };
 
-  const renderConnectionStatus = () => (
-    <View style={styles.connectionStatus}>
-      <View style={styles.statusDot} />
-      <Text style={styles.statusText}>Connected to {tvInfo.name}</Text>
-    </View>
-  );
+  const renderConnectionStatus = () => {
+    let statusColor = '#00ff88';
+    let statusText = `Connected to ${tvInfo.name}`;
+    let showReconnectButton = false;
+    
+    switch (connectionStatus) {
+      case 'disconnected':
+      case 'failed':
+        statusColor = '#ff6b6b';
+        statusText = 'Disconnected';
+        showReconnectButton = true;
+        break;
+      case 'reconnecting':
+        statusColor = '#fbbf24';
+        statusText = `Reconnecting... (${reconnectAttempts})`;
+        break;
+      case 'max_reconnects_reached':
+        statusColor = '#ff6b6b';
+        statusText = 'Connection failed';
+        showReconnectButton = true;
+        break;
+      case 'reconnected':
+        statusColor = '#00ff88';
+        statusText = 'Reconnected';
+        break;
+    }
+    
+    return (
+      <View style={styles.connectionStatus}>
+        <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+        <Text style={styles.statusText}>{statusText}</Text>
+        {showReconnectButton && (
+          <TouchableOpacity
+            style={styles.reconnectButton}
+            onPress={() => SmartTVService.forceReconnect()}
+          >
+            <Ionicons name="refresh" size={16} color="#667eea" />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   const renderNavigationPad = () => (
     <View style={styles.navigationPad}>
@@ -269,9 +325,12 @@ const styles = StyleSheet.create({
   statusDot: {
     width: 8,
     height: 8,
-    backgroundColor: '#00ff88',
     borderRadius: 4,
     marginRight: 8,
+  },
+  reconnectButton: {
+    marginLeft: 8,
+    padding: 4,
   },
   statusText: {
     fontSize: 14,

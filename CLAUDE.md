@@ -8,14 +8,16 @@ SmartTV is a hybrid application consisting of an Electron-based desktop UI for S
 
 ## Architecture
 
-### Three-Component System
+### Four-Component System
 1. **Electron App** (`Electron_App/SmartTV-UI/`) - Main desktop application
 2. **Flask Server** (`server_side/`) - Backend API services  
-3. **Kiosk Configuration** (`kiosk/`) - Linux TV deployment setup
+3. **Mobile Remote App** (`mobile_remote_app/`) - React Native mobile remote control
+4. **Kiosk Configuration** (`kiosk/`) - Linux TV deployment setup
 
 ### Technology Stack
 - **Frontend**: Electron 28.0.0 with vanilla HTML/CSS/JavaScript
 - **Backend**: Flask 5.1.0 with Twilio SDK integration
+- **Mobile**: React Native with Expo SDK 53.0.20 for cross-platform mobile remote
 - **Build**: Electron Forge with security fuses and cross-platform packaging
 - **Deployment**: Linux kiosk mode with hardware acceleration
 
@@ -45,6 +47,24 @@ pip install flask flask-cors python-dotenv twilio
 # Run server
 python app.py              # Starts on port 3001 by default
 # or set custom port: PORT=5000 python app.py
+```
+
+### Mobile Remote App
+```bash
+cd mobile_remote_app/
+
+# Install dependencies
+npm install
+
+# Development
+npm start                   # Start Expo development server
+npm run android            # Run on Android device/emulator
+npm run ios                # Run on iOS device/simulator
+npm run web                # Run in web browser
+
+# Building
+# Configure EAS Build in eas.json for production builds
+# See: https://docs.expo.dev/build/introduction/
 ```
 
 ### Environment Setup
@@ -103,17 +123,51 @@ Linux TV deployment script handles:
 2. Flask server generates Twilio access tokens for video calls
 3. Frontend establishes WebRTC connections via Twilio's infrastructure
 4. Trivia games use WebSocket connections for real-time multiplayer
+5. Mobile remote app connects via WebSocket to SmartTV (port 8080) for real-time control
+6. Mobile app can also make HTTP requests to Flask server for advanced features
 
 ## File Organization Patterns
 
 - Frontend assets and pages are in `Electron_App/SmartTV-UI/`
 - Backend follows Flask blueprint pattern with `api/` and `services/` separation
+- Mobile app follows React Native/Expo structure with `src/` containing components, screens, and services
 - Build outputs go to `out/` directory (gitignored)
 - Kiosk deployment scripts are in dedicated `kiosk/` directory
 
+## Mobile Remote App Architecture
+
+The mobile remote app (`mobile_remote_app/`) provides smartphone control for the SmartTV system with the following features:
+
+### Key Components
+- **`App.js`** - Main application entry point with navigation state management
+- **`SimpleConnectScreen.js`** - IP-based connection interface for TV discovery
+- **`RemoteScreen.js`** - Full-featured remote control interface with navigation, volume, and app shortcuts
+- **`WifiQRScreen.js`** - WiFi QR code generator for easy TV network setup
+- **`SmartTVService.js`** - WebSocket and HTTP communication service
+
+### Mobile App Features
+- **TV Connection**: Direct IP connection with WebSocket communication
+- **Remote Control**: D-pad navigation, select/back/home buttons with haptic feedback
+- **Volume Control**: Volume up/down/mute with real-time feedback
+- **App Launcher**: Quick access shortcuts to TV applications (Home, Video Call, Trivia, Settings)
+- **WiFi Setup**: Generate QR codes for WiFi network configuration
+- **Real-time Status**: Live TV status updates and connection monitoring
+
+### Communication Protocol
+- **WebSocket**: Real-time bidirectional communication on port 8080
+- **HTTP API**: Status queries and configuration via Flask backend
+- **Command Format**: JSON messages with `type`, `command`, and `data` fields
+
+### Security Considerations
+- Uses cleartext traffic for local network communication
+- Network security configuration allows HTTP on local networks
+- No authentication currently implemented (designed for trusted home networks)
+
 ## Development Notes
 
-- The app is designed for TV interfaces - UI elements are large and gesture-friendly
+- The TV app is designed for large screen interfaces with gesture-friendly UI elements
+- Mobile app uses dark theme optimized for TV remote control usage
 - Video calling requires Twilio credentials and internet connectivity
-- Cross-platform builds are configured but primarily targets Linux for TV deployment
+- Cross-platform builds configured for Linux TV deployment and mobile platforms (iOS/Android)
 - The Flask server runs independently and can be deployed separately from the Electron app
+- Mobile remote app requires same WiFi network as the SmartTV for WebSocket connection
