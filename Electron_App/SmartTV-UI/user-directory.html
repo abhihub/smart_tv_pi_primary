@@ -152,7 +152,7 @@
             transform: translateY(-2px);
         }
 
-        .status-bar {
+        .content-status-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -623,7 +623,7 @@
             <a href="homepage.html" class="back-btn" data-focusable="true" tabindex="0">← Back to Console</a>
         </div>
 
-        <div class="status-bar">
+        <div class="content-status-bar">
             <div class="user-info">
                 <div class="user-avatar" id="currentUserAvatar">?</div>
                 <div>
@@ -914,6 +914,11 @@
             if (currentUser) {
                 document.getElementById('currentUsername').textContent = currentUser.username;
                 document.getElementById('currentUserAvatar').textContent = currentUser.username.substring(0, 2);
+                // Update the top status bar user ID display
+                const userIdElement = document.getElementById('userIdDisplay');
+                if (userIdElement) {
+                    userIdElement.textContent = currentUser.username;
+                }
             }
         }
 

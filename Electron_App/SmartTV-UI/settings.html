@@ -81,6 +81,21 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
         }
         
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #FCD34D;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            margin: 0;
+        }
+        
         .settings-section {
             margin-bottom: 40px;
             padding: 20px;
@@ -187,16 +202,21 @@
         }
         
         .back-btn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(255, 255, 255, 0.2);
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
             color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
+            text-decoration: none;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            display: inline-block;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
         }
     </style>
 </head>
@@ -215,10 +235,11 @@
         </div>
     </div>
     
-    <button class="back-btn" onclick="goBack()">← Back</button>
-    
     <div class="settings-container">
-        <h1>Settings</h1>
+        <div class="header">
+            <h1>Settings</h1>
+            <a href="homepage.html" class="back-btn" data-focusable="true" tabindex="0">← Back to Console</a>
+        </div>
         
         <div class="settings-section">
             <h2>Software Updates</h2>
