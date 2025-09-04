@@ -33,11 +33,11 @@ class BackgroundService:
             return
         
         try:
-            # Clean up inactive users every 30 seconds
+            # Clean up inactive users every 2 minutes
             self.scheduler.add_job(
                 func=self.cleanup_inactive_users,
                 trigger="interval",
-                seconds=30,
+                minutes=2,
                 id='cleanup_inactive_users',
                 name='Cleanup Inactive Users',
                 replace_existing=True
@@ -89,16 +89,16 @@ class BackgroundService:
             logger.error(f"Error stopping background service: {e}")
     
     def cleanup_inactive_users(self):
-        """Mark users as offline if they haven't been active in the last minute"""
+        """Mark users as offline if they haven't been active in the last 3 minutes"""
         try:
-            one_minute_ago = datetime.now() - timedelta(minutes=1)
+            three_minutes_ago = datetime.now() - timedelta(minutes=3)
             
             # Get count of users who will be marked offline
             count_query = """
                 SELECT COUNT(*) FROM user_presence 
                 WHERE status = 'online' AND updated_at < ?
             """
-            result = self.db.execute_query(count_query, (one_minute_ago.isoformat(),), fetch='one')
+            result = self.db.execute_query(count_query, (three_minutes_ago.isoformat(),), fetch='one')
             users_to_cleanup = result[0] if result else 0
             
             if users_to_cleanup > 0:
@@ -108,7 +108,7 @@ class BackgroundService:
                     SET status = 'offline', updated_at = CURRENT_TIMESTAMP
                     WHERE status = 'online' AND updated_at < ?
                 """
-                self.db.execute_query(update_query, (one_minute_ago.isoformat(),))
+                self.db.execute_query(update_query, (three_minutes_ago.isoformat(),))
                 
                 logger.info(f"🧹 Marked {users_to_cleanup} inactive users as offline")
             else:

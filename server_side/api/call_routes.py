@@ -17,17 +17,21 @@ def get_online_users():
         current_user = request.args.get('exclude_user')
         # Check if we should filter by contacts only
         contacts_only = request.args.get('contacts_only', 'false').lower() == 'true'
+        # Check if we should include offline users
+        include_offline = request.args.get('include_offline', 'true').lower() == 'true'
         
         users = call_service.get_online_users(
             exclude_username=current_user, 
-            contacts_only=contacts_only
+            contacts_only=contacts_only,
+            include_offline=include_offline
         )
         
         return jsonify({
             'success': True,
             'users': users,
             'count': len(users),
-            'contacts_only': contacts_only
+            'contacts_only': contacts_only,
+            'include_offline': include_offline
         }), 200
         
     except Exception as e:

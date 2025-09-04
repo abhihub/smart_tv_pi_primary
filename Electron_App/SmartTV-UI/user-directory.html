@@ -192,9 +192,9 @@
         }
 
         .users-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
             flex: 1;
             overflow-y: auto;
             padding-right: 10px;
@@ -266,6 +266,18 @@
             border-radius: 50%;
             border: 1px solid white;
             box-shadow: 0 1px 2px rgba(46, 204, 113, 0.5);
+        }
+        
+        .offline-indicator {
+            position: absolute;
+            bottom: 0px;
+            right: 0px;
+            width: 8px;
+            height: 8px;
+            background: #95a5a6;
+            border-radius: 50%;
+            border: 1px solid white;
+            box-shadow: 0 1px 2px rgba(149, 165, 166, 0.5);
         }
 
         .offline-indicator {
@@ -388,6 +400,52 @@
 
         .call-btn:active {
             transform: translateY(0);
+        }
+        
+        .offline-btn {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%) !important;
+            cursor: not-allowed !important;
+            opacity: 0.6;
+        }
+        
+        .offline-btn:hover {
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
+        .user-section {
+            margin-bottom: 40px;
+        }
+        
+        .section-header {
+            margin-bottom: 20px;
+            padding: 10px 0;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .section-header h3 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #FCD34D;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .users-grid-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        
+        .offline-user-card {
+            opacity: 0.7;
+            filter: grayscale(0.3);
+        }
+        
+        .offline-user-card:hover {
+            opacity: 0.9;
         }
 
         .empty-state {
@@ -525,7 +583,7 @@
                 font-size: 2rem;
             }
             
-            .users-grid {
+            .users-grid-section {
                 grid-template-columns: 1fr;
             }
             
@@ -926,8 +984,7 @@
             try {
                 if (!currentUser) return;
 
-                // Update presence first to mark this user as active
-                await updatePresence();
+                // Remove duplicate presence update - call-monitor.js handles this
 
                 const serverUrl = await getServerUrl();
                 const response = await fetch(`${serverUrl}/api/contacts/list/${currentUser.username}`);
@@ -939,9 +996,12 @@
                 const data = await response.json();
                 const contacts = data.contacts || [];
                 
-                // Only update UI if data has actually changed
+                // Only update UI if data has actually changed (force refresh every 30 seconds)
                 const newHash = generateDataHash(contacts);
-                if (newHash !== dataCache.lastContactsHash) {
+                const now = Date.now();
+                const forceRefresh = !dataCache.lastContactsRefresh || (now - dataCache.lastContactsRefresh) > 30000;
+                if (newHash !== dataCache.lastContactsHash || forceRefresh) {
+                    dataCache.lastContactsRefresh = now;
                     dataCache.contacts = contacts;
                     dataCache.lastContactsHash = newHash;
                     displayContacts(contacts);
@@ -964,29 +1024,43 @@
             try {
                 if (!currentUser) return;
 
-                // Update presence first to mark this user as active
-                await updatePresence();
+                console.log(`[${new Date().toISOString()}] 🔄 LOAD_ALL_ONLINE_USERS - Starting for user: ${currentUser.username}`);
+                // Remove duplicate presence update - call-monitor.js handles this
 
                 const serverUrl = await getServerUrl();
-                const response = await fetch(`${serverUrl}/api/calls/online-users?exclude_user=${currentUser.username}`);
+                const apiUrl = `${serverUrl}/api/calls/online-users?exclude_user=${currentUser.username}&include_offline=true`;
+                console.log(`[${new Date().toISOString()}] 📡 API_CALL: ${apiUrl}`);
+                
+                const response = await fetch(apiUrl);
                 
                 if (!response.ok) {
+                    console.error(`[${new Date().toISOString()}] ❌ API_ERROR: HTTP ${response.status}`);
                     throw new Error('Failed to fetch online users');
                 }
 
                 const data = await response.json();
                 const users = data.users || [];
                 
-                // Only update UI if data has actually changed
+                console.log(`[${new Date().toISOString()}] 📊 API_RESPONSE: ${users.length} users -`, users.map(u => `${u.username}(${u.is_online ? 'ON' : 'OFF'})`).join(', '));
+                
+                // Only update UI if data has actually changed (force refresh every 30 seconds)
                 const newHash = generateDataHash(users);
-                if (newHash !== dataCache.lastUsersHash) {
+                const now = Date.now();
+                const forceRefresh = !dataCache.lastUsersRefresh || (now - dataCache.lastUsersRefresh) > 30000;
+                
+                console.log(`[${new Date().toISOString()}] 📆 CACHE_CHECK: newHash=${newHash}, oldHash=${dataCache.lastUsersHash}, forceRefresh=${forceRefresh}`);
+                
+                if (newHash !== dataCache.lastUsersHash || forceRefresh) {
+                    dataCache.lastUsersRefresh = now;
+                    console.log(`[${new Date().toISOString()}] 🔄 CACHE_UPDATE: Updating UI with new data`);
                     dataCache.allUsers = users;
                     dataCache.lastUsersHash = newHash;
                     displayAllUsers(users);
-                    document.getElementById('onlineCount').textContent = data.count || 0;
+                    const onlineCount = users.filter(u => u.is_online).length;
+                    document.getElementById('onlineCount').textContent = onlineCount;
                     // console.log('🔄 Online users updated - data changed');
                 } else {
-                    // console.log('🌐 Online users unchanged - skipping UI update');
+                    console.log(`[${new Date().toISOString()}] 📆 CACHE_SKIP: No changes detected, skipping UI update`);
                 }
                 
             } catch (error) {
@@ -1091,37 +1165,111 @@
                 return;
             }
 
-            contactsGrid.innerHTML = contacts.map(contact => `
-                <div class="user-card" onclick="initiateCall('${contact.username}')" data-focusable="true" tabindex="0">
-                    <div class="user-card-avatar">
-                        ${contact.is_favorite ? '<div class="favorite-star">⭐</div>' : ''}
-                        ${(contact.display_name || contact.username).substring(0, 2).toUpperCase()}
-                        <div class="${contact.is_online ? 'online-indicator' : 'offline-indicator'}"></div>
+            // Separate online and offline contacts
+            const onlineContacts = contacts.filter(contact => contact.is_online)
+                .sort((a, b) => {
+                    if (a.is_favorite && !b.is_favorite) return -1;
+                    if (!a.is_favorite && b.is_favorite) return 1;
+                    return a.username.localeCompare(b.username);
+                });
+            
+            const offlineContacts = contacts.filter(contact => !contact.is_online)
+                .sort((a, b) => {
+                    if (a.is_favorite && !b.is_favorite) return -1;
+                    if (!a.is_favorite && b.is_favorite) return 1;
+                    return a.username.localeCompare(b.username);
+                });
+            
+            let html = '';
+            
+            // Online Contacts Section
+            if (onlineContacts.length > 0) {
+                html += `
+                    <div class="user-section">
+                        <div class="section-header">
+                            <h3>🟢 Online Contacts (${onlineContacts.length})</h3>
+                        </div>
+                        <div class="users-grid-section">
+                            ${onlineContacts.map(contact => `
+                                <div class="user-card" onclick="initiateCall('${contact.username}')" data-focusable="true" tabindex="0">
+                                    <div class="user-card-avatar">
+                                        ${contact.is_favorite ? '<div class="favorite-star">⭐</div>' : ''}
+                                        ${(contact.display_name || contact.username).substring(0, 2).toUpperCase()}
+                                        <div class="online-indicator"></div>
+                                    </div>
+                                    <div class="user-display-name">${contact.display_name || 'Smart TV User'}</div>
+                                    <div class="user-name">${contact.username}</div>
+                                    <div class="contact-actions">
+                                        <button class="call-btn" onclick="event.stopPropagation(); initiateCall('${contact.username}')" data-focusable="true" tabindex="0">
+                                            📞 Call
+                                        </button>
+                                        <button class="favorite-btn ${contact.is_favorite ? 'active' : ''}" 
+                                                onclick="event.stopPropagation(); toggleFavorite('${contact.username}', ${!contact.is_favorite})" 
+                                                data-focusable="true" tabindex="0">
+                                            ${contact.is_favorite ? '⭐' : '☆'}
+                                        </button>
+                                        <button class="remove-btn" onclick="event.stopPropagation(); removeContact('${contact.username}')" 
+                                                data-focusable="true" tabindex="0">
+                                            ❌
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
-                    <div class="user-display-name">${contact.display_name || 'Smart TV User'}</div>
-                    <div class="user-name">${contact.username}</div>
-                    <div class="contact-actions">
-                        ${contact.is_online ? `
-                            <button class="call-btn" onclick="event.stopPropagation(); initiateCall('${contact.username}')" data-focusable="true" tabindex="0">
-                                📞 Call
-                            </button>
-                        ` : `
-                            <button class="call-btn" style="opacity: 0.5; cursor: not-allowed;" disabled>
-                                📞 Offline
-                            </button>
-                        `}
-                        <button class="favorite-btn ${contact.is_favorite ? 'active' : ''}" 
-                                onclick="event.stopPropagation(); toggleFavorite('${contact.username}', ${!contact.is_favorite})" 
-                                data-focusable="true" tabindex="0">
-                            ${contact.is_favorite ? '⭐' : '☆'}
-                        </button>
-                        <button class="remove-btn" onclick="event.stopPropagation(); removeContact('${contact.username}')" 
-                                data-focusable="true" tabindex="0">
-                            ❌
-                        </button>
+                `;
+            }
+            
+            // Offline Contacts Section
+            if (offlineContacts.length > 0) {
+                html += `
+                    <div class="user-section">
+                        <div class="section-header">
+                            <h3>🔴 Offline Contacts (${offlineContacts.length})</h3>
+                        </div>
+                        <div class="users-grid-section">
+                            ${offlineContacts.map(contact => `
+                                <div class="user-card offline-user-card" data-focusable="true" tabindex="0">
+                                    <div class="user-card-avatar">
+                                        ${contact.is_favorite ? '<div class="favorite-star">⭐</div>' : ''}
+                                        ${(contact.display_name || contact.username).substring(0, 2).toUpperCase()}
+                                        <div class="offline-indicator"></div>
+                                    </div>
+                                    <div class="user-display-name">${contact.display_name || 'Smart TV User'}</div>
+                                    <div class="user-name">${contact.username}</div>
+                                    <div class="contact-actions">
+                                        <button class="call-btn offline-btn" disabled data-focusable="false">
+                                            📞 Offline
+                                        </button>
+                                        <button class="favorite-btn ${contact.is_favorite ? 'active' : ''}" 
+                                                onclick="event.stopPropagation(); toggleFavorite('${contact.username}', ${!contact.is_favorite})" 
+                                                data-focusable="true" tabindex="0">
+                                            ${contact.is_favorite ? '⭐' : '☆'}
+                                        </button>
+                                        <button class="remove-btn" onclick="event.stopPropagation(); removeContact('${contact.username}')" 
+                                                data-focusable="true" tabindex="0">
+                                            ❌
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }
+            
+            // Show empty state if no contacts at all
+            if (onlineContacts.length === 0 && offlineContacts.length === 0) {
+                html = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <h3>No contacts yet</h3>
+                        <p>Add users to your contact list to see them here</p>
+                    </div>
+                `;
+            }
+            
+            contactsGrid.innerHTML = html;
             
             refreshTvRemote();
         }
@@ -1132,28 +1280,73 @@
             if (users.length === 0) {
                 allUsersGrid.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">😴</div>
-                        <h3>No other users online</h3>
-                        <p>Waiting for others to join...</p>
+                        <div class="empty-state-icon">👥</div>
+                        <h3>No other users found</h3>
+                        <p>No other users have joined the system yet...</p>
                     </div>
                 `;
                 return;
             }
 
-            allUsersGrid.innerHTML = users.map(user => `
-                <div class="user-card" onclick="initiateCall('${user.username}')" data-focusable="true" tabindex="0">
-                    <div class="user-card-avatar">
-                        ${(user.display_name || user.username).substring(0, 2).toUpperCase()}
-                        <div class="online-indicator"></div>
-                    </div>
-                    <div class="user-display-name">${user.display_name || 'Smart TV User'}</div>
-                    <div class="user-name">${user.username}</div>
-                    <button class="call-btn" onclick="event.stopPropagation(); initiateCall('${user.username}')" data-focusable="true" tabindex="0">
-                        📞 Call
-                    </button>
-                </div>
-            `).join('');
+            // Separate online and offline users
+            const onlineUsers = users.filter(user => user.is_online).sort((a, b) => a.username.localeCompare(b.username));
+            const offlineUsers = users.filter(user => !user.is_online).sort((a, b) => a.username.localeCompare(b.username));
+
+            let html = '';
             
+            // Online Users Section
+            if (onlineUsers.length > 0) {
+                html += `
+                    <div class="user-section">
+                        <div class="section-header">
+                            <h3>🟢 Online Users (${onlineUsers.length})</h3>
+                        </div>
+                        <div class="users-grid-section">
+                            ${onlineUsers.map(user => `
+                                <div class="user-card" onclick="initiateCall('${user.username}')" data-focusable="true" tabindex="0">
+                                    <div class="user-card-avatar">
+                                        ${(user.display_name || user.username).substring(0, 2).toUpperCase()}
+                                        <div class="online-indicator"></div>
+                                    </div>
+                                    <div class="user-display-name">${user.display_name || 'Smart TV User'}</div>
+                                    <div class="user-name">${user.username}</div>
+                                    <button class="call-btn" onclick="event.stopPropagation(); initiateCall('${user.username}')" data-focusable="true" tabindex="0">
+                                        📞 Call
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Offline Users Section
+            if (offlineUsers.length > 0) {
+                html += `
+                    <div class="user-section">
+                        <div class="section-header">
+                            <h3>🔴 Offline Users (${offlineUsers.length})</h3>
+                        </div>
+                        <div class="users-grid-section">
+                            ${offlineUsers.map(user => `
+                                <div class="user-card offline-user-card" data-focusable="true" tabindex="0">
+                                    <div class="user-card-avatar">
+                                        ${(user.display_name || user.username).substring(0, 2).toUpperCase()}
+                                        <div class="offline-indicator"></div>
+                                    </div>
+                                    <div class="user-display-name">${user.display_name || 'Smart TV User'}</div>
+                                    <div class="user-name">${user.username}</div>
+                                    <button class="call-btn offline-btn" disabled data-focusable="false">
+                                        📞 Offline
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            allUsersGrid.innerHTML = html;
             refreshTvRemote();
         }
 

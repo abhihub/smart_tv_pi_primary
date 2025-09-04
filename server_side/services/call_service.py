@@ -13,9 +13,10 @@ class CallService:
     def __init__(self):
         self.db = db_manager
     
-    def get_online_users(self, exclude_username: str = None, contacts_only: bool = False) -> List[Dict[str, Any]]:
-        """Get list of users who are currently online, optionally filtered by contact list"""
+    def get_online_users(self, exclude_username: str = None, contacts_only: bool = False, include_offline: bool = False) -> List[Dict[str, Any]]:
+        """Get list of users who are currently online, optionally filtered by contact list. If include_offline=True, shows all users with status"""
         try:
+            logger.info(f"=== GET_ONLINE_USERS CALLED === exclude: {exclude_username}, contacts_only: {contacts_only}, include_offline: {include_offline}")
             exclude_clause = ""
             contact_filter = ""
             params = []
@@ -39,6 +40,7 @@ class CallService:
             query = f"""
                 SELECT u.username, u.display_name, u.last_seen,
                        COALESCE(up.status, 'offline') as presence_status,
+                       COALESCE(up.updated_at, u.last_seen) as updated_at,
                        CASE WHEN uc_fav.is_favorite = 1 THEN 1 ELSE 0 END as is_favorite
                 FROM users u
                 LEFT JOIN user_presence up ON u.id = up.user_id
@@ -46,11 +48,11 @@ class CallService:
                     uc_fav.contact_user_id = u.id AND 
                     uc_fav.user_id = (SELECT id FROM users WHERE username = ?)
                 )
-                WHERE COALESCE(up.status, 'offline') = 'online' {exclude_clause} {contact_filter}
+                WHERE 1=1 {exclude_clause} {contact_filter}
                 ORDER BY 
                     CASE WHEN uc_fav.is_favorite = 1 THEN 1 ELSE 0 END DESC,  -- Favorites first
-                    up.updated_at DESC, 
-                    u.last_seen DESC
+                    CASE WHEN COALESCE(up.status, 'offline') = 'online' THEN 1 ELSE 0 END DESC,  -- Online users first (removed 10-second check)
+                    u.username ASC  -- Sort by username (ID)
             """
             
             # Add the username parameter for the favorite check
@@ -60,21 +62,40 @@ class CallService:
             final_params.extend(params)  # Add other parameters
             
             results = self.db.execute_query(query, tuple(final_params), fetch='all')
+            logger.info(f"Query returned {len(results) if results else 0} rows")
             
-            online_users = []
+            all_users = []
             for row in results or []:
-                online_users.append({
-                    'username': row['username'],
-                    'display_name': row['display_name'],
-                    'last_seen': row['last_seen'],
-                    'presence_status': row['presence_status'],
-                    'is_favorite': bool(row['is_favorite']) if row['is_favorite'] is not None else False
-                })
+                try:
+                    # Convert row to dict for safe access
+                    row_dict = dict(row)
+                    
+                    # Determine if user is actually online based on presence status and recency
+                    is_online = self._is_user_actually_online(row_dict['presence_status'], row_dict.get('updated_at'))
+                    
+                    logger.info(f"User {row_dict['username']}: presence_status={row_dict['presence_status']}, is_online={is_online}, updated_at={row_dict.get('updated_at', 'N/A')}")
+                    
+                    all_users.append({
+                        'username': row_dict['username'],
+                        'display_name': row_dict['display_name'],
+                        'last_seen': row_dict['last_seen'],
+                        'presence_status': row_dict['presence_status'],
+                        'is_online': is_online,
+                        'is_favorite': bool(row_dict['is_favorite']) if row_dict['is_favorite'] is not None else False
+                    })
+                except Exception as row_error:
+                    logger.error(f"Error processing row: {row_error}")
+                    continue
             
-            return online_users
+            logger.info(f"Returning {len(all_users)} users: {[u['username'] + '(' + ('ON' if u['is_online'] else 'OFF') + ')' for u in all_users]}")
+            return all_users
             
         except Exception as e:
             logger.error(f"Failed to get online users: {e}")
+            logger.error(f"Exception type: {type(e)}")
+            logger.error(f"Exception args: {e.args}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return []
     
     def initiate_call(self, caller_username: str, callee_username: str) -> Optional[Dict[str, Any]]:
@@ -328,6 +349,7 @@ class CallService:
     def update_presence(self, username: str, status: str = 'online', socket_id: str = None) -> bool:
         """Update user presence status"""
         try:
+            logger.info(f"=== UPDATE_PRESENCE === User: {username}, Status: {status}, Socket: {socket_id}")
             user = self.db.execute_query(
                 "SELECT id FROM users WHERE username = ?",
                 (username,),
@@ -372,3 +394,39 @@ class CallService:
         except Exception as e:
             logger.error(f"Failed to cleanup old calls: {e}")
             return 0
+    
+    def _is_user_actually_online(self, presence_status: str, updated_at: str) -> bool:
+        """Determine if a user is actually online based on presence status and timestamp freshness"""
+        try:
+            # If status is not online, definitely offline
+            if presence_status != 'online':
+                return False
+            
+            # If no timestamp available, assume offline
+            if not updated_at:
+                return False
+                
+            # Parse the timestamp
+            try:
+                if updated_at.endswith('Z'):
+                    # Handle UTC timezone
+                    updated_time = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+                else:
+                    updated_time = datetime.fromisoformat(updated_at)
+            except ValueError:
+                # If timestamp parsing fails, assume offline
+                logger.warning(f"Could not parse timestamp: {updated_at}")
+                return False
+            
+            # User is online if they updated presence within the last 2 minutes
+            # This gives some buffer over the background service's 1-minute threshold
+            time_diff = (datetime.now() - updated_time).total_seconds()
+            is_recent = time_diff <= 120  # 2 minutes
+            
+            logger.debug(f"Presence check: status={presence_status}, age={time_diff}s, is_recent={is_recent}")
+            return is_recent
+            
+        except Exception as e:
+            logger.error(f"Error determining online status: {e}")
+            # Default to offline if we can't determine status safely
+            return False

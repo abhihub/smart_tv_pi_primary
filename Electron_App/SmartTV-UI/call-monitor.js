@@ -4,7 +4,9 @@ class CallMonitor {
         this.isMonitoring = false;
         this.currentUser = null;
         this.checkInterval = null;
+        this.presenceInterval = null;
         this.notificationInterval = 1000; // Check every 1 seconds
+        this.presenceUpdateInterval = 90000; // Update presence every 90 seconds
     }
 
     // Get server URL from config - waits for config to be ready
@@ -75,6 +77,11 @@ class CallMonitor {
                 this.checkForPendingCalls();
             }, this.notificationInterval);
 
+            // Start presence heartbeat to stay online
+            this.presenceInterval = setInterval(() => {
+                this.updatePresence('online');
+            }, this.presenceUpdateInterval);
+
             // Do an immediate check
             this.checkForPendingCalls();
 
@@ -88,6 +95,10 @@ class CallMonitor {
         if (this.checkInterval) {
             clearInterval(this.checkInterval);
             this.checkInterval = null;
+        }
+        if (this.presenceInterval) {
+            clearInterval(this.presenceInterval);
+            this.presenceInterval = null;
         }
         this.isMonitoring = false;
         console.log('Stopped call monitoring');
@@ -237,9 +248,11 @@ class CallMonitor {
     async updatePresence(status = 'online') {
         if (!this.currentUser) return;
 
+        console.log(`[${new Date().toISOString()}] 🎯 CALL_MONITOR_PRESENCE: ${this.currentUser.username} -> ${status}`);
+
         try {
             const serverUrl = await this.getServerUrl();
-            await fetch(`${serverUrl}/api/calls/presence`, {
+            const response = await fetch(`${serverUrl}/api/calls/presence`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -249,8 +262,14 @@ class CallMonitor {
                     status: status
                 })
             });
+            
+            if (response.ok) {
+                console.log(`[${new Date().toISOString()}] ✅ PRESENCE_UPDATE_SUCCESS: ${this.currentUser.username} -> ${status}`);
+            } else {
+                console.error(`[${new Date().toISOString()}] ❌ PRESENCE_UPDATE_FAILED: ${this.currentUser.username} -> ${status}, HTTP ${response.status}`);
+            }
         } catch (error) {
-            console.debug('Failed to update presence:', error.message);
+            console.error(`[${new Date().toISOString()}] ❌ PRESENCE_UPDATE_ERROR: ${this.currentUser.username} -> ${status}, Error:`, error);
         }
     }
 
